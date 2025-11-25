@@ -642,3 +642,260 @@ button:active {
 .download-link-btn {
     margin-left: 5px; 
 }
+
+/* ======================================= */
+/* 8. Additional File View Styles */
+/* ======================================= */
+
+.file-view-container {
+    padding: 0 20px;
+}
+
+.header-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+}
+
+.alert {
+    padding: 12px;
+    border-radius: 6px;
+    margin: 15px 0;
+}
+
+.alert-danger {
+    background-color: #FEE2E2;
+    border: 1px solid #FECACA;
+    color: #B91C1C;
+}
+
+.preview-header {
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #E5E7EB;
+}
+
+.preview-header-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.file-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.preview-content {
+    max-width: 100%;
+    max-height: 100%;
+}
+
+.preview-placeholder {
+    text-align: center;
+    color: #6B7280;
+}
+
+.no-preview-title {
+    color: #374151;
+    margin-bottom: 10px;
+}
+
+.no-preview-message {
+    color: #6B7280;
+    line-height: 1.5;
+}
+
+/* ======================================= */
+/* 9. Modal Styles */
+/* ======================================= */
+
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.modal-content {
+    background: white;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 600px;
+    max-height: 90vh;
+    overflow: auto;
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px;
+    border-bottom: 1px solid #E5E7EB;
+}
+
+.close-button {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: #6B7280;
+}
+
+.modal-body {
+    padding: 20px;
+}
+
+.staged-file-list {
+    list-style: none;
+    padding: 0;
+    margin: 15px 0;
+}
+
+.staged-file-list li {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid #F3F4F6;
+}
+
+.upload-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+/* ======================================= */
+/* 10. Confirmation Modal Styles */
+/* ======================================= */
+
+.confirm-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.4);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 10000;
+}
+
+.confirm-modal {
+    background: white;
+    padding: 30px;
+    border-radius: 12px;
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+    width: 90%;
+    max-width: 400px;
+    text-align: center;
+}
+
+.confirm-modal h4 {
+    font-size: 1.25rem;
+    color: var(--danger-color);
+    margin-bottom: 15px;
+}
+
+.confirm-modal p {
+    margin-bottom: 25px;
+    color: #4B5563;
+}
+
+.confirm-modal-actions {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+}
+
+/* ======================================= */
+/* 11. Utility Classes */
+/* ======================================= */
+
+.no-jobs-message, .no-files-message {
+    font-style: italic;
+    color: var(--secondary-color);
+    padding: 20px;
+    text-align: center;
+    background-color: #F3F4F6;
+    border-radius: 8px;
+}
+
+.error-detail {
+    color: #B91C1C;
+    margin: 10px 0;
+}
+
+/* ======================================= */
+/* 12. Responsive Design */
+/* ======================================= */
+
+@media (max-width: 768px) {
+    .sidebar {
+        position: relative;
+        height: auto;
+    }
+    
+    .content-area {
+        margin-left: 0;
+        padding: 15px;
+    }
+    
+    .file-view-layout {
+        flex-direction: column;
+    }
+    
+    .preview-panel,
+    .file-list-panel {
+        flex-basis: 100%;
+    }
+    
+    .file-list-panel {
+        border-left: none;
+        border-top: 1px solid #ddd;
+        max-height: 300px;
+    }
+    
+    .job-list {
+        grid-template-columns: 1fr;
+    }
+    
+    .status-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .notification-panel {
+        width: 250px;
+        left: 5px;
+    }
+}
+
+@media (max-width: 480px) {
+    .page-header {
+        flex-direction: column;
+        gap: 10px;
+        align-items: flex-start;
+    }
+    
+    .card-actions {
+        flex-direction: column;
+    }
+    
+    .modal-content {
+        width: 95%;
+        margin: 10px;
+    }
+    
+    .upload-actions {
+        flex-direction: column;
+    }
+}

@@ -1,158 +1,190 @@
-// src/apiService.js
-
-// IMPORTANT: Ensure this base URL matches your Express server's address
-const API_BASE_URL = 'http://localhost:5000/api/projects'; 
+// apiService.js
+const BASE_URL = 'http://localhost:5000/api';
 
 // Helper to handle standard API responses
 const handleResponse = async (response) => {
     if (!response.ok) {
-        // Attempt to parse JSON error message from the backend
         const errorBody = await response.json().catch(() => ({}));
         const errorMessage = errorBody.error || response.statusText;
         throw new Error(`API Request Failed (${response.status}): ${errorMessage}`);
     }
-    // Handle 204 No Content (DELETE) case gracefully
     if (response.status === 204) {
         return null;
     }
     return response.json();
 };
 
-// =========================================================
-// CRUD Operations
-// =========================================================
-
-/**
- * Fetches all projects from the database.
- * Corresponds to: GET /api/projects
- */
-export async function getAllProjects() {
-    const response = await fetch(API_BASE_URL);
-    return handleResponse(response);
-}
-
-/**
- * Creates a new project in the database.
- * Corresponds to: POST /api/projects
- */
-export async function createProject(newProjectData) {
-    const response = await fetch(API_BASE_URL, {
-        method: 'POST',
+// Generic API request function
+const apiRequest = async (endpoint, options = {}) => {
+    const url = `${BASE_URL}${endpoint}`;
+    const config = {
         headers: {
             'Content-Type': 'application/json',
+            ...options.headers,
         },
-        body: JSON.stringify(newProjectData),
-    });
-    console.log(response);
+        ...options,
+    };
+
+    const response = await fetch(url, config);
     return handleResponse(response);
-}
-
-/**
- * Updates an existing project by ID.
- * Corresponds to: PUT /api/projects/:id
- */
-export async function updateProject(projectId, projectData) {
-    const response = await fetch(`${API_BASE_URL}/${projectId}`, {
-        method: 'PUT',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(projectData),
-    });
-    console.log(response);
-    return handleResponse(response);
-}
-
-/**
- * Deletes a project by ID (which triggers file cleanup on the backend).
- * Corresponds to: DELETE /api/projects/:id
- */
-export async function deleteProject(projectId) {
-    const response = await fetch(`${API_BASE_URL}/${projectId}`, {
-        method: 'DELETE',
-    });
-    // This expects a 204 No Content response
-    return handleResponse(response); 
-}
-
-// =========================================================
-// File Upload Operations
-// =========================================================
-
-/**
- * Uploads multiple files for a given project number using FormData.
- * Corresponds to: POST /api/projects/upload
- * @param {FormData} formData - Must contain 'files' (array of File objects) and 'projectNo'.
- */
-
-export const uploadProjectFiles = async (projectNo, filesToUpload) => {
-    
-    // 1. Create the FormData object
-    const formData = new FormData();
-
-    // 2. ⬅️ FIX: Append the projectNo as a plain text field
-    // This will appear in req.body on the backend
-    formData.append('projectNo', projectNo); 
-
-    // 3. Append all files using the name Multer expects ('files' in this example)
-    filesToUpload.forEach(file => {
-        // We use 'files' here, which must match the field name in upload.array('files', ...) on the server
-        formData.append('files', file); 
-    });
-
-    const response = await fetch(`${API_BASE_URL}/upload`, {
-        method: 'POST',
-        body: formData, // Automatically sets Content-Type: multipart/form-data
-        // IMPORTANT: Do NOT manually set the 'Content-Type' header here.
-        // If you do, the boundary will be missing, and the server will fail to parse the body.
-    });
-
-    if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Upload failed: ${errorText || response.statusText}`);
-    }
-
-    // Return the server response (e.g., list of newly created files or a success message)
-    return response.json(); 
 };
 
-
 // =========================================================
-// 🗑️ NEW: File Deletion Route (Used for single file management)
+// PROJECTS API
 // =========================================================
 
-/**
- * Deletes a single project file by its database ID.
- * Corresponds to: DELETE /api/projects/file/:id
- * @param {number} fileId - The ID of the file record in the project_files table.
- */
-export async function deleteProjectFile(fileId) {
-    const response = await fetch(`${API_BASE_URL}/file/${fileId}`, {
+export const projectsAPI = {
+    // CRUD Operations
+    getAll: () => apiRequest('/projects'),
+    create: (projectData) => apiRequest('/projects', {
+        method: 'POST',
+        body: JSON.stringify(projectData),
+    }),
+    update: (projectId, projectData) => apiRequest(`/projects/${projectId}`, {
+        method: 'PUT',
+        body: JSON.stringify(projectData),
+    }),
+    delete: (projectId) => apiRequest(`/projects/${projectId}`, {
         method: 'DELETE',
-    });
-    // This expects a 200 OK or 204 No Content response
-    return handleResponse(response); 
-}
+    }),
 
-export async function getProjectFilesMetadata(projectNo) {
-    const response = await fetch(`${API_BASE_URL}/files/${projectNo}`);
-    return handleResponse(response);
-}
+    // File Operations
+    uploadFiles: async (projectNo, filesToUpload) => {
+        const formData = new FormData();
+        formData.append('projectNo', projectNo);
+        filesToUpload.forEach(file => formData.append('files', file));
 
-export async function downloadFileBlob(fileId) 
-{
-    const response = await fetch(`${API_BASE_URL}/file/blob/${fileId}`);
-    
-    if (!response.ok) {
-        let errorMsg = `HTTP error! status: ${response.status}`;
-        try {
-            const errorData = await response.json();
-            errorMsg = errorData.error || errorMsg;
-        } catch (e) {
+        const response = await fetch(`${BASE_URL}/projects/upload`, {
+            method: 'POST',
+            body: formData,
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`Upload failed: ${errorText || response.statusText}`);
         }
-        throw new Error(errorMsg);
-    }
 
-    return response; 
-}
+        return response.json();
+    },
 
+    deleteFile: (fileId) => apiRequest(`/projects/file/${fileId}`, {
+        method: 'DELETE',
+    }),
+
+    getFilesMetadata: (projectNo) => apiRequest(`/projects/files/${projectNo}`),
+
+    downloadFileBlob: async (fileId) => {
+        const response = await fetch(`${BASE_URL}/projects/file/blob/${fileId}`);
+        
+        if (!response.ok) {
+            let errorMsg = `HTTP error! status: ${response.status}`;
+            try {
+                const errorData = await response.json();
+                errorMsg = errorData.error || errorMsg;
+            } catch (e) {
+                // Ignore JSON parse error for non-JSON responses
+            }
+            throw new Error(errorMsg);
+        }
+        return response;
+    },
+};
+
+// =========================================================
+// PANEL TASKS API
+// =========================================================
+
+export const panelTasksAPI = {
+    getAll: () => apiRequest('/panel-tasks'),
+    create: (taskData) => apiRequest('/panel-tasks', { 
+        method: 'POST',
+        body: JSON.stringify(taskData),
+    }),
+    update: (taskId, taskData) => apiRequest(`/panel-tasks/${taskId}`, {
+        method: 'PATCH',
+        body: JSON.stringify(taskData),
+    }),
+    delete: (taskId) => apiRequest(`/panel-tasks/${taskId}`, {
+        method: 'DELETE',
+    }),
+};
+
+// --- Door Tasks API ---
+export const doorTasksAPI = {
+    getAll: () => apiRequest('/door-tasks'), // 🚨 Path changed
+    create: (taskData) => apiRequest('/door-tasks', { 
+        method: 'POST',
+        body: JSON.stringify(taskData),
+    }),
+    update: (taskId, taskData) => apiRequest(`/door-tasks/${taskId}`, { // 🚨 Path changed
+        method: 'PATCH',
+        body: JSON.stringify(taskData),
+    }),
+    delete: (taskId) => apiRequest(`/door-tasks/${taskId}`, { // 🚨 Path changed
+        method: 'DELETE',
+    }),
+};
+
+// --- Accessories Tasks API ---
+export const accessoriesTasksAPI = {
+    getAll: () => apiRequest('/accessories-tasks'), // 🚨 Path changed
+    create: (taskData) => apiRequest('/accessories-tasks', { 
+        method: 'POST',
+        body: JSON.stringify(taskData),
+    }),
+    update: (taskId, taskData) => apiRequest(`/accessories-tasks/${taskId}`, { // 🚨 Path changed
+        method: 'PATCH',
+        body: JSON.stringify(taskData),
+    }),
+    delete: (taskId) => apiRequest(`/accessories-tasks/${taskId}`, { // 🚨 Path changed
+        method: 'DELETE',
+    }),
+};
+
+// --- Cutting Tasks API ---
+export const cuttingTasksAPI = {
+    getAll: () => apiRequest('/cutting-tasks'), // 🚨 Path changed
+    create: (taskData) => apiRequest('/cutting-tasks', { 
+        method: 'POST',
+        body: JSON.stringify(taskData),
+    }),
+    update: (taskId, taskData) => apiRequest(`/cutting-tasks/${taskId}`, { // 🚨 Path changed
+        method: 'PATCH',
+        body: JSON.stringify(taskData),
+    }),
+    delete: (taskId) => apiRequest(`/cutting-tasks/${taskId}`, { // 🚨 Path changed
+        method: 'DELETE',
+    }),
+};
+
+// =========================================================
+// LEGACY NAMED EXPORTS (for backward compatibility)
+// =========================================================
+
+// Projects
+export const getAllProjects = projectsAPI.getAll;
+export const createProject = projectsAPI.create;
+export const updateProject = projectsAPI.update;
+export const deleteProject = projectsAPI.delete;
+export const uploadProjectFiles = projectsAPI.uploadFiles;
+export const deleteProjectFile = projectsAPI.deleteFile;
+export const getProjectFilesMetadata = projectsAPI.getFilesMetadata;
+export const downloadFileBlob = projectsAPI.downloadFileBlob;
+
+// Panel Tasks
+export const getAllPanelTasks = panelTasksAPI.getAll;
+export const createPanelTask = panelTasksAPI.create;
+export const updatePanelTask = panelTasksAPI.update;
+export const deletePanelTask = panelTasksAPI.delete;
+
+// --- Cutting Tasks (NEW) ---
+export const getAllCuttingTasks = cuttingTasksAPI.getAll;
+export const createCuttingTask = cuttingTasksAPI.create;
+export const updateCuttingTask = cuttingTasksAPI.update;
+export const deleteCuttingTask = cuttingTasksAPI.delete;
+
+// --- Accessories Tasks (NEW) ---
+export const getAllAccessoriesTasks = accessoriesTasksAPI.getAll;
+export const createAccessoriesTask = accessoriesTasksAPI.create;
+export const updateAccessoriesTask = accessoriesTasksAPI.update;
+export const deleteAccessoriesTask = accessoriesTasksAPI.delete;

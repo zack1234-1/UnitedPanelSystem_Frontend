@@ -1,4 +1,9 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import PanelSlab from './panelSlab';
+import Cutting from './Cutting';
+import Door from './Door';
+import Accessories from './Accessories';
+import './App.css';
 
 // =========================================================
 // 1. REAL API Service Implementation (connecting to Express backend)
@@ -94,6 +99,11 @@ const real_deleteProjectFile = async (fileId) => {
   return await apiCall(`/projects/file/${fileId}`, {
     method: 'DELETE',
   });
+};
+
+// NEW: Get completion counts for a project
+const real_getProjectCompletion = async (projectNo) => {
+  return await apiCall(`/projects/completion/${projectNo}`);
 };
 
 // =========================================================
@@ -346,7 +356,7 @@ const FileView = ({ projectNo, navigateHome }) => {
                                         onClick={handleUpload}
                                         disabled={isUploading || filesToUpload.length === 0}
                                     >
-                                        {isUploading ? 'Uploading... 📤' : `Upload ${filesToUpload.length} File(s)`}
+                                        {isUploading ? 'Uploading... 📤' : `Upload ${filesToUpload.length} File(S)`}
                                     </button>
                                     <button 
                                         className="secondary" 
@@ -523,7 +533,30 @@ const useSimpleRouter = () => {
 };
 
 // =========================================================
-// 5. Main App Component
+// 5. Progress Component for Task Count Display
+// =========================================================
+
+const TaskCountDisplay = ({ completed, total }) => {
+    const getProgressClass = () => {
+        if (total === 0) return 'progress-not-started';
+        if (completed < total) return 'progress-in-progress';
+        return 'progress-completed';
+    };
+
+    const getDisplayText = () => {
+        if (total === 0) return 'No Tasks';
+        return `${completed}/${total}`;
+    };
+
+    return (
+        <div className={`task-count-display ${getProgressClass()}`}>
+            <span className="task-count-text">{getDisplayText()}</span>
+        </div>
+    );
+};
+
+// =========================================================
+// 6. Main App Component
 // =========================================================
 
 function App() {
@@ -552,14 +585,48 @@ function App() {
     const fileInputRef = useRef(null); 
 
     // =========================================================
-    // API Data Fetching Logic (Initial Load)
+    // API Data Fetching Logic (Initial Load) - FIXED VERSION
     // =========================================================
     const fetchProjects = useCallback(async () => {
         setIsLoading(true);
         setError(null);
         try {
             const data = await real_getAllProjects(); 
-            setProjects(data);
+            
+            // Fetch completion counts for all projects at once to avoid infinite loop
+            const projectsWithCompletion = await Promise.all(
+                data.map(async (project) => {
+                    try {
+                        const completion = await real_getProjectCompletion(project.projectNo);
+                        return {
+                            ...project,
+                            completion: completion || {
+                                panelSlab: { completed: 0, total: 0 },
+                                cutting: { completed: 0, total: 0 },
+                                door: { completed: 0, total: 0 },
+                                stripCurtain: { completed: 0, total: 0 },
+                                accessories: { completed: 0, total: 0 },
+                                system: { completed: 0, total: 0 }
+                            }
+                        };
+                    } catch (err) {
+                        console.error(`Failed to fetch completion for project ${project.projectNo}:`, err);
+                        return {
+                            ...project,
+                            completion: {
+                                panelSlab: { completed: 0, total: 0 },
+                                cutting: { completed: 0, total: 0 },
+                                door: { completed: 0, total: 0 },
+                                stripCurtain: { completed: 0, total: 0 },
+                                accessories: { completed: 0, total: 0 },
+                                system: { completed: 0, total: 0 }
+                            }
+                        };
+                    }
+                })
+            );
+            
+            setProjects(projectsWithCompletion);
         } catch (err) {
             console.error("Failed to fetch projects:", err);
             setError(`Failed to load projects: ${err.message}. Check your backend server.`);
@@ -754,38 +821,25 @@ function App() {
         setEditingProject({ ...editingProject, [name]: value });
     };
 
-    const handleStatusChange = async (id, column, value) => {
-        const projectToUpdate = projects.find(p => p.id === id);
-        if (!projectToUpdate) return;
-        
-        const originalStatus = projectToUpdate[column];
-        const newProjectState = { ...projectToUpdate, [column]: value };
-
-        setProjects(projects.map(p => 
-            p.id === id ? newProjectState : p
-        ));
-        
-        try {
-            await real_updateProject(id, newProjectState);
-
-            if (value) {
-                addNotification(`📢 Status of **${column.replace(/([A-Z])/g, ' $1').toLowerCase()}** for job **${projectToUpdate.projectNo}** changed to **${value}**.`); 
-            }
-
-        } catch (err) {
-            setProjects(projects.map(p => 
-                p.id === id ? { ...p, [column]: originalStatus } : p
-            ));
-            setError(`Error updating status for ${projectToUpdate.projectNo}: ${err.message}`); 
-            addNotification(`❌ **Error:** Failed to change status. Reverting.`);
-        }
-    };
-
-    const statusColumns = ['panelSlab', 'cutting', 'door', 'stripCurtain', 'accessories', 'system'];
-    const statusOptions = ['', 'Done', 'Pending'];
+    const progressColumns = [
+        { key: 'panelSlab', label: 'Panel / Slab' },
+        { key: 'cutting', label: 'Cutting' },
+        { key: 'door', label: 'Door' },
+        { key: 'stripCurtain', label: 'Strip Curtain' },
+        { key: 'accessories', label: 'Accessories' },
+        { key: 'system', label: 'System' }
+    ];
 
     const renderProjectCard = (project) => {
         const isEditing = editingProject && editingProject.id === project.id;
+        const completion = project.completion || {
+            panelSlab: { completed: 0, total: 0 },
+            cutting: { completed: 0, total: 0 },
+            door: { completed: 0, total: 0 },
+            stripCurtain: { completed: 0, total: 0 },
+            accessories: { completed: 0, total: 0 },
+            system: { completed: 0, total: 0 }
+        };
 
         if (isEditing) {
             return (
@@ -822,18 +876,13 @@ function App() {
                 </div>
 
                 <div className="status-grid" onClick={e => e.stopPropagation()}> 
-                    {statusColumns.map(column => (
-                        <div key={column} className="status-field">
-                            <label>{column.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}</label>
-                            <select 
-                                value={project[column] || ''} 
-                                onChange={e => handleStatusChange(project.id, column, e.target.value)}
-                                className={project[column] ? project[column].toLowerCase() : ''}
-                            >
-                                {statusOptions.map(option => (
-                                    <option key={option} value={option}>{option || 'Select Status'}</option>
-                                ))}
-                            </select>
+                    {progressColumns.map(({ key, label }) => (
+                        <div key={key} className="status-field">
+                            <label>{label}</label>
+                            <TaskCountDisplay 
+                                completed={completion[key]?.completed || 0} 
+                                total={completion[key]?.total || 0} 
+                            />
                         </div>
                     ))}
                 </div>
@@ -849,22 +898,6 @@ function App() {
             </div>
         );
     };
-
-    // Render placeholder pages for other routes
-    const renderPlaceholderPage = (title, description) => (
-        <div className="content-area">
-            <header className="page-header">
-                <button onClick={() => navigate('/')} className="back-btn">
-                    &larr; Back to Job List
-                </button>
-                <h1>{title}</h1>
-            </header>
-            <div style={{ textAlign: 'center', padding: '50px' }}>
-                <h2>{description}</h2>
-                <p>This section is under development.</p>
-            </div>
-        </div>
-    );
 
     // --- Loading and Error View ---
     if (isLoading && currentRoute === 'JobList') {
@@ -884,738 +917,6 @@ function App() {
     // --- Main Renderer ---
     return (
         <div className="App sidebar-layout">
-            {/* Embedded CSS Styles */}
-            <style>
-                {`
-                :root {
-                    --sidebar-width: 250px;
-                    --sidebar-width-closed: 70px;
-                    --primary-color: #10B981;
-                    --secondary-color: #6B7280;
-                    --danger-color: #EF4444;
-                    --bg-color: #F9FAFB;
-                    --card-bg: #FFFFFF;
-                }
-
-                .App {
-                    font-family: 'Inter', sans-serif;
-                    display: flex;
-                    min-height: 100vh;
-                    background-color: var(--bg-color);
-                }
-
-                /* --- Sidebar Styles --- */
-                .sidebar {
-                    width: var(--sidebar-width);
-                    background-color: #1F2937;
-                    color: white;
-                    transition: width 0.3s ease;
-                    flex-shrink: 0;
-                    display: flex;
-                    flex-direction: column;
-                    box-shadow: 2px 0 5px rgba(0,0,0,0.1);
-                }
-                .sidebar.closed {
-                    width: var(--sidebar-width-closed);
-                }
-
-                .sidebar-header {
-                    padding: 20px;
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                    border-bottom: 1px solid #374151;
-                    min-height: 70px;
-                }
-                .app-logo {
-                    font-size: 1.2rem;
-                    font-weight: bold;
-                    white-space: nowrap;
-                    overflow: hidden;
-                    transition: opacity 0.3s ease;
-                }
-                .app-logo.collapsed-text {
-                    opacity: 0;
-                    width: 0;
-                }
-                .sidebar-toggle-btn {
-                    background: none;
-                    border: 1px solid #4B5563;
-                    color: white;
-                    border-radius: 4px;
-                    padding: 5px 8px;
-                    cursor: pointer;
-                    transition: background 0.2s;
-                }
-                .sidebar-toggle-btn:hover {
-                    background-color: #374151;
-                }
-
-                .sidebar-nav {
-                    flex-grow: 1;
-                    padding: 10px 0;
-                }
-                .nav-item {
-                    display: flex;
-                    align-items: center;
-                    padding: 12px 20px;
-                    cursor: pointer;
-                    text-decoration: none;
-                    color: #D1D5DB;
-                    transition: background-color 0.2s, color 0.2s;
-                }
-                .nav-item:hover, .primary-nav.active {
-                    background-color: #374151;
-                    color: white;
-                }
-                .nav-item span {
-                    margin-right: 15px;
-                    font-size: 1.2rem;
-                }
-                .sidebar.closed .nav-item span:last-child {
-                    display: none;
-                }
-
-                .sidebar-footer {
-                    padding: 10px 0;
-                    border-top: 1px solid #374151;
-                }
-
-                /* --- Notification Panel --- */
-                .notification-icon {
-                    position: relative;
-                }
-                .notification-badge {
-                    background-color: var(--danger-color);
-                    color: white;
-                    border-radius: 9999px;
-                    padding: 1px 7px;
-                    font-size: 0.75rem;
-                    position: absolute;
-                    top: 5px;
-                    right: 15px;
-                    font-weight: bold;
-                }
-                .sidebar.closed .notification-badge {
-                    top: 10px;
-                    right: 10px;
-                }
-
-                .notification-panel {
-                    position: absolute;
-                    bottom: 70px; 
-                    left: var(--sidebar-width);
-                    width: 300px;
-                    background-color: var(--card-bg);
-                    border-radius: 8px;
-                    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-                    z-index: 50;
-                    transform: translateX(-10px);
-                }
-                .sidebar.closed .notification-panel {
-                    left: var(--sidebar-width-closed);
-                }
-                .notification-panel h4 {
-                    font-size: 1rem;
-                    font-weight: bold;
-                    margin: 0;
-                    color: #1F2937;
-                }
-                .panel-header {
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                    padding: 10px 15px;
-                    border-bottom: 1px solid #E5E7EB;
-                }
-                .clear-all-btn {
-                    font-size: 0.8rem;
-                }
-                .no-notifications {
-                    padding: 15px;
-                    font-style: italic;
-                    color: var(--secondary-color);
-                    font-size: 0.9rem;
-                }
-
-                /* --- Notification Item --- */
-                .notification-item {
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: flex-start;
-                    padding: 10px 15px;
-                    border-bottom: 1px solid #F3F4F6;
-                    font-size: 0.9rem;
-                    color: #1F2937;
-                }
-                .notification-item:last-child {
-                    border-bottom: none;
-                }
-                .notification-item .close-btn {
-                    background: none;
-                    border: none;
-                    color: var(--secondary-color);
-                    cursor: pointer;
-                    font-size: 1rem;
-                    margin-left: 10px;
-                    flex-shrink: 0;
-                    transition: color 0.2s;
-                }
-                .notification-item .close-btn:hover {
-                    color: var(--danger-color);
-                }
-                .notification-item strong {
-                    font-weight: 600;
-                    color: #1F2937;
-                }
-                .notification-item .message {
-                    padding-right: 10px;
-                    color: #1F2937;
-                }
-
-                /* --- Content Area --- */
-                .content-area {
-                    flex-grow: 1;
-                    padding: 30px;
-                    transition: margin-left 0.3s ease;
-                }
-                .page-header {
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                    margin-bottom: 30px;
-                    padding-bottom: 10px;
-                    border-bottom: 1px solid #E5E7EB;
-                }
-                .page-header h1 {
-                    font-size: 2rem;
-                    font-weight: 700;
-                    color: #1F2937;
-                    margin: 0;
-                }
-                
-                /* --- Buttons --- */
-                button, .link-btn {
-                    cursor: pointer;
-                    border: none;
-                    padding: 8px 16px;
-                    border-radius: 6px;
-                    font-weight: 600;
-                    transition: all 0.2s;
-                    font-size: 0.9rem;
-                }
-                .primary {
-                    background-color: var(--primary-color);
-                    color: white;
-                    box-shadow: 0 4px 6px rgba(16, 185, 129, 0.2);
-                }
-                .primary:hover {
-                    background-color: #059669;
-                    box-shadow: 0 6px 8px rgba(16, 185, 129, 0.3);
-                }
-                .secondary {
-                    background-color: #E5E7EB;
-                    color: var(--secondary-color);
-                }
-                .secondary:hover {
-                    background-color: #D1D5DB;
-                }
-                .danger {
-                    background-color: var(--danger-color);
-                    color: white;
-                }
-                .danger:hover {
-                    background-color: #B91C1C;
-                }
-                .link-btn {
-                    background: none;
-                    padding: 0;
-                    color: var(--primary-color);
-                }
-                .link-btn:hover {
-                    color: #059669;
-                }
-
-                /* --- Job List and Cards --- */
-                .job-list-header {
-                    margin-bottom: 15px;
-                    border-left: 5px solid var(--primary-color);
-                    padding-left: 10px;
-                }
-                .job-list {
-                    display: grid;
-                    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-                    gap: 25px;
-                }
-                .job-card {
-                    background: var(--card-bg);
-                    padding: 20px;
-                    border-radius: 12px;
-                    box-shadow: 0 4px 8px rgba(0,0,0,0.05);
-                    border: 1px solid #E5E7EB;
-                    display: flex;
-                    flex-direction: column;
-                    transition: box-shadow 0.2s, transform 0.2s;
-                }
-                .job-card.clickable:hover {
-                    box-shadow: 0 6px 15px rgba(16, 185, 129, 0.1);
-                    transform: translateY(-2px);
-                    cursor: pointer;
-                    border-color: var(--primary-color);
-                }
-                .job-header {
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                    margin-bottom: 15px;
-                    padding-bottom: 10px;
-                    border-bottom: 1px dashed #F3F4F6;
-                }
-                .card-title {
-                    font-size: 1.2rem;
-                    font-weight: 700;
-                    margin: 0;
-                    color: #1F2937;
-                }
-                .job-no-tag {
-                    background-color: var(--primary-color);
-                    color: white;
-                    padding: 4px 8px;
-                    border-radius: 4px;
-                    font-size: 0.8rem;
-                    font-weight: 700;
-                }
-
-                /* Job Details */
-                .job-details-group p {
-                    display: flex;
-                    justify-content: space-between;
-                    margin: 8px 0;
-                    font-size: 0.95rem;
-                }
-                .job-details-group strong {
-                    color: #4B5563;
-                }
-                .status-ok {
-                    color: var(--primary-color);
-                    font-weight: 600;
-                }
-                .status-pending {
-                    color: var(--danger-color);
-                    font-weight: 600;
-                }
-
-                /* Status Grid */
-                .status-grid {
-                    display: grid;
-                    grid-template-columns: repeat(2, 1fr);
-                    gap: 10px;
-                    margin: 15px 0;
-                    padding: 15px 0;
-                    border-top: 1px solid #F3F4F6;
-                    border-bottom: 1px solid #F3F4F6;
-                }
-                .status-field label {
-                    display: block;
-                    font-size: 0.8rem;
-                    font-weight: 500;
-                    color: #6B7280;
-                    margin-bottom: 4px;
-                }
-                .status-field select {
-                    width: 100%;
-                    padding: 8px;
-                    border-radius: 4px;
-                    border: 1px solid #D1D5DB;
-                    background-color: #F9FAFB;
-                    font-size: 0.9rem;
-                }
-                .status-field select.done {
-                    background-color: #D1FAE5;
-                    border-color: #34D399;
-                }
-                .status-field select.pending {
-                    background-color: #FEE2E2;
-                    border-color: #F87171;
-                }
-
-                /* Remarks */
-                .job-remarks {
-                    font-size: 0.85rem;
-                    color: #4B5563;
-                    margin-top: 10px;
-                    padding: 10px;
-                    border-left: 3px solid #E5E7EB;
-                    background-color: #F9FAFB;
-                    border-radius: 4px;
-                }
-                .job-remarks strong {
-                    margin-right: 5px;
-                }
-                .card-actions {
-                    display: flex;
-                    gap: 10px;
-                    margin-top: 20px;
-                    justify-content: flex-end;
-                }
-                .card-actions button {
-                    padding: 6px 12px;
-                }
-
-                /* --- Form Styles --- */
-                .job-form-container {
-                    background: var(--card-bg);
-                    padding: 30px;
-                    border-radius: 12px;
-                    box-shadow: 0 4px 10px rgba(0,0,0,0.08);
-                    margin-bottom: 30px;
-                }
-                .job-form-container h2 {
-                    margin-top: 0;
-                    margin-bottom: 20px;
-                    color: #1F2937;
-                    font-size: 1.5rem;
-                }
-                .job-form {
-                    display: grid;
-                    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-                    gap: 15px;
-                }
-                .job-form input {
-                    padding: 10px;
-                    border: 1px solid #D1D5DB;
-                    border-radius: 6px;
-                    font-size: 0.95rem;
-                }
-                .job-form .primary, .job-form .secondary {
-                    grid-column: span 1;
-                }
-                @media (min-width: 768px) {
-                    .job-form .primary {
-                        grid-column: span 2;
-                    }
-                }
-                .job-form .secondary {
-                    grid-column: span 1;
-                }
-
-                /* Drag and Drop Area */
-                .drag-drop-area {
-                    grid-column: 1 / -1;
-                    border: 2px dashed #D1D5DB;
-                    border-radius: 8px;
-                    padding: 20px;
-                    text-align: center;
-                    cursor: pointer;
-                    transition: all 0.2s;
-                    background-color: #F9FAFB;
-                }
-                .drag-drop-area.drag-active {
-                    border-color: var(--primary-color);
-                    background-color: #D1FAE5;
-                }
-                .drag-text {
-                    color: #6B7280;
-                    font-weight: 500;
-                }
-                .drag-drop-area.drag-active .drag-text {
-                    color: #065F46;
-                }
-                
-                .file-list-preview {
-                    margin-top: 10px;
-                    text-align: left;
-                    padding: 10px;
-                    border-top: 1px solid #E5E7EB;
-                }
-                .file-list-preview p {
-                    font-size: 0.9rem;
-                    margin: 5px 0;
-                }
-                .file-list-preview ul {
-                    list-style: none;
-                    padding: 0;
-                    margin: 0;
-                }
-                .file-list-preview li {
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                    padding: 5px 0;
-                    font-size: 0.85rem;
-                    color: #4B5563;
-                    border-bottom: 1px dotted #E5E7EB;
-                }
-                .file-list-preview li:last-child {
-                    border-bottom: none;
-                }
-                .remove-file {
-                    color: var(--danger-color);
-                    font-weight: bold;
-                    cursor: pointer;
-                    margin-left: 10px;
-                }
-
-                /* --- File View Styles --- */
-                .file-view-container {
-                    padding: 0 20px;
-                }
-                .file-view-container h1 {
-                    font-size: 1.8rem;
-                }
-                .back-btn {
-                    background: none;
-                    color: var(--secondary-color);
-                    padding: 0;
-                    margin-bottom: 10px;
-                    display: flex;
-                    align-items: center;
-                    font-size: 1rem;
-                }
-                .back-btn:hover {
-                    color: #1F2937;
-                }
-                .file-list-view {
-                    background: var(--card-bg);
-                    border-radius: 8px;
-                    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-                    padding: 15px;
-                }
-                .file-entry {
-                    display: flex;
-                    align-items: center;
-                    justify-content: space-between;
-                    padding: 12px 0;
-                    border-bottom: 1px solid #F3F4F6;
-                }
-                .file-entry:last-child {
-                    border-bottom: none;
-                }
-                .file-icon {
-                    font-size: 1.5rem;
-                    margin-right: 15px;
-                }
-                .file-info {
-                    flex-grow: 1;
-                }
-                .file-name {
-                    display: block;
-                    font-weight: 600;
-                    color: #1F2937;
-                }
-                .file-meta {
-                    font-size: 0.8rem;
-                    color: #6B7280;
-                }
-                .download-btn {
-                    background-color: #3B82F6;
-                    color: white;
-                    padding: 6px 12px;
-                }
-                .download-btn:hover {
-                    background-color: #2563EB;
-                }
-                .no-jobs-message, .no-files-message {
-                    font-style: italic;
-                    color: var(--secondary-color);
-                    padding: 20px;
-                    text-align: center;
-                    background-color: #F3F4F6;
-                    border-radius: 8px;
-                }
-
-                /* Enhanced File View Styles */
-                .header-controls {
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                    width: 100%;
-                }
-                .alert {
-                    padding: 12px;
-                    border-radius: 6px;
-                    margin: 15px 0;
-                }
-                .alert-danger {
-                    background-color: #FEE2E2;
-                    border: 1px solid #FECACA;
-                    color: #B91C1C;
-                }
-                .file-view-layout {
-                    display: grid;
-                    grid-template-columns: 1fr 1fr;
-                    gap: 30px;
-                    margin-top: 20px;
-                }
-                .preview-panel {
-                    background: var(--card-bg);
-                    border-radius: 8px;
-                    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-                    padding: 20px;
-                    display: flex;
-                    flex-direction: column;
-                }
-                .preview-header {
-                    margin-bottom: 15px;
-                    padding-bottom: 10px;
-                    border-bottom: 1px solid #E5E7EB;
-                }
-                .preview-header-content {
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                }
-                .preview-area {
-                    flex-grow: 1;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    min-height: 400px;
-                    background-color: #F9FAFB;
-                    border-radius: 6px;
-                    padding: 20px;
-                }
-                .preview-content {
-                    max-width: 100%;
-                    max-height: 100%;
-                }
-                .preview-image {
-                    border-radius: 4px;
-                }
-                .preview-iframe {
-                    width: 100%;
-                    height: 600px;
-                    border: none;
-                    border-radius: 4px;
-                }
-                .preview-placeholder {
-                    text-align: center;
-                    color: #6B7280;
-                }
-                .no-preview-title {
-                    color: #374151;
-                    margin-bottom: 10px;
-                }
-                .file-list-panel {
-                    background: var(--card-bg);
-                    border-radius: 8px;
-                    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-                    padding: 20px;
-                }
-                .file-item {
-                    display: flex;
-                    align-items: center;
-                    justify-content: space-between;
-                    padding: 12px;
-                    border-bottom: 1px solid #F3F4F6;
-                    cursor: pointer;
-                    transition: background-color 0.2s;
-                }
-                .file-item:hover {
-                    background-color: #F9FAFB;
-                }
-                .file-item.selected {
-                    background-color: #E0F2FE;
-                    border-left: 3px solid #3B82F6;
-                }
-                .file-actions {
-                    display: flex;
-                    gap: 8px;
-                }
-                .modal-overlay {
-                    position: fixed;
-                    top: 0;
-                    left: 0;
-                    right: 0;
-                    bottom: 0;
-                    background: rgba(0, 0, 0, 0.5);
-                    display: flex;
-                    justify-content: center;
-                    align-items: center;
-                    z-index: 1000;
-                }
-                .modal-content {
-                    background: white;
-                    border-radius: 12px;
-                    width: 90%;
-                    max-width: 600px;
-                    max-height: 90vh;
-                    overflow: auto;
-                }
-                .modal-header {
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                    padding: 20px;
-                    border-bottom: 1px solid #E5E7EB;
-                }
-                .close-button {
-                    background: none;
-                    border: none;
-                    font-size: 1.5rem;
-                    cursor: pointer;
-                    color: #6B7280;
-                }
-                .modal-body {
-                    padding: 20px;
-                }
-                .staged-file-list {
-                    list-style: none;
-                    padding: 0;
-                    margin: 15px 0;
-                }
-                .staged-file-list li {
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                    padding: 8px 0;
-                    border-bottom: 1px solid #F3F4F6;
-                }
-                .upload-actions {
-                    display: flex;
-                    gap: 10px;
-                    margin-top: 20px;
-                }
-
-                /* --- Confirmation Modal --- */
-                .confirm-modal-overlay {
-                    position: fixed;
-                    top: 0;
-                    left: 0;
-                    right: 0;
-                    bottom: 0;
-                    background: rgba(0, 0, 0, 0.4);
-                    display: flex;
-                    justify-content: center;
-                    align-items: center;
-                    z-index: 10000;
-                }
-                .confirm-modal {
-                    background: white;
-                    padding: 30px;
-                    border-radius: 12px;
-                    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
-                    width: 90%;
-                    max-width: 400px;
-                    text-align: center;
-                }
-                .confirm-modal h4 {
-                    font-size: 1.25rem;
-                    color: var(--danger-color);
-                    margin-bottom: 15px;
-                }
-                .confirm-modal p {
-                    margin-bottom: 25px;
-                    color: #4B5563;
-                }
-                .confirm-modal-actions {
-                    display: flex;
-                    justify-content: center;
-                    gap: 15px;
-                }
-                `}
-            </style>
-
             {/* Sidebar Component */}
             <div className={`sidebar ${isSidebarOpen ? 'open' : 'closed'}`}>
                 <div className="sidebar-header">
@@ -1708,7 +1009,7 @@ function App() {
             </div>
             
             {/* Main Content Area */}
-            <div className={`content-area`}>
+            <div className={`content-area ${isSidebarOpen ? 'shrunk' : 'expanded'}`}>
                 {currentRoute === 'JobList' && (
                     <>
                         <header className="page-header">
@@ -1798,10 +1099,10 @@ function App() {
                     />
                 )}
 
-                {currentRoute === 'PanelSlab' && renderPlaceholderPage('Panel / Slab Management', '🖼️ Panel and Slab Management')}
-                {currentRoute === 'Cutting' && renderPlaceholderPage('Cutting Management', '✂️ Cutting Management')}
-                {currentRoute === 'Door' && renderPlaceholderPage('Door Management', '🚪 Door Management')}
-                {currentRoute === 'Accessories' && renderPlaceholderPage('Accessories Management', '🔧 Accessories Management')}
+                {currentRoute === 'PanelSlab' && <PanelSlab navigate={navigate} />}
+                {currentRoute === 'Cutting' && <Cutting navigate={navigate} />}
+                {currentRoute === 'Door' && <Door navigate={navigate} />}
+                {currentRoute === 'Accessories' && <Accessories navigate={navigate} />}
             </div>
 
             {/* Confirmation Modal */}
