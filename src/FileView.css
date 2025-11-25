@@ -1,0 +1,366 @@
+/* ========================================================= */
+/* --- Layout and Base Styles --- */
+/* ========================================================= */
+.file-view-container {
+    padding: 20px;
+    max-width: 1400px;
+    margin: 0 auto;
+    font-family: Arial, sans-serif;
+}
+
+/* Back Link */
+.back-link {
+    display: inline-block;
+    margin-bottom: 20px;
+    color: #007bff;
+    text-decoration: none;
+}
+
+.drag-drop-area-project {
+    /* Base Styles */
+    border: 3px dashed #ccc;
+    border-radius: 8px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
+    margin-top: 10px; /* Reduced margin top slightly */
+    background-color: #f9f9f9;
+    
+    /* ➡️ Key Changes for Horizontal Expansion: */
+    width: 88%; /* Ensures it fills its parent container horizontally */
+    max-width: none; /* Crucial: ensures no external max-width limits it */
+    
+    /* Vertical Size (as previously set) */
+    padding: 30px; 
+    min-height: 180px; 
+
+    /* Flexbox for clean internal centering */
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+.drag-drop-area-project.drag-active {
+    border-color: #007bff;
+    background-color: #e6f7ff;
+}
+
+/* Header and Controls */
+.main-header-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+/* File View Layout (Two Columns) */
+.file-view-layout {
+    display: flex;
+    gap: 20px;
+}
+
+.preview-panel {
+    flex: 2; 
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.file-list-panel {
+    flex: 1; 
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 15px;
+    max-height: 80vh; 
+    overflow-y: auto;
+}
+
+/* Preview Area */
+
+.preview-header {
+    display: flex;
+    align-items: center; 
+    padding: 10px 15px;
+    background-color: #f8f8f8;
+    border-bottom: 1px solid #ddd;
+}
+
+.preview-header h4 {
+    margin: 0;
+    flex-shrink: 1; 
+    white-space: nowrap; 
+    overflow: hidden; 
+    text-overflow: ellipsis;
+    padding-right: 10px; 
+}
+
+.preview-area {
+    flex-grow: 1;
+    padding: 20px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+}
+
+.preview-content {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+}
+
+.preview-iframe {
+    width: 100%;
+    height: 100%;
+    min-height: 500px;
+    border: none;
+}
+
+.preview-placeholder {
+    text-align: center;
+    padding: 40px;
+    color: #6c757d;
+}
+
+/* File List */
+.file-list {
+    list-style: none;
+    padding: 0;
+    margin: 10px 0 0 0;
+}
+
+.file-item {
+    /* Allow file name to wrap */
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start; /* Aligns content to top corner */
+    flex-wrap: wrap; 
+    
+    padding: 10px 5px;
+    border-bottom: 1px solid #eee;
+    cursor: pointer;
+}
+
+.file-item:last-child {
+    border-bottom: none;
+}
+
+.file-item.selected {
+    background-color: #e9f0ff;
+    border-left: 3px solid #007bff;
+}
+
+.file-name {
+    /* FIX: Ensure the file name uses the remaining space but allows wrapping */
+    flex-grow: 1; 
+    flex-shrink: 1; 
+    flex-basis: auto; 
+    max-width: calc(100% - 70px); /* Reserves space for the icons */
+    word-break: break-word; 
+    padding-right: 10px;
+}
+
+/* ➡️ FIX: Container for the Delete and Download icons */
+.file-actions {
+    display: flex;
+    gap: 0; /* Ensures no default space between the icons */
+    flex-shrink: 0; /* CRITICAL: Prevents the action block from shrinking or wrapping prematurely */
+    margin-left: 10px; 
+    padding-top: 0; /* Ensures strict top alignment in the corner */
+}
+
+/* Action Buttons within list (Download/Delete) */
+.icon-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 1em;
+    padding: 0 4px; /* Small padding for usability */
+    line-height: 1;
+    flex-shrink: 0; 
+}
+
+.delete-file-list-btn {
+    color: #dc3545; 
+}
+
+.download-link-btn {
+    color: #007bff; 
+    text-decoration: none;
+    font-size: 1.1em;
+}
+
+.alert-danger {
+    padding: 10px;
+    background-color: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+    border-radius: 4px;
+    margin-bottom: 20px;
+}
+
+
+/* ========================================================= */
+/* --- Global Button Styles (Visibility Fix) --- */
+/* ========================================================= */
+.primary {
+    background-color: #28a745 !important; 
+    color: white !important; 
+    
+    border: 1px solid #28a745;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+    text-align: center;
+    display: inline-block; 
+    transition: background-color 0.2s;
+}
+
+.primary:hover {
+    background-color: #218838 !important;
+}
+
+.secondary {
+    background-color: #6c757d;
+    color: white;
+    border: 1px solid #6c757d;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+    text-align: center;
+    display: inline-block; 
+    transition: background-color 0.2s;
+}
+
+.add-files-btn {
+    padding: 8px 15px !important; 
+    margin: 0;
+    line-height: 1.2; 
+    font-size: 1em !important;
+}
+
+
+/* ========================================================= */
+/* --- Modal Styles --- */
+/* ========================================================= */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.7); 
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.modal-content {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    width: 90%;
+    max-width: 600px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+    animation: fadeIn 0.3s ease-out;
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 10px;
+    margin-bottom: 15px;
+}
+
+.modal-header h2 {
+    margin: 0;
+    font-size: 1.5em;
+}
+
+.close-button {
+    background: none;
+    border: none;
+    font-size: 1.5em;
+    cursor: pointer;
+    color: #666;
+}
+
+.close-button:hover {
+    color: #333;
+}
+
+.drag-drop-area {
+    border: 2px dashed #007bff;
+    border-radius: 8px;
+    padding: 40px 20px;
+    text-align: center;
+    cursor: pointer;
+    background-color: #f8faff;
+    color: #007bff;
+    transition: background-color 0.2s;
+}
+
+.drag-drop-area.drag-active {
+    background-color: #e0f7fa; 
+}
+
+.file-list-preview {
+    margin-top: 15px;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background-color: #fff;
+}
+
+.staged-file-list {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 10px 0;
+}
+
+.staged-file-list li {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 5px 0;
+    border-bottom: 1px dashed #eee;
+}
+
+.staged-file-list li:last-child {
+    border-bottom: none;
+}
+
+.file-size {
+    color: #6c757d;
+    font-size: 0.85em;
+    margin-left: 10px;
+}
+
+.remove-file {
+    color: #dc3545;
+    font-weight: bold;
+    font-size: 1.2em;
+}
+
+.upload-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.upload-btn {
+    flex-grow: 1;
+    padding: 10px;
+    font-weight: bold;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: scale(0.9); }
+    to { opacity: 1; transform: scale(1); }
+}

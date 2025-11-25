@@ -1,0 +1,51 @@
+/* --- Notification Container/List Styles --- */
+.notification-container {
+    position: fixed; /* Fixes the notifications to a specific screen position */
+    bottom: 20px;    /* Start 20px from the bottom */
+    right: 20px;     /* Start 20px from the right */
+    z-index: 1000;   /* Ensure it appears above other content */
+    display: flex;
+    flex-direction: column; /* Stack notifications vertically */
+    gap: 10px;
+}
+
+.notification-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 10px 15px;
+  border-bottom: 1px solid #1F2937;
+  font-size: 0.9rem;
+  color: #1F2937; /* Add this line - makes all text dark */
+}
+
+.notification-item .message {
+  padding-right: 10px;
+  color: #1F2937; /* Add this line - ensures message text is dark */
+}
+
+.notification-item strong {
+  font-weight: 600;
+  color: #1F2937; /* This is already here */
+}
+
+/* If your message is inside a span, target it directly */
+.notification-item span {
+    color: black !important; /* Use !important temporarily to confirm it works */
+}
+
+/* --- Close Button Style --- */
+.close-btn {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 1.2em;
+    cursor: pointer;
+    margin-left: 15px;
+    padding: 0 5px;
+    line-height: 1;
+}
+
+.close-btn:hover {
+    color: #f8d7da; /* Light red hover effect */
+}
