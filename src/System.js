@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { doorTasksAPI, projectsAPI } from './apiService'; 
-import './Door.css';
+import { systemTasksAPI, projectsAPI } from './apiService';
+import './System.css';
 
 // Move modal components outside the main component
 const CreateTaskModal = ({ 
@@ -18,7 +18,7 @@ const CreateTaskModal = ({
         <div className="modal-overlay" onClick={onClose}>
             <div className="modal-content" onClick={e => e.stopPropagation()}>
                 <div className="modal-header">
-                    <h2>➕ Create New Door Task</h2>
+                    <h2>➕ Create New System Task</h2>
                     <button type="button" className="close-button" onClick={onClose}>
                         &times;
                     </button>
@@ -53,7 +53,7 @@ const CreateTaskModal = ({
                                 name="title" 
                                 value={newTask.title} 
                                 onChange={onInputChange} 
-                                placeholder="Enter door task title" 
+                                placeholder="Enter system task title" 
                                 required 
                                 autoComplete="off" 
                                 className="form-input" 
@@ -67,7 +67,7 @@ const CreateTaskModal = ({
                                 name="description" 
                                 value={newTask.description} 
                                 onChange={onInputChange} 
-                                placeholder="Enter door task description" 
+                                placeholder="Enter system task description" 
                                 rows="3" 
                                 autoComplete="off" 
                                 className="form-textarea" 
@@ -250,7 +250,7 @@ const EditTaskModal = ({
     );
 };
 
-const Door = ({ navigate }) => {
+const System = ({ navigate }) => {
     const [tasks, setTasks] = useState([]);
     const [projects, setProjects] = useState([]);
     const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
@@ -284,10 +284,10 @@ const Door = ({ navigate }) => {
         setIsLoading(true);
         setError(null);
         try {
-            const data = await doorTasksAPI.getAll();
+            const data = await systemTasksAPI.getAll();
             setTasks(data);
         } catch (err) {
-            console.error('Failed to fetch tasks:', err);
+            console.error('Failed to fetch system tasks:', err);
             setError('Failed to load tasks. Please ensure the backend is running.');
         } finally {
             setIsLoading(false);
@@ -379,11 +379,11 @@ const Door = ({ navigate }) => {
         }
 
         try {
-            const createdTask = await doorTasksAPI.create(newTask);
+            const createdTask = await systemTasksAPI.create(newTask);
             setTasks(prev => [createdTask, ...prev]);
             closeCreateModal();
         } catch (err) {
-            console.error('Failed to create task:', err);
+            console.error('Failed to create system task:', err);
             setError('Failed to create task. Check console for details.');
         }
     };
@@ -409,26 +409,26 @@ const Door = ({ navigate }) => {
                 due_date: editingTask.due_date,
             };
 
-            const updatedTask = await doorTasksAPI.update(editingTask.id, payload);
+            const updatedTask = await systemTasksAPI.update(editingTask.id, payload);
             
             setTasks(prev => prev.map(task => 
                 task.id === updatedTask.id ? updatedTask : task
             ));
             closeEditModal();
         } catch (err) {
-            console.error('Failed to update task:', err);
+            console.error('Failed to update system task:', err);
             setError('Failed to save changes to the task.');
         }
     };
 
     const handleUpdateTaskStatus = async (taskId, newStatus) => {
         try {
-            const updatedTask = await doorTasksAPI.update(taskId, { status: newStatus });
+            const updatedTask = await systemTasksAPI.update(taskId, { status: newStatus });
             setTasks(prev => prev.map(task => 
                 task.id === taskId ? updatedTask : task
             ));
         } catch (err) {
-            console.error('Failed to update task status:', err);
+            console.error('Failed to update system task status:', err);
             setError('Failed to update task status.');
         }
     };
@@ -437,10 +437,10 @@ const Door = ({ navigate }) => {
         if (!window.confirm('Are you sure you want to delete this task?')) return;
 
         try {
-            await doorTasksAPI.delete(taskId);
+            await systemTasksAPI.delete(taskId);
             setTasks(prev => prev.filter(task => task.id !== taskId));
         } catch (err) {
-            console.error('Failed to delete task:', err);
+            console.error('Failed to delete system task:', err);
             setError('Failed to delete task.');
         }
     };
@@ -556,10 +556,10 @@ const Door = ({ navigate }) => {
     };
 
     return (
-        <div className="door-container">
+        <div className="system-container">
             <header className="page-header">
                 <div className="header-controls">
-                    <h1>🚪 Door Management</h1>
+                    <h1>⚙️ System Management</h1>
                     <button
                         className="primary"
                         onClick={openCreateModal}
@@ -626,10 +626,10 @@ const Door = ({ navigate }) => {
 
             <hr/>
             
-            <div className="door-content">
+            <div className="system-content">
                 <div className="tasks-section">
                     <div className="tasks-header">
-                        <h2>📋 Door Tasks ({filteredTasks.length} / {tasks.length})</h2> 
+                        <h2>📋 System Tasks ({filteredTasks.length} / {tasks.length})</h2>
                         <div className="tasks-stats">
                             <span className="stat pending">Pending: {filteredTasks.filter(t => t.status === 'pending').length}</span>
                             <span className="stat in-progress">In Progress: {filteredTasks.filter(t => t.status === 'in-progress').length}</span>
@@ -650,8 +650,8 @@ const Door = ({ navigate }) => {
                         </div>
                     ) : filteredTasks.length === 0 && tasks.length === 0 ? (
                         <div className="empty-state">
-                            <h3>No door tasks yet</h3>
-                            <p>Create your first door task to get started!</p>
+                            <h3>No system tasks yet</h3>
+                            <p>Create your first system task to get started!</p>
                             <button 
                                 className="primary" 
                                 onClick={openCreateModal}
@@ -692,4 +692,4 @@ const Door = ({ navigate }) => {
     );
 };
 
-export default Door;
+export default System;

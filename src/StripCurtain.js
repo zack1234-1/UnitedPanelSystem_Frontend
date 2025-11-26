@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { doorTasksAPI, projectsAPI } from './apiService'; 
-import './Door.css';
+import { stripCurtainTasksAPI } from './apiService';
+import './StripCurtain.css';
 
 // Move modal components outside the main component
 const CreateTaskModal = ({ 
@@ -18,7 +18,7 @@ const CreateTaskModal = ({
         <div className="modal-overlay" onClick={onClose}>
             <div className="modal-content" onClick={e => e.stopPropagation()}>
                 <div className="modal-header">
-                    <h2>➕ Create New Door Task</h2>
+                    <h2>➕ Create New Strip Curtain Task</h2>
                     <button type="button" className="close-button" onClick={onClose}>
                         &times;
                     </button>
@@ -53,7 +53,7 @@ const CreateTaskModal = ({
                                 name="title" 
                                 value={newTask.title} 
                                 onChange={onInputChange} 
-                                placeholder="Enter door task title" 
+                                placeholder="Enter strip curtain task title" 
                                 required 
                                 autoComplete="off" 
                                 className="form-input" 
@@ -67,7 +67,7 @@ const CreateTaskModal = ({
                                 name="description" 
                                 value={newTask.description} 
                                 onChange={onInputChange} 
-                                placeholder="Enter door task description" 
+                                placeholder="Enter strip curtain task description" 
                                 rows="3" 
                                 autoComplete="off" 
                                 className="form-textarea" 
@@ -250,16 +250,15 @@ const EditTaskModal = ({
     );
 };
 
-const Door = ({ navigate }) => {
+const StripCurtain = ({ navigate }) => {
     const [tasks, setTasks] = useState([]);
-    const [projects, setProjects] = useState([]);
     const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [editingTask, setEditingTask] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
-    const [isProjectsLoading, setIsProjectsLoading] = useState(true);
     const [error, setError] = useState(null);
     
+    // --- State for Filters ---
     const [filters, setFilters] = useState({
         priority: 'all',
         status: 'all',
@@ -277,41 +276,29 @@ const Door = ({ navigate }) => {
 
     useEffect(() => {
         fetchTasks();
-        fetchProjects();
     }, []);
 
     const fetchTasks = async () => {
         setIsLoading(true);
         setError(null);
         try {
-            const data = await doorTasksAPI.getAll();
+            const data = await stripCurtainTasksAPI.getAll();
             setTasks(data);
         } catch (err) {
-            console.error('Failed to fetch tasks:', err);
+            console.error('Failed to fetch strip curtain tasks:', err);
             setError('Failed to load tasks. Please ensure the backend is running.');
         } finally {
             setIsLoading(false);
         }
     };
-
-    const fetchProjects = async () => {
-        setIsProjectsLoading(true);
-        try {
-            const data = await projectsAPI.getAll();
-            setProjects(data);
-        } catch (err) {
-            console.error('Failed to fetch projects:', err);
-            setError('Failed to load projects list.');
-        } finally {
-            setIsProjectsLoading(false);
-        }
-    };
-
+    
+    // --- Logic to extract Unique Project Numbers ---
     const uniqueProjectNos = useMemo(() => {
-        const projectNumbers = projects.map(project => project.projectNo).filter(p => p);
-        return [...new Set(projectNumbers)].sort();
-    }, [projects]);
+        const projects = [...new Set(tasks.map(t => t.projectNo).filter(p => p))];
+        return projects.sort();
+    }, [tasks]);
 
+    // --- Filtering Logic ---
     const filteredTasks = useMemo(() => {
         return tasks.filter(task => {
             if (filters.priority !== 'all' && task.priority !== filters.priority) {
@@ -379,11 +366,11 @@ const Door = ({ navigate }) => {
         }
 
         try {
-            const createdTask = await doorTasksAPI.create(newTask);
+            const createdTask = await stripCurtainTasksAPI.create(newTask);
             setTasks(prev => [createdTask, ...prev]);
             closeCreateModal();
         } catch (err) {
-            console.error('Failed to create task:', err);
+            console.error('Failed to create strip curtain task:', err);
             setError('Failed to create task. Check console for details.');
         }
     };
@@ -409,26 +396,26 @@ const Door = ({ navigate }) => {
                 due_date: editingTask.due_date,
             };
 
-            const updatedTask = await doorTasksAPI.update(editingTask.id, payload);
+            const updatedTask = await stripCurtainTasksAPI.update(editingTask.id, payload);
             
             setTasks(prev => prev.map(task => 
                 task.id === updatedTask.id ? updatedTask : task
             ));
             closeEditModal();
         } catch (err) {
-            console.error('Failed to update task:', err);
+            console.error('Failed to update strip curtain task:', err);
             setError('Failed to save changes to the task.');
         }
     };
 
     const handleUpdateTaskStatus = async (taskId, newStatus) => {
         try {
-            const updatedTask = await doorTasksAPI.update(taskId, { status: newStatus });
+            const updatedTask = await stripCurtainTasksAPI.update(taskId, { status: newStatus });
             setTasks(prev => prev.map(task => 
                 task.id === taskId ? updatedTask : task
             ));
         } catch (err) {
-            console.error('Failed to update task status:', err);
+            console.error('Failed to update strip curtain task status:', err);
             setError('Failed to update task status.');
         }
     };
@@ -437,10 +424,10 @@ const Door = ({ navigate }) => {
         if (!window.confirm('Are you sure you want to delete this task?')) return;
 
         try {
-            await doorTasksAPI.delete(taskId);
+            await stripCurtainTasksAPI.delete(taskId);
             setTasks(prev => prev.filter(task => task.id !== taskId));
         } catch (err) {
-            console.error('Failed to delete task:', err);
+            console.error('Failed to delete strip curtain task:', err);
             setError('Failed to delete task.');
         }
     };
@@ -461,6 +448,7 @@ const Door = ({ navigate }) => {
         }));
     };
     
+    // --- Filter Handler ---
     const handleFilterChange = (e) => {
         const { name, value } = e.target;
         setFilters(prev => ({
@@ -556,10 +544,10 @@ const Door = ({ navigate }) => {
     };
 
     return (
-        <div className="door-container">
+        <div className="strip-curtain-container">
             <header className="page-header">
                 <div className="header-controls">
-                    <h1>🚪 Door Management</h1>
+                    <h1>⛓️ Strip Curtain Management</h1>
                     <button
                         className="primary"
                         onClick={openCreateModal}
@@ -571,9 +559,11 @@ const Door = ({ navigate }) => {
             
             <hr/>
             
+            {/* Filter Section */}
             <div className="filter-controls">
                 <h3 style={{ marginBottom: '10px' }}>🔍 Filter Tasks</h3>
                 <div className="filter-group">
+                    {/* Priority Filter */}
                     <div className="form-group">
                         <label htmlFor="filter-priority">Priority</label>
                         <select 
@@ -590,6 +580,7 @@ const Door = ({ navigate }) => {
                         </select>
                     </div>
                     
+                    {/* Status Filter */}
                     <div className="form-group">
                         <label htmlFor="filter-status">Status</label>
                         <select 
@@ -606,6 +597,7 @@ const Door = ({ navigate }) => {
                         </select>
                     </div>
 
+                    {/* Project No Filter */}
                     <div className="form-group">
                         <label htmlFor="filter-projectNo">Project No</label>
                         <select
@@ -626,10 +618,10 @@ const Door = ({ navigate }) => {
 
             <hr/>
             
-            <div className="door-content">
+            <div className="strip-curtain-content">
                 <div className="tasks-section">
                     <div className="tasks-header">
-                        <h2>📋 Door Tasks ({filteredTasks.length} / {tasks.length})</h2> 
+                        <h2>📋 Strip Curtain Tasks ({filteredTasks.length} / {tasks.length})</h2>
                         <div className="tasks-stats">
                             <span className="stat pending">Pending: {filteredTasks.filter(t => t.status === 'pending').length}</span>
                             <span className="stat in-progress">In Progress: {filteredTasks.filter(t => t.status === 'in-progress').length}</span>
@@ -650,8 +642,8 @@ const Door = ({ navigate }) => {
                         </div>
                     ) : filteredTasks.length === 0 && tasks.length === 0 ? (
                         <div className="empty-state">
-                            <h3>No door tasks yet</h3>
-                            <p>Create your first door task to get started!</p>
+                            <h3>No strip curtain tasks yet</h3>
+                            <p>Create your first strip curtain task to get started!</p>
                             <button 
                                 className="primary" 
                                 onClick={openCreateModal}
@@ -669,6 +661,7 @@ const Door = ({ navigate }) => {
                 </div>
             </div>
 
+            {/* Use the external modal components */}
             <CreateTaskModal 
                 isOpen={isTaskModalOpen}
                 onClose={closeCreateModal}
@@ -692,4 +685,4 @@ const Door = ({ navigate }) => {
     );
 };
 
-export default Door;
+export default StripCurtain;

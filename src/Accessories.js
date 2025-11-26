@@ -1,34 +1,283 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { accessoriesTasksAPI } from './apiService'; 
+import { accessoriesTasksAPI, projectsAPI } from './apiService'; 
 import './Accessories.css';
+
+// Move modal components outside the main component
+const CreateTaskModal = ({ 
+    isOpen, 
+    onClose, 
+    newTask, 
+    onInputChange, 
+    onSubmit, 
+    error,
+    uniqueProjectNos 
+}) => {
+    if (!isOpen) return null;
+
+    return (
+        <div className="modal-overlay" onClick={onClose}>
+            <div className="modal-content" onClick={e => e.stopPropagation()}>
+                <div className="modal-header">
+                    <h2>➕ Create New Accessories Task</h2>
+                    <button type="button" className="close-button" onClick={onClose}>
+                        &times;
+                    </button>
+                </div>
+
+                <div className="modal-body">
+                    <form onSubmit={onSubmit} className="task-form">
+                        <div className="form-group">
+                            <label htmlFor="project_no">Project No *</label>
+                            <select 
+                                id="project_no" 
+                                name="project_no" 
+                                value={newTask.project_no} 
+                                onChange={onInputChange} 
+                                required 
+                                className="form-select"
+                            >
+                                <option value="">Select a project</option>
+                                {uniqueProjectNos.map(projectNo => (
+                                    <option key={projectNo} value={projectNo}>
+                                        {projectNo}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+
+                        <div className="form-group">
+                            <label htmlFor="title">Task Title *</label>
+                            <input 
+                                type="text" 
+                                id="title" 
+                                name="title" 
+                                value={newTask.title} 
+                                onChange={onInputChange} 
+                                placeholder="Enter task title" 
+                                required 
+                                autoComplete="off" 
+                                className="form-input" 
+                            />
+                        </div>
+
+                        <div className="form-group">
+                            <label htmlFor="description">Description</label>
+                            <textarea 
+                                id="description" 
+                                name="description" 
+                                value={newTask.description} 
+                                onChange={onInputChange} 
+                                placeholder="Enter task description" 
+                                rows="3" 
+                                autoComplete="off" 
+                                className="form-textarea" 
+                            />
+                        </div>
+
+                        <div className="form-row">
+                            <div className="form-group">
+                                <label htmlFor="priority">Priority</label>
+                                <select 
+                                    id="priority" 
+                                    name="priority" 
+                                    value={newTask.priority} 
+                                    onChange={onInputChange} 
+                                    className="form-select"
+                                >
+                                    <option value="low">Low</option>
+                                    <option value="medium">Medium</option>
+                                    <option value="high">High</option>
+                                </select>
+                            </div>
+
+                            <div className="form-group">
+                                <label htmlFor="due_date">Due Date</label>
+                                <input
+                                    type="date"
+                                    id="due_date"
+                                    name="due_date"
+                                    value={newTask.due_date} 
+                                    onChange={onInputChange}
+                                    className="form-input"
+                                />
+                            </div>
+                        </div>
+
+                        {error && <div className="alert alert-danger">{error}</div>}
+
+                        <div className="modal-actions">
+                            <button type="button" className="secondary" onClick={onClose}>
+                                Cancel
+                            </button>
+                            <button type="submit" className="primary">
+                                Create Task
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+const EditTaskModal = ({ 
+    isOpen, 
+    onClose, 
+    editingTask, 
+    onInputChange, 
+    onSubmit, 
+    error,
+    uniqueProjectNos 
+}) => {
+    if (!isOpen || !editingTask) return null;
+
+    return (
+        <div className="modal-overlay" onClick={onClose}>
+            <div className="modal-content" onClick={e => e.stopPropagation()}>
+                <div className="modal-header">
+                    <h2>✏️ Edit Task: {editingTask.title}</h2>
+                    <button type="button" className="close-button" onClick={onClose}>
+                        &times;
+                    </button>
+                </div>
+
+                <div className="modal-body">
+                    <form onSubmit={onSubmit} className="task-form">
+                        <div className="form-group">
+                            <label htmlFor="editProjectNo">Project No *</label>
+                            <select 
+                                id="editProjectNo" 
+                                name="project_no" 
+                                value={editingTask.project_no || ''} 
+                                onChange={onInputChange} 
+                                required 
+                                className="form-select"
+                            >
+                                <option value="">Select a project</option>
+                                {uniqueProjectNos.map(projectNo => (
+                                    <option key={projectNo} value={projectNo}>
+                                        {projectNo}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+
+                        <div className="form-group">
+                            <label htmlFor="editTitle">Task Title *</label>
+                            <input 
+                                type="text" 
+                                id="editTitle" 
+                                name="title" 
+                                value={editingTask.title} 
+                                onChange={onInputChange} 
+                                required 
+                                autoComplete="off" 
+                                className="form-input" 
+                            />
+                        </div>
+
+                        <div className="form-group">
+                            <label htmlFor="editDescription">Description</label>
+                            <textarea 
+                                id="editDescription" 
+                                name="description" 
+                                value={editingTask.description || ''} 
+                                onChange={onInputChange} 
+                                rows="3" 
+                                autoComplete="off" 
+                                className="form-textarea" 
+                            />
+                        </div>
+
+                        <div className="form-row">
+                            <div className="form-group">
+                                <label htmlFor="editPriority">Priority</label>
+                                <select 
+                                    id="editPriority" 
+                                    name="priority" 
+                                    value={editingTask.priority} 
+                                    onChange={onInputChange} 
+                                    className="form-select"
+                                >
+                                    <option value="low">Low</option>
+                                    <option value="medium">Medium</option>
+                                    <option value="high">High</option>
+                                </select>
+                            </div>
+
+                            <div className="form-group">
+                                <label htmlFor="editStatus">Status</label>
+                                <select 
+                                    id="editStatus" 
+                                    name="status" 
+                                    value={editingTask.status} 
+                                    onChange={onInputChange} 
+                                    className="form-select"
+                                >
+                                    <option value="pending">Pending</option>
+                                    <option value="in-progress">In Progress</option>
+                                    <option value="completed">Completed</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div className="form-group">
+                            <label htmlFor="editDueDate">Due Date</label>
+                            <input
+                                type="date"
+                                id="editDueDate"
+                                name="due_date"
+                                value={editingTask.due_date || ''}
+                                onChange={onInputChange}
+                                className="form-input"
+                            />
+                        </div>
+
+                        {error && <div className="alert alert-danger">{error}</div>}
+
+                        <div className="modal-actions">
+                            <button type="button" className="secondary" onClick={onClose}>
+                                Cancel
+                            </button>
+                            <button type="submit" className="primary">
+                                Save Changes
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    );
+};
 
 const Accessories = ({ navigate }) => {
     const [tasks, setTasks] = useState([]);
+    const [projects, setProjects] = useState([]);
     const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [editingTask, setEditingTask] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [isProjectsLoading, setIsProjectsLoading] = useState(true);
     const [error, setError] = useState(null);
     
-    // --- State for Filters (UPDATED to match PanelSlab) ---
     const [filters, setFilters] = useState({ 
         priority: 'all', 
         status: 'all', 
-        projectNo: 'all', // Added projectNo filter
+        projectNo: 'all',
     });
-    // ----------------------------
     
     const [newTask, setNewTask] = useState({
         title: '',
         description: '',
         priority: 'medium',
         status: 'pending',
-        project_no: '', 
+        project_no: '',
         due_date: '',
     });
 
     useEffect(() => {
         fetchTasks();
+        fetchProjects();
     }, []);
 
     const fetchTasks = async () => {
@@ -44,48 +293,39 @@ const Accessories = ({ navigate }) => {
             setIsLoading(false);
         }
     };
-    
-    // --- Dynamic Project No List (ADDED) ---
-    const uniqueProjectNos = useMemo(() => {
-        // Get unique, non-empty project numbers, sort them, and return.
-        // Assumes task object has a property called 'projectNo'
-        const projects = [...new Set(tasks.map(t => t.projectNo).filter(p => p))];
-        return projects.sort();
-    }, [tasks]);
-    // --------------------------------
 
-    // --- Filtering Logic (UPDATED) ---
+    const fetchProjects = async () => {
+        setIsProjectsLoading(true);
+        try {
+            const data = await projectsAPI.getAll();
+            setProjects(data);
+        } catch (err) {
+            console.error('Failed to fetch projects:', err);
+            setError('Failed to load projects list.');
+        } finally {
+            setIsProjectsLoading(false);
+        }
+    };
+
+    const uniqueProjectNos = useMemo(() => {
+        const projectNumbers = projects.map(project => project.projectNo).filter(p => p);
+        return [...new Set(projectNumbers)].sort();
+    }, [projects]);
+
     const filteredTasks = useMemo(() => {
         return tasks.filter(task => {
-            // 1. Priority Filter
             if (filters.priority !== 'all' && task.priority !== filters.priority) {
                 return false;
             }
-
-            // 2. Status Filter
             if (filters.status !== 'all' && task.status !== filters.status) {
                 return false;
             }
-
-            // 3. Project No Filter (ADDED)
             if (filters.projectNo !== 'all' && task.projectNo !== filters.projectNo) {
                 return false;
             }
-            
             return true;
         });
     }, [tasks, filters]); 
-
-    // --- Filter Handler (UPDATED to use 'filters' state) ---
-    const handleFilterChange = (e) => {
-        const { name, value } = e.target;
-        setFilters(prev => ({ // Changed setFilter to setFilters
-            ...prev, 
-            [name]: value 
-        }));
-    };
-    // -------------------------------------------
-
 
     const openCreateModal = () => {
         setNewTask({
@@ -93,7 +333,7 @@ const Accessories = ({ navigate }) => {
             description: '',
             priority: 'medium',
             status: 'pending',
-            project_no: '', 
+            project_no: uniqueProjectNos.length > 0 ? uniqueProjectNos[0] : '',
             due_date: '',
         });
         setError(null);
@@ -114,7 +354,7 @@ const Accessories = ({ navigate }) => {
             description, 
             priority, 
             status,
-            project_no: projectNo || '', 
+            project_no: projectNo || (uniqueProjectNos.length > 0 ? uniqueProjectNos[0] : ''),
             due_date: task.dueDate ? task.dueDate.substring(0, 10) : ''
         });
         setError(null);
@@ -180,9 +420,6 @@ const Accessories = ({ navigate }) => {
             setError('Failed to save changes to the task.');
         }
     };
-    
-    // --- The rest of the Task Handlers and UI components (TaskModal, EditTaskModal, TaskCard) would need to be re-added below to make this a complete component. ---
-    // The previous code block was truncated, so I'll include the missing parts along with the updated filter section in the main return.
 
     const handleUpdateTaskStatus = async (taskId, newStatus) => {
         try {
@@ -224,6 +461,14 @@ const Accessories = ({ navigate }) => {
         }));
     };
 
+    const handleFilterChange = (e) => {
+        const { name, value } = e.target;
+        setFilters(prev => ({
+            ...prev, 
+            [name]: value 
+        }));
+    };
+
     const getPriorityColor = (priority) => {
         switch (priority) {
             case 'high': return '#dc3545';
@@ -240,228 +485,6 @@ const Accessories = ({ navigate }) => {
             case 'pending': return '#6c757d';
             default: return '#6c757d';
         }
-    };
-
-    const TaskModal = () => {
-        if (!isTaskModalOpen) return null;
-
-        return (
-            <div className="modal-overlay" onClick={closeCreateModal}>
-                <div className="modal-content" onClick={e => e.stopPropagation()}>
-                    <div className="modal-header">
-                        <h2>➕ Create New Accessories Task</h2>
-                        <button type="button" className="close-button" onClick={closeCreateModal}>
-                            &times;
-                        </button>
-                    </div>
-
-                    <div className="modal-body">
-                        <form onSubmit={handleCreateTask} className="task-form">
-                            <div className="form-group">
-                                <label htmlFor="project_no">Project No *</label>
-                                <input 
-                                    type="text" 
-                                    id="project_no" 
-                                    name="project_no" 
-                                    value={newTask.project_no} 
-                                    onChange={handleInputChange} 
-                                    placeholder="Enter project number" 
-                                    required 
-                                    autoComplete="off" 
-                                    className="form-input" 
-                                />
-                            </div>
-
-                            <div className="form-group">
-                                <label htmlFor="title">Task Title *</label>
-                                <input 
-                                    type="text" 
-                                    id="title" 
-                                    name="title" 
-                                    value={newTask.title} 
-                                    onChange={handleInputChange} 
-                                    placeholder="Enter task title" 
-                                    required 
-                                    autoComplete="off" 
-                                    className="form-input" 
-                                />
-                            </div>
-
-                            <div className="form-group">
-                                <label htmlFor="description">Description</label>
-                                <textarea 
-                                    id="description" 
-                                    name="description" 
-                                    value={newTask.description} 
-                                    onChange={handleInputChange} 
-                                    placeholder="Enter task description" 
-                                    rows="3" 
-                                    autoComplete="off" 
-                                    className="form-textarea" 
-                                />
-                            </div>
-
-                            <div className="form-row">
-                                <div className="form-group">
-                                    <label htmlFor="priority">Priority</label>
-                                    <select 
-                                        id="priority" 
-                                        name="priority" 
-                                        value={newTask.priority} 
-                                        onChange={handleInputChange} 
-                                        className="form-select"
-                                    >
-                                        <option value="low">Low</option>
-                                        <option value="medium">Medium</option>
-                                        <option value="high">High</option>
-                                    </select>
-                                </div>
-
-                                <div className="form-group">
-                                    <label htmlFor="due_date">Due Date</label>
-                                    <input
-                                        type="date"
-                                        id="due_date"
-                                        name="due_date"
-                                        value={newTask.due_date} 
-                                        onChange={handleInputChange}
-                                        className="form-input"
-                                    />
-                                </div>
-                            </div>
-
-                            {error && <div className="alert alert-danger">{error}</div>}
-
-                            <div className="modal-actions">
-                                <button type="button" className="secondary" onClick={closeCreateModal}>
-                                    Cancel
-                                </button>
-                                <button type="submit" className="primary">
-                                    Create Task
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            </div>
-        );
-    };
-    
-    const EditTaskModal = () => {
-        if (!isEditModalOpen || !editingTask) return null;
-
-        return (
-            <div className="modal-overlay" onClick={closeEditModal}>
-                <div className="modal-content" onClick={e => e.stopPropagation()}>
-                    <div className="modal-header">
-                        <h2>✏️ Edit Task: {editingTask.title}</h2>
-                        <button type="button" className="close-button" onClick={closeEditModal}>
-                            &times;
-                        </button>
-                    </div>
-
-                    <div className="modal-body">
-                        <form onSubmit={handleUpdateTask} className="task-form">
-                            <div className="form-group">
-                                <label htmlFor="editProjectNo">Project No *</label>
-                                <input 
-                                    type="text" 
-                                    id="editProjectNo" 
-                                    name="project_no" 
-                                    value={editingTask.project_no || ''} 
-                                    onChange={handleEditInputChange} 
-                                    required 
-                                    autoComplete="off" 
-                                    className="form-input" 
-                                />
-                            </div>
-
-                            <div className="form-group">
-                                <label htmlFor="editTitle">Task Title *</label>
-                                <input 
-                                    type="text" 
-                                    id="editTitle" 
-                                    name="title" 
-                                    value={editingTask.title} 
-                                    onChange={handleEditInputChange} 
-                                    required 
-                                    autoComplete="off" 
-                                    className="form-input" 
-                                />
-                            </div>
-
-                            <div className="form-group">
-                                <label htmlFor="editDescription">Description</label>
-                                <textarea 
-                                    id="editDescription" 
-                                    name="description" 
-                                    value={editingTask.description || ''} 
-                                    onChange={handleEditInputChange} 
-                                    rows="3" 
-                                    autoComplete="off" 
-                                    className="form-textarea" 
-                                />
-                            </div>
-
-                            <div className="form-row">
-                                <div className="form-group">
-                                    <label htmlFor="editPriority">Priority</label>
-                                    <select 
-                                        id="editPriority" 
-                                        name="priority" 
-                                        value={editingTask.priority} 
-                                        onChange={handleEditInputChange} 
-                                        className="form-select"
-                                    >
-                                        <option value="low">Low</option>
-                                        <option value="medium">Medium</option>
-                                        <option value="high">High</option>
-                                    </select>
-                                </div>
-
-                                <div className="form-group">
-                                    <label htmlFor="editStatus">Status</label>
-                                    <select 
-                                        id="editStatus" 
-                                        name="status" 
-                                        value={editingTask.status} 
-                                        onChange={handleEditInputChange} 
-                                        className="form-select"
-                                    >
-                                        <option value="pending">Pending</option>
-                                        <option value="in-progress">In Progress</option>
-                                        <option value="completed">Completed</option>
-                                    </select>
-                                </div>
-                            </div>
-
-                            <div className="form-group">
-                                <label htmlFor="editDueDate">Due Date</label>
-                                <input
-                                    type="date"
-                                    id="editDueDate"
-                                    name="due_date"
-                                    value={editingTask.due_date || ''}
-                                    onChange={handleEditInputChange}
-                                    className="form-input"
-                                />
-                            </div>
-
-                            {error && <div className="alert alert-danger">{error}</div>}
-
-                            <div className="modal-actions">
-                                <button type="button" className="secondary" onClick={closeEditModal}>
-                                    Cancel
-                                </button>
-                                <button type="submit" className="primary">
-                                    Save Changes
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            </div>
-        );
     };
 
     const TaskCard = ({ task }) => {
@@ -532,7 +555,6 @@ const Accessories = ({ navigate }) => {
         );
     };
     
-    // --- Main Render with Filter Controls ---
     return (
         <div className="accessories-container">
             <header className="page-header">
@@ -549,11 +571,9 @@ const Accessories = ({ navigate }) => {
 
             <hr/>
 
-            {/* Filter Section (UPDATED) */}
             <div className="filter-controls">
                 <h3 style={{ marginBottom: '10px' }}>🔍 Filter Tasks</h3>
                 <div className="filter-group">
-                    {/* Priority Filter */}
                     <div className="form-group">
                         <label htmlFor="filter-priority">Priority</label>
                         <select 
@@ -570,7 +590,6 @@ const Accessories = ({ navigate }) => {
                         </select>
                     </div>
                     
-                    {/* Status Filter */}
                     <div className="form-group">
                         <label htmlFor="filter-status">Status</label>
                         <select 
@@ -587,7 +606,6 @@ const Accessories = ({ navigate }) => {
                         </select>
                     </div>
 
-                    {/* Project No Filter (ADDED) */}
                     <div className="form-group">
                         <label htmlFor="filter-projectNo">Project No</label>
                         <select
@@ -605,7 +623,6 @@ const Accessories = ({ navigate }) => {
                     </div>
                 </div>
             </div>
-            {/* End Filter Section */}
 
             <hr/>
             
@@ -652,9 +669,25 @@ const Accessories = ({ navigate }) => {
                 </div>
             </div>
 
-            {/* Modals */}
-            <TaskModal />
-            <EditTaskModal />
+            <CreateTaskModal 
+                isOpen={isTaskModalOpen}
+                onClose={closeCreateModal}
+                newTask={newTask}
+                onInputChange={handleInputChange}
+                onSubmit={handleCreateTask}
+                error={error}
+                uniqueProjectNos={uniqueProjectNos}
+            />
+            
+            <EditTaskModal 
+                isOpen={isEditModalOpen}
+                onClose={closeEditModal}
+                editingTask={editingTask}
+                onInputChange={handleEditInputChange}
+                onSubmit={handleUpdateTask}
+                error={error}
+                uniqueProjectNos={uniqueProjectNos}
+            />
         </div>
     );
 };
