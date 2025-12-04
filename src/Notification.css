@@ -1,51 +1,261 @@
-/* --- Notification Container/List Styles --- */
-.notification-container {
-    position: fixed; /* Fixes the notifications to a specific screen position */
-    bottom: 20px;    /* Start 20px from the bottom */
-    right: 20px;     /* Start 20px from the right */
-    z-index: 1000;   /* Ensure it appears above other content */
+/* NotificationPage.css */
+.notification-page {
+    padding: 20px;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.page-header {
+    margin-bottom: 30px;
+    padding-bottom: 20px;
+    border-bottom: 2px solid #eaeaea;
+}
+
+.page-header h1 {
+    margin: 0 0 20px 0;
+    color: #333;
+    font-size: 28px;
     display: flex;
-    flex-direction: column; /* Stack notifications vertically */
+    align-items: center;
     gap: 10px;
 }
 
-.notification-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  padding: 10px 15px;
-  border-bottom: 1px solid #1F2937;
-  font-size: 0.9rem;
-  color: #1F2937; /* Add this line - makes all text dark */
+.header-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    align-items: center;
+    justify-content: space-between;
 }
 
-.notification-item .message {
-  padding-right: 10px;
-  color: #1F2937; /* Add this line - ensures message text is dark */
+.search-filter-container {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    align-items: center;
 }
 
-.notification-item strong {
-  font-weight: 600;
-  color: #1F2937; /* This is already here */
+.search-box {
+    display: flex;
+    gap: 5px;
 }
 
-/* If your message is inside a span, target it directly */
-.notification-item span {
-    color: black !important; /* Use !important temporarily to confirm it works */
+.search-box input {
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+    min-width: 250px;
 }
 
-/* --- Close Button Style --- */
-.close-btn {
+.search-btn, .refresh-btn, .filter-select {
+    padding: 8px 16px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background: white;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.search-btn {
+    background-color: #007bff;
+    color: white;
+    border-color: #007bff;
+}
+
+.search-btn:hover {
+    background-color: #0056b3;
+}
+
+.refresh-btn {
+    background-color: #6c757d;
+    color: white;
+    border-color: #6c757d;
+    padding: 8px 12px;
+}
+
+.refresh-btn:hover {
+    background-color: #545b62;
+}
+
+.filter-select {
+    padding: 8px 32px 8px 12px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23333' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 8px center;
+    background-size: 16px;
+    appearance: none;
+}
+
+.secondary {
+    padding: 8px 16px;
+    border: 1px solid #dc3545;
+    border-radius: 4px;
+    background: white;
+    color: #dc3545;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.2s;
+}
+
+.secondary:hover {
+    background-color: #dc3545;
+    color: white;
+}
+
+.clear-all-btn {
+    background-color: #dc3545;
+    color: white;
+    border-color: #dc3545;
+}
+
+.clear-all-btn:hover {
+    background-color: #c82333;
+}
+
+.undismiss-btn {
+    background-color: #28a745;
+    color: white;
+    border-color: #28a745;
+}
+
+.undismiss-btn:hover {
+    background-color: #218838;
+}
+
+.text-btn {
     background: none;
     border: none;
-    color: white;
-    font-size: 1.2em;
+    color: #007bff;
     cursor: pointer;
-    margin-left: 15px;
-    padding: 0 5px;
-    line-height: 1;
+    padding: 0 4px;
+    text-decoration: underline;
 }
 
-.close-btn:hover {
-    color: #f8d7da; /* Light red hover effect */
+.text-btn:hover {
+    color: #0056b3;
+}
+
+.loading-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 20px;
+}
+
+.spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid #f3f3f3;
+    border-top: 3px solid #007bff;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-bottom: 20px;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.error-state {
+    background-color: #f8d7da;
+    color: #721c24;
+    padding: 20px;
+    border-radius: 4px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.retry-btn {
+    background-color: #721c24;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.notification-stats {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding: 15px;
+    background-color: #f8f9fa;
+    border-radius: 4px;
+    border-left: 4px solid #007bff;
+}
+
+.dismissed-count {
+    color: #6c757d;
+    font-size: 14px;
+}
+
+.dismissed-info {
+    margin-top: 10px;
+    color: #6c757d;
+    font-size: 14px;
+}
+
+.notifications-grid {
+    display: grid;
+    gap: 20px;
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+}
+
+.log-item-wrapper {
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.log-item-wrapper:hover {
+    transform: translateY(-2px);
+}
+
+.empty-state {
+    text-align: center;
+    padding: 60px 20px;
+}
+
+.empty-icon {
+    font-size: 48px;
+    display: block;
+    margin-bottom: 20px;
+}
+
+.empty-state h2 {
+    color: #28a745;
+    margin-bottom: 10px;
+}
+
+.empty-state p {
+    color: #666;
+    margin-bottom: 5px;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+    .notification-page {
+        padding: 10px;
+    }
+    
+    .header-controls {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .search-filter-container {
+        flex-direction: column;
+    }
+    
+    .search-box input {
+        min-width: 0;
+        flex-grow: 1;
+    }
+    
+    .notifications-grid {
+        grid-template-columns: 1fr;
+    }
 }

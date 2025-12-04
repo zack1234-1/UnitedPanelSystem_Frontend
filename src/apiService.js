@@ -214,6 +214,80 @@ export const projectAdminAPI = {
 };
 
 // =========================================================
+// PROJECT/JOB ADMIN API (NEW - Renamed for clarity)
+// =========================================================
+
+export const jobAdminAPI = { // 💥 RENAMED from projectAdminAPI to jobAdminAPI
+    // GET /api/admin/projects
+    getAllJobs: () => apiRequest('/admin/projects'), // Function renamed to getAllJobs
+
+    // POST /api/admin/projects
+    createJob: (jobData) => apiRequest('/admin/projects', { // Function renamed to createJob
+        method: 'POST',
+        body: JSON.stringify(jobData),
+    }),
+
+    // GET /api/admin/projects/:jobNo
+    getJobByJobNo: (jobNo) => apiRequest(`/admin/projects/${jobNo}`), // Function renamed
+
+    // PUT /api/admin/projects/:jobNo
+    updateJob: (jobNo, jobData) => apiRequest(`/admin/projects/${jobNo}`, { // Function renamed
+        method: 'PUT',
+        body: JSON.stringify(jobData),
+    }),
+
+    // DELETE /api/admin/projects/:jobNo
+    deleteJob: (jobNo) => apiRequest(`/admin/projects/${jobNo}`, { // Function renamed
+        method: 'DELETE',
+    }),
+};
+
+export const activityLogsAPI = {
+    // Get all activity logs (with optional filtering)
+    getAll: (params = {}) => {
+        // Build query string if params provided
+        const queryString = new URLSearchParams(params).toString();
+        const endpoint = queryString ? `/activity-logs?${queryString}` : '/activity-logs';
+        return apiRequest(endpoint);
+    },
+    
+    // Get activity logs for a specific project/job
+    getByProject: (projectNo) => apiRequest(`/activity-logs/project/${projectNo}`),
+    
+    // Get activity logs for a specific user
+    getByUser: (userId) => apiRequest(`/activity-logs/user/${userId}`),
+    
+    // Get a specific activity log by ID
+    getById: (logId) => apiRequest(`/activity-logs/${logId}`),
+    
+    // Create a new activity log entry
+    create: (logData) => apiRequest('/activity-logs', {
+        method: 'POST',
+        body: JSON.stringify(logData),
+    }),
+    
+    // Update an activity log entry
+    update: (logId, logData) => apiRequest(`/activity-logs/${logId}`, {
+        method: 'PATCH',
+        body: JSON.stringify(logData),
+    }),
+    
+    // Delete an activity log entry
+    delete: (logId) => apiRequest(`/activity-logs/${logId}`, {
+        method: 'DELETE',
+    }),
+    
+    // Get activity logs by date range
+    getByDateRange: (startDate, endDate) => apiRequest(`/activity-logs/range?start=${startDate}&end=${endDate}`),
+    
+    // Get activity logs by type/category
+    getByType: (type) => apiRequest(`/activity-logs/type/${type}`),
+    
+    // Search activity logs by text
+    search: (searchTerm) => apiRequest(`/activity-logs/search?q=${encodeURIComponent(searchTerm)}`),
+};
+
+// =========================================================
 // LEGACY NAMED EXPORTS (for backward compatibility and convenience)
 // =========================================================
 
@@ -263,9 +337,20 @@ export const createSystemTask = systemTasksAPI.create;
 export const updateSystemTask = systemTasksAPI.update;
 export const deleteSystemTask = systemTasksAPI.delete;
 
-// --- Project Admin (NEW) ---
-export const getAllAdminProjects = projectAdminAPI.getAllProjects;
-export const createAdminProject = projectAdminAPI.createProject;
-export const updateAdminProject = projectAdminAPI.updateProject;
-export const deleteAdminProject = projectAdminAPI.deleteProject;
-export const getAdminProjectByJobNo = projectAdminAPI.getProjectByJobNo;
+// --- Project/Job Admin (NEW) ---
+export const getAllAdminJobs = jobAdminAPI.getAllJobs; 
+export const createAdminJob = jobAdminAPI.createJob;  
+export const updateAdminJob = jobAdminAPI.updateJob;  
+export const deleteAdminJob = jobAdminAPI.deleteJob;
+export const getAdminJobByJobNo = jobAdminAPI.getJobByJobNo; 
+
+export const getAllActivityLogs = activityLogsAPI.getAll;
+export const getActivityLogsByProject = activityLogsAPI.getByProject;
+export const getActivityLogsByUser = activityLogsAPI.getByUser;
+export const getActivityLogById = activityLogsAPI.getById;
+export const createActivityLog = activityLogsAPI.create;
+export const updateActivityLog = activityLogsAPI.update;
+export const deleteActivityLog = activityLogsAPI.delete;
+export const getActivityLogsByDateRange = activityLogsAPI.getByDateRange;
+export const getActivityLogsByType = activityLogsAPI.getByType;
+export const searchActivityLogs = activityLogsAPI.search;

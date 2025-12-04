@@ -6,11 +6,11 @@ import Accessories from './Accessories';
 import StripCurtain from './StripCurtain';
 import System from './System';
 import { FileView, FileUploadSection, real_uploadProjectFiles } from './FileComponents';
-import AdminPage from './AdminPage'; // Import the AdminPage component
+import AdminPage from './AdminPage';
 import './App.css';
 
 // =========================================================
-// 1. REAL API Service Implementation (connecting to Express backend)
+// 1. REAL API Service Implementation
 // =========================================================
 
 const API_BASE = 'http://localhost:5000/api';
@@ -64,6 +64,117 @@ const real_updateProject = async (id, updatedData) => {
     method: 'PUT',
     body: JSON.stringify(updatedData),
   });
+};
+
+// New function to create initial tasks for categories
+const createCategoryTasks = async (projectNo, selectedCategories) => {
+  try {
+    const tasks = [];
+    
+    // For each selected category, create initial task entry
+    for (const category of selectedCategories) {
+      let taskData = {
+        projectNo: projectNo,
+        status: 'Pending'
+      };
+      
+      // Add category-specific default fields
+      switch(category) {
+        case 'panelSlab':
+          taskData = {
+            ...taskData,
+            panelName: '',
+            panelWidth: 0,
+            panelHeight: 0,
+            panelQty: 0,
+            remarks: ''
+          };
+          await apiCall('/panel-tasks', {
+            method: 'POST',
+            body: JSON.stringify(taskData),
+          });
+          break;
+          
+        case 'cutting':
+          taskData = {
+            ...taskData,
+            cuttingName: '',
+            cuttingWidth: 0,
+            cuttingHeight: 0,
+            cuttingQty: 0,
+            remarks: ''
+          };
+          await apiCall('/cutting-tasks', {
+            method: 'POST',
+            body: JSON.stringify(taskData),
+          });
+          break;
+          
+        case 'door':
+          taskData = {
+            ...taskData,
+            doorName: '',
+            doorWidth: 0,
+            doorHeight: 0,
+            doorQty: 0,
+            remarks: ''
+          };
+          await apiCall('/door-tasks', {
+            method: 'POST',
+            body: JSON.stringify(taskData),
+          });
+          break;
+          
+        case 'stripCurtain':
+          taskData = {
+            ...taskData,
+            stripCurtainName: '',
+            stripCurtainWidth: 0,
+            stripCurtainHeight: 0,
+            stripCurtainQty: 0,
+            remarks: ''
+          };
+          await apiCall('/strip-curtain-tasks', {
+            method: 'POST',
+            body: JSON.stringify(taskData),
+          });
+          break;
+          
+        case 'accessories':
+          taskData = {
+            ...taskData,
+            accessoryName: '',
+            accessoryQty: 0,
+            remarks: ''
+          };
+          await apiCall('/accessories-tasks', {
+            method: 'POST',
+            body: JSON.stringify(taskData),
+          });
+          break;
+          
+        case 'system':
+          taskData = {
+            ...taskData,
+            systemName: '',
+            systemQty: 0,
+            remarks: ''
+          };
+          await apiCall('/system-tasks', {
+            method: 'POST',
+            body: JSON.stringify(taskData),
+          });
+          break;
+      }
+      
+      tasks.push({ category, taskData });
+    }
+    
+    return tasks;
+  } catch (error) {
+    console.error('Error creating category tasks:', error);
+    throw error;
+  }
 };
 
 // =========================================================
@@ -141,7 +252,303 @@ const NotificationPage = ({ notifications, removeNotification, clearAllNotificat
 };
 
 // =========================================================
-// 4. Custom Router Logic - UPDATED with Notification and Admin Routes
+// 4. Enhanced Category Selection Component with Optional File Upload
+// =========================================================
+
+const EnhancedCategorySelection = ({ 
+    selectedCategories, 
+    onCategoryChange, 
+    categoryFiles, 
+    onCategoryFileUpload, 
+    onRemoveCategoryFile, 
+    onClearCategoryFiles 
+}) => {
+    const categories = [
+        { id: 'panel', label: 'Panel / Slab', icon: '🖼️' },
+        { id: 'cutting', label: 'Cutting', icon: '✂️' },
+        { id: 'door', label: 'Door', icon: '🚪' },
+        { id: 'stripCurtain', label: 'Strip Curtain', icon: '🎪' },
+        { id: 'accessories', label: 'Accessories', icon: '🔧' },
+        { id: 'system', label: 'System', icon: '⚙️' }
+    ];
+
+    const [dragActiveCategory, setDragActiveCategory] = useState(null);
+    const [uploadProgress, setUploadProgress] = useState({});
+    const [isUploading, setIsUploading] = useState(false);
+
+    // Format file size
+    const formatFileSize = (bytes) => {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    };
+
+    // Get file icon based on type
+    const getFileIcon = (fileType) => {
+        if (fileType.startsWith('image/')) return '🖼️';
+        if (fileType.includes('pdf')) return '📄';
+        if (fileType.includes('dwg') || fileType.includes('dxf')) return '📐';
+        if (fileType.includes('word') || fileType.includes('document')) return '📝';
+        if (fileType.includes('excel') || fileType.includes('sheet')) return '📊';
+        if (fileType.includes('zip') || fileType.includes('rar')) return '📦';
+        return '📎';
+    };
+
+    const handleCategoryToggle = (categoryId) => {
+        const newCategories = selectedCategories.includes(categoryId)
+            ? selectedCategories.filter(id => id !== categoryId)
+            : [...selectedCategories, categoryId];
+        onCategoryChange(newCategories);
+    };
+
+    const handleFileUpload = async (categoryId, event) => {
+        const files = Array.from(event.target.files);
+        if (files.length > 0) {
+            setIsUploading(true);
+            
+            // Simulate upload progress for each file
+            const progressUpdates = {};
+            files.forEach((file, index) => {
+                progressUpdates[`${categoryId}-${file.name}`] = 0;
+                
+                // Simulate progress updates
+                const interval = setInterval(() => {
+                    setUploadProgress(prev => {
+                        const newProgress = { ...prev };
+                        const current = newProgress[`${categoryId}-${file.name}`] || 0;
+                        if (current < 90) {
+                            newProgress[`${categoryId}-${file.name}`] = current + 10;
+                        } else {
+                            clearInterval(interval);
+                        }
+                        return newProgress;
+                    });
+                }, 200);
+                
+                // Complete progress after 2 seconds
+                setTimeout(() => {
+                    setUploadProgress(prev => ({
+                        ...prev,
+                        [`${categoryId}-${file.name}`]: 100
+                    }));
+                }, 2000);
+            });
+
+            // Add files to state
+            onCategoryFileUpload(categoryId, files);
+            
+            // Reset uploading state
+            setTimeout(() => {
+                setIsUploading(false);
+                setUploadProgress({});
+            }, 2500);
+        }
+    };
+
+    const handleDragOver = (categoryId, e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setDragActiveCategory(categoryId);
+    };
+
+    const handleDragLeave = (categoryId) => {
+        setDragActiveCategory(null);
+    };
+
+    const handleDrop = (categoryId, e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setDragActiveCategory(null);
+        
+        const files = Array.from(e.dataTransfer.files);
+        if (files.length > 0) {
+            // Create a synthetic event to reuse the handleFileUpload function
+            const syntheticEvent = {
+                target: { files }
+            };
+            handleFileUpload(categoryId, syntheticEvent);
+        }
+    };
+
+    const triggerFileInput = (categoryId) => {
+        const fileInput = document.getElementById(`file-input-${categoryId}`);
+        if (fileInput) {
+            fileInput.click();
+        }
+    };
+
+    return (
+        <div className="category-selection">
+            <h3>Select Job Categories</h3>
+            <p className="category-instructions">
+                Tick the categories that apply to this job. You can upload files for each category (optional):
+            </p>
+
+            <div className="category-grid">
+                {categories.map((category) => {
+                    const isSelected = selectedCategories.includes(category.id);
+                    const files = categoryFiles[category.id] || [];
+                    const isDraggingOver = dragActiveCategory === category.id;
+                    
+                    return (
+                        <div 
+                            key={category.id}
+                            className={`category-item ${isSelected ? 'selected' : ''}`}
+                        >
+                            <div className="category-header">
+                                <div 
+                                    className="category-main" 
+                                    onClick={() => handleCategoryToggle(category.id)}
+                                >
+                                    <div className="category-icon">{category.icon}</div>
+                                    <div className="category-label">{category.label}</div>
+                                    <div className="category-checkbox">
+                                        <input
+                                            type="checkbox"
+                                            checked={isSelected}
+                                            onChange={() => {}}
+                                            className="category-checkbox-input"
+                                        />
+                                        <span className="checkmark"></span>
+                                    </div>
+                                </div>
+                                
+                                {isSelected && (
+                                    <div className="category-file-upload">
+                                        <div 
+                                            className={`category-file-dropzone ${isDraggingOver ? 'drag-active' : ''} ${isUploading ? 'uploading' : ''}`}
+                                            onDragOver={(e) => handleDragOver(category.id, e)}
+                                            onDragLeave={() => handleDragLeave(category.id)}
+                                            onDrop={(e) => handleDrop(category.id, e)}
+                                            onClick={() => !isUploading && triggerFileInput(category.id)}
+                                        >
+                                            <input
+                                                type="file"
+                                                multiple
+                                                onChange={(e) => handleFileUpload(category.id, e)}
+                                                style={{ display: 'none' }}
+                                                id={`file-input-${category.id}`}
+                                                accept="image/*,application/pdf,.dwg,.dxf,.doc,.docx,.xls,.xlsx,.zip,.rar"
+                                            />
+                                            <div className="upload-area-content">
+                                                <div className="upload-icon">
+                                                    {isUploading ? '⏳' : isDraggingOver ? '⬇️' : '📁'}
+                                                </div>
+                                                <div className="upload-text">
+                                                    <div className="upload-label">
+                                                        {isUploading ? 'Uploading...' : 'Click or drop files here (optional)'}
+                                                    </div>
+                                                    <div className="upload-subtext">
+                                                        {isUploading ? 'Please wait while files upload' : 'Drag & drop or click to browse'}
+                                                    </div>
+                                                    <div className="upload-hint">
+                                                        Supports images, PDFs, CAD files, documents
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        {files.length > 0 && (
+                                            <div className="category-files-list">
+                                                <div className="files-header">
+                                                    <div className="files-stats">
+                                                        <span className="files-count">
+                                                            {files.length} file{files.length !== 1 ? 's' : ''}
+                                                        </span>
+                                                        <span className="files-size">
+                                                            • {formatFileSize(files.reduce((acc, file) => acc + file.size, 0))}
+                                                        </span>
+                                                    </div>
+                                                    <button 
+                                                        type="button"
+                                                        className="clear-files-btn"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            onClearCategoryFiles(category.id);
+                                                        }}
+                                                        disabled={isUploading}
+                                                    >
+                                                        Clear All
+                                                    </button>
+                                                </div>
+                                                
+                                                <div className="files-grid">
+                                                    {files.map((file, index) => {
+                                                        const progressKey = `${category.id}-${file.name}`;
+                                                        const progress = uploadProgress[progressKey] || 0;
+                                                        const isUploadingFile = progress > 0 && progress < 100;
+                                                        
+                                                        return (
+                                                            <div 
+                                                                key={index} 
+                                                                className={`file-item ${isUploadingFile ? 'uploading' : ''}`}
+                                                            >
+                                                                <div className="file-info">
+                                                                    <div className="file-icon">
+                                                                        {getFileIcon(file.type)}
+                                                                    </div>
+                                                                    <div className="file-details">
+                                                                        <div className="file-name" title={file.name}>
+                                                                            {file.name}
+                                                                        </div>
+                                                                        <div className="file-meta">
+                                                                            <span className="file-type">
+                                                                                {file.type || 'Unknown type'}
+                                                                            </span>
+                                                                            <span className="file-size">
+                                                                                • {formatFileSize(file.size)}
+                                                                            </span>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                                
+                                                                <div className="file-actions">
+                                                                    {isUploadingFile ? (
+                                                                        <div className="upload-progress">
+                                                                            <div 
+                                                                                className="progress-bar"
+                                                                                style={{ width: `${progress}%` }}
+                                                                            ></div>
+                                                                            <span className="progress-text">
+                                                                                {progress}%
+                                                                            </span>
+                                                                        </div>
+                                                                    ) : (
+                                                                        <button 
+                                                                            type="button"
+                                                                            className="remove-file-btn"
+                                                                            onClick={(e) => {
+                                                                                e.stopPropagation();
+                                                                                onRemoveCategoryFile(category.id, index);
+                                                                            }}
+                                                                            title="Remove file"
+                                                                            disabled={isUploading}
+                                                                        >
+                                                                            ×
+                                                                        </button>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
+        </div>
+    );
+};
+
+// =========================================================
+// 5. Custom Router Logic
 // =========================================================
 
 const useSimpleRouter = () => {
@@ -160,7 +567,6 @@ const useSimpleRouter = () => {
         window.location.hash = newPath;
     }, []);
 
-    // Route parsing - UPDATED with new routes including notifications and admin
     const matchFiles = path.match(/^\/files\/(.+)$/);
     const matchPanels = path === '/panels';
     const matchCutting = path === '/cutting';
@@ -199,7 +605,7 @@ const useSimpleRouter = () => {
 };
 
 // =========================================================
-// 5. Progress Component for Task Count Display - UPDATED
+// 6. Progress Component for Task Count Display
 // =========================================================
 
 const TaskCountDisplay = ({ completed, total }) => {
@@ -210,7 +616,6 @@ const TaskCountDisplay = ({ completed, total }) => {
     };
 
     const getDisplayText = () => {
-        // Always show the actual numbers
         return `${completed}/${total}`;
     };
 
@@ -222,19 +627,121 @@ const TaskCountDisplay = ({ completed, total }) => {
 };
 
 // =========================================================
-// 6. Main App Component - UPDATED
+// 7. Payment Status Dropdown Component
+// =========================================================
+
+const PaymentStatusDropdown = ({ value, onChange, name, required = false, disabled = false }) => {
+    const paymentOptions = [
+        { value: '', label: 'Select Payment Status', disabled: true },
+        { value: 'Deposit', label: '💰 Deposit' },
+        { value: 'Full Payment', label: '💳 Full Payment' },
+        { value: 'Progress Claim', label: '📋 Progress Claim' },
+        { value: 'Retention', label: '📊 Retention' },
+        { value: 'Done', label: '✅ Done' }
+    ];
+
+    const getStatusColor = (status) => {
+        switch(status) {
+            case 'Done': return '#10B981';
+            case 'Full Payment': return '#3B82F6';
+            case 'Deposit': return '#F59E0B';
+            case 'Progress Claim': return '#8B5CF6';
+            case 'Retention': return '#EF4444';
+            default: return '#6B7280';
+        }
+    };
+
+    return (
+        <div className="form-group payment-status-group">
+            <label htmlFor={name}>PO/Payment Status</label>
+            <div className="select-wrapper">
+                <select
+                    id={name}
+                    name={name}
+                    value={value}
+                    onChange={onChange}
+                    required={required}
+                    disabled={disabled}
+                    className="payment-status-select"
+                    style={{
+                        borderLeft: `4px solid ${getStatusColor(value)}`
+                    }}
+                >
+                    {paymentOptions.map((option, index) => (
+                        <option 
+                            key={index} 
+                            value={option.value} 
+                            disabled={option.disabled}
+                        >
+                            {option.label}
+                        </option>
+                    ))}
+                </select>
+            </div>
+        </div>
+    );
+};
+
+// =========================================================
+// 8. Date Picker Component (Updated for both dates)
+// =========================================================
+
+const DatePicker = ({ 
+    value, 
+    onChange, 
+    name, 
+    label, 
+    required = false, 
+    disabled = false,
+    minDate = null,
+    maxDate = null
+}) => {
+    return (
+        <div className="form-group date-picker-group">
+            <label htmlFor={name}>{label}</label>
+            <div className="date-input-wrapper">
+                <input
+                    type="date"
+                    id={name}
+                    name={name}
+                    value={value}
+                    onChange={onChange}
+                    required={required}
+                    disabled={disabled}
+                    min={minDate}
+                    max={maxDate}
+                    className="date-input"
+                />
+            </div>
+        </div>
+    );
+};
+
+// =========================================================
+// 9. Main App Component
 // =========================================================
 
 function App() {
     // --- Routing ---
     const { navigate, currentRoute, params } = useSimpleRouter();
 
+    // Get today's date in YYYY-MM-DD format for date inputs
+    const getTodayDate = () => {
+        return new Date().toISOString().split('T')[0];
+    };
+
     // --- State Initialization ---
     const [projects, setProjects] = useState([]);
     const [newProject, setNewProject] = useState({
-        drawingDate: '', projectNo: '', customer: '', poPayment: '', requestedDelivery: '', remarks: '' 
+        drawingDate: '', 
+        projectNo: '', 
+        customer: '', 
+        poPayment: '', 
+        requestedDelivery: '', 
+        remarks: ''
     });
-    const [filesToUpload, setFilesToUpload] = useState([]); 
+    const [selectedCategories, setSelectedCategories] = useState([]);
+    const [categoryFiles, setCategoryFiles] = useState({});
     const [isDragActive, setIsDragActive] = useState(false);
     
     const [editingProject, setEditingProject] = useState(null);
@@ -250,7 +757,74 @@ function App() {
     const fileInputRef = useRef(null); 
 
     // =========================================================
-    // API Data Fetching Logic - UPDATED to use direct database fields
+    // Category Files Management
+    // =========================================================
+
+    // Initialize files for a category
+    const initializeCategoryFiles = useCallback((categoryId) => {
+        if (!categoryFiles[categoryId]) {
+            setCategoryFiles(prev => ({
+                ...prev,
+                [categoryId]: []
+            }));
+        }
+    }, [categoryFiles]);
+
+    // Handle file upload for a specific category
+    const handleCategoryFileUpload = useCallback((categoryId, files) => {
+        setCategoryFiles(prev => ({
+            ...prev,
+            [categoryId]: [...(prev[categoryId] || []), ...files]
+        }));
+    }, []);
+
+    // Remove file from a specific category
+    const removeCategoryFile = useCallback((categoryId, fileIndex) => {
+        setCategoryFiles(prev => {
+            const updatedFiles = [...(prev[categoryId] || [])];
+            updatedFiles.splice(fileIndex, 1);
+            return {
+                ...prev,
+                [categoryId]: updatedFiles
+            };
+        });
+    }, []);
+
+    // Clear all files for a category
+    const clearCategoryFiles = useCallback((categoryId) => {
+        setCategoryFiles(prev => ({
+            ...prev,
+            [categoryId]: []
+        }));
+    }, []);
+
+    // Handle category selection change
+    const handleCategoryChange = useCallback((categories) => {
+        // Initialize files for newly selected categories
+        categories.forEach(categoryId => {
+            if (!selectedCategories.includes(categoryId)) {
+                initializeCategoryFiles(categoryId);
+            }
+        });
+        
+        // Remove files from deselected categories
+        const deselectedCategories = selectedCategories.filter(
+            cat => !categories.includes(cat)
+        );
+        
+        deselectedCategories.forEach(categoryId => {
+            setCategoryFiles(prev => {
+                const newFiles = { ...prev };
+                delete newFiles[categoryId];
+                return newFiles;
+            });
+        });
+        
+        setSelectedCategories(categories);
+    }, [selectedCategories, initializeCategoryFiles]);
+
+    // =========================================================
+    // API Data Fetching Logic
     // =========================================================
     const fetchProjects = useCallback(async () => {
         setIsLoading(true);
@@ -258,9 +832,7 @@ function App() {
         try {
             const data = await real_getAllProjects(); 
             
-            // Map database fields to frontend completion structure
             const projectsWithCompletion = data.map((project) => {
-                // Map the database fields to our frontend structure
                 const completion = {
                     panelSlab: { 
                         completed: project.completed_panel || 0, 
@@ -320,8 +892,16 @@ function App() {
     const toggleForm = () => {
         setIsFormOpen(!isFormOpen);
         if (isFormOpen) { 
-            setNewProject({ drawingDate: '', projectNo: '', customer: '', poPayment: '', requestedDelivery: '', remarks: '' }); 
-            setFilesToUpload([]);
+            setNewProject({ 
+                drawingDate: '', 
+                projectNo: '', 
+                customer: '', 
+                poPayment: '', 
+                requestedDelivery: '', 
+                remarks: ''
+            }); 
+            setSelectedCategories([]);
+            setCategoryFiles({});
             if (fileInputRef.current) { fileInputRef.current.value = ''; }
         }
     };
@@ -361,24 +941,71 @@ function App() {
         }
 
         try {
-            const addedProject = await real_createProject(newProject); 
-            
-            let fileUploadMessage = '';
-            if (filesToUpload.length > 0) {
-                const formData = new FormData();
-                formData.append('projectNo', addedProject.projectNo); 
-                
-                filesToUpload.forEach(file => {
-                    formData.append('files', file); 
-                });
+            // Add selected categories to project data
+            const projectWithCategories = {
+                ...newProject,
+                selectedCategories: selectedCategories
+            };
 
-                await real_uploadProjectFiles(formData); 
-                fileUploadMessage = ` (${filesToUpload.length} file(s) attached)`;
+            // Create the project
+            const addedProject = await real_createProject(projectWithCategories); 
+            
+            // Create initial tasks for each selected category
+            let createdTasksCount = 0;
+            try {
+                await createCategoryTasks(addedProject.projectNo, selectedCategories);
+                createdTasksCount = selectedCategories.length;
+            } catch (taskError) {
+                console.error("Error creating category tasks:", taskError);
+                addNotification("⚠️ Project created but could not create category tasks. You can add them manually later.");
             }
 
+            // Handle file uploads for EACH selected category (OPTIONAL)
+            let totalFilesUploaded = 0;
+            let uploadResults = [];
+            
+            // Only attempt to upload files if there are any files for any category
+            const hasFiles = Object.values(categoryFiles).some(files => files && files.length > 0);
+            
+            if (hasFiles) {
+                for (const categoryId of selectedCategories) {
+                    const files = categoryFiles[categoryId] || [];
+                    
+                    if (files.length > 0) {
+                        const formData = new FormData();
+                        formData.append('projectNo', addedProject.projectNo);
+                        formData.append('category', categoryId);
+                        
+                        files.forEach(file => {
+                            formData.append('files', file);
+                        });
+
+                        try {
+                            await real_uploadProjectFiles(formData);
+                            totalFilesUploaded += files.length;
+                            uploadResults.push(`${files.length} to ${categoryId}`);
+                        } catch (uploadError) {
+                            console.error(`Error uploading files for ${categoryId}:`, uploadError);
+                            addNotification(`⚠️ Error uploading files for ${categoryId}. Please try again later.`);
+                        }
+                    }
+                }
+            }
+
+            // Refresh projects list
             await fetchProjects();
-            setNewProject({ drawingDate: '', projectNo: '', customer: '', poPayment: '', requestedDelivery: '', remarks: '' }); 
-            setFilesToUpload([]); 
+            
+            // Reset form
+            setNewProject({ 
+                drawingDate: '', 
+                projectNo: '', 
+                customer: '', 
+                poPayment: '', 
+                requestedDelivery: '', 
+                remarks: '' 
+            }); 
+            setSelectedCategories([]);
+            setCategoryFiles({});
             
             if (fileInputRef.current) {
                 fileInputRef.current.value = '';
@@ -386,11 +1013,34 @@ function App() {
             
             setIsFormOpen(false); 
             
-            addNotification(`✅ Job for ${addedProject.customer} (**${addedProject.projectNo}**) has been added to DB${fileUploadMessage}.`);
+            // Success notification
+            const categoryNames = {
+                panelSlab: 'Panel/Slab',
+                cutting: 'Cutting',
+                door: 'Door',
+                stripCurtain: 'Strip Curtain',
+                accessories: 'Accessories',
+                system: 'System'
+            };
+            
+            const categoryList = selectedCategories.map(cat => categoryNames[cat]).join(', ');
+            
+            let notificationMessage = `✅ Job for ${addedProject.customer} (**${addedProject.projectNo}**) created successfully. `;
+            notificationMessage += `Categories: ${categoryList}. `;
+            notificationMessage += `${createdTasksCount} initial task(s) created.`;
+            
+            if (totalFilesUploaded > 0) {
+                notificationMessage += ` ${totalFilesUploaded} file(s) uploaded: ${uploadResults.join(', ')}.`;
+            } else {
+                notificationMessage += ` No files uploaded (optional).`;
+            }
+            
+            addNotification(notificationMessage);
 
         } catch (err) {
-            setError(`Error creating project or uploading files: ${err.message}`);
-            addNotification(`❌ **Error:** Could not create job. Check console for details.`);
+            console.error("Error creating project:", err);
+            setError(`Error creating project: ${err.message}`);
+            addNotification(`❌ **Error:** Could not create job. ${err.message}`);
         }
     };
     
@@ -453,6 +1103,46 @@ function App() {
         { key: 'system', label: 'System' }
     ];
 
+    // Function to format date for display
+    const formatDateForDisplay = (dateString) => {
+        if (!dateString) return 'Not set';
+        try {
+            const date = new Date(dateString);
+            return date.toLocaleDateString('en-US', {
+                weekday: 'short',
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric'
+            });
+        } catch (error) {
+            return dateString; // Return original string if parsing fails
+        }
+    };
+
+    // Function to get payment status color
+    const getPaymentStatusColor = (status) => {
+        switch(status) {
+            case 'Done': return '#10B981';
+            case 'Full Payment': return '#3B82F6';
+            case 'Deposit': return '#F59E0B';
+            case 'Progress Claim': return '#8B5CF6';
+            case 'Retention': return '#EF4444';
+            default: return '#6B7280';
+        }
+    };
+
+    // Function to get payment status icon
+    const getPaymentStatusIcon = (status) => {
+        switch(status) {
+            case 'Done': return '✅';
+            case 'Full Payment': return '💳';
+            case 'Deposit': return '💰';
+            case 'Progress Claim': return '📋';
+            case 'Retention': return '📊';
+            default: return '📝';
+        }
+    };
+
     const renderProjectCard = (project) => {
         const isEditing = editingProject && editingProject.id === project.id;
         const completion = project.completion || {
@@ -468,12 +1158,68 @@ function App() {
             return (
                 <form onSubmit={handleUpdateProject} className="job-card edit-card">
                     <h3 className="card-title">Edit Job: {project.projectNo}</h3>
-                    <input name="drawingDate" value={editingProject.drawingDate} onChange={handleEditInputChange} placeholder="Drawing Date" />
-                    <input name="projectNo" value={editingProject.projectNo} onChange={handleEditInputChange} placeholder="Job No." /> 
-                    <input name="customer" value={editingProject.customer} onChange={handleEditInputChange} placeholder="Customer" />
-                    <input name="poPayment" value={editingProject.poPayment} onChange={handleEditInputChange} placeholder="PO/Payment" />
-                    <input name="requestedDelivery" value={editingProject.requestedDelivery} onChange={handleEditInputChange} placeholder="Requested Delivery" />
-                    <input name="remarks" value={editingProject.remarks} onChange={handleEditInputChange} placeholder="Remarks" />
+                    
+                    <div className="form-row">
+                        <DatePicker 
+                            value={editingProject.drawingDate}
+                            onChange={handleEditInputChange}
+                            name="drawingDate"
+                            label="Drawing Date*"
+                        />
+                        
+                        <div className="form-group">
+                            <label htmlFor="edit-projectNo">Job No.*</label>
+                            <input 
+                                id="edit-projectNo"
+                                name="projectNo" 
+                                value={editingProject.projectNo} 
+                                onChange={handleEditInputChange} 
+                                placeholder="Job No." 
+                                required
+                            />
+                        </div>
+                    </div>
+                    
+                    <div className="form-group">
+                        <label htmlFor="edit-customer">Customer Name*</label>
+                        <input 
+                            id="edit-customer"
+                            name="customer" 
+                            value={editingProject.customer} 
+                            onChange={handleEditInputChange} 
+                            placeholder="Customer Name" 
+                            required
+                        />
+                    </div>
+                    
+                    <div className="form-row">
+                        <PaymentStatusDropdown 
+                            value={editingProject.poPayment}
+                            onChange={handleEditInputChange}
+                            name="poPayment"
+                        />
+                        
+                        <DatePicker 
+                            value={editingProject.requestedDelivery}
+                            onChange={handleEditInputChange}
+                            name="requestedDelivery"
+                            label="Requested Delivery"
+                            minDate={getTodayDate()}
+                        />
+                    </div>
+                    
+                    <div className="form-group">
+                        <label htmlFor="edit-remarks">Remarks</label>
+                        <textarea 
+                            id="edit-remarks"
+                            name="remarks" 
+                            value={editingProject.remarks} 
+                            onChange={handleEditInputChange} 
+                            placeholder="Additional notes or remarks"
+                            rows="3"
+                        />
+                    </div>
+                    
                     <div className="card-actions">
                         <button type="button" onClick={handleCancelEdit} className="secondary">Cancel</button>
                         <button type="submit" className="primary">Save Changes</button>
@@ -493,9 +1239,27 @@ function App() {
                 </div>
                 
                 <div className="job-details-group">
-                    <p><strong>Drawing Date:</strong> <span>{project.drawingDate}</span></p>
-                    <p><strong>PO/Payment:</strong> <span className={project.poPayment && project.poPayment.toUpperCase() === 'OK' ? 'status-ok' : 'status-pending'}>{project.poPayment || 'Pending'}</span></p>
-                    <p><strong>Req. Delivery:</strong> <span>{project.requestedDelivery}</span></p>
+                    <p>
+                        <strong>Drawing Date:</strong> 
+                        <span className="date-value">{formatDateForDisplay(project.drawingDate)}</span>
+                    </p>
+                    <p>
+                        <strong>Payment Status:</strong> 
+                        <span 
+                            className="payment-status-tag"
+                            style={{
+                                backgroundColor: `${getPaymentStatusColor(project.poPayment)}20`,
+                                borderColor: getPaymentStatusColor(project.poPayment),
+                                color: getPaymentStatusColor(project.poPayment)
+                            }}
+                        >
+                            {getPaymentStatusIcon(project.poPayment)} {project.poPayment || 'Not set'}
+                        </span>
+                    </p>
+                    <p>
+                        <strong>Requested Delivery:</strong> 
+                        <span className="date-value">{formatDateForDisplay(project.requestedDelivery)}</span>
+                    </p>
                 </div>
 
                 <div className="status-grid" onClick={e => e.stopPropagation()}> 
@@ -511,7 +1275,10 @@ function App() {
                 </div>
                 
                 <div className="job-remarks">
-                    <strong>Remarks:</strong> {project.remarks || 'No remarks provided.'}
+                    <strong>Remarks:</strong> 
+                    <span className="remarks-text">
+                        {project.remarks || 'No remarks provided.'}
+                    </span>
                 </div>
                 
                 <div className="card-actions">
@@ -540,7 +1307,7 @@ function App() {
     // --- Main Renderer ---
     return (
         <div className="App sidebar-layout">
-            {/* Sidebar Component - UPDATED with admin navigation */}
+            {/* Sidebar Component */}
             <div className={`sidebar ${isSidebarOpen ? 'open' : 'closed'}`}>
                 <div className="sidebar-header">
                     <div className={`app-logo ${isSidebarOpen ? 'full' : 'collapsed-text'}`}>
@@ -616,7 +1383,7 @@ function App() {
                         {isSidebarOpen && <span>System</span>}
                     </a>
 
-                    {/* NEW: Admin Page Navigation */}
+                    {/* Admin Page Navigation */}
                     <a 
                         href="#/admin" 
                         className={`nav-item ${currentRoute === 'AdminPage' ? 'active' : ''}`}
@@ -641,7 +1408,7 @@ function App() {
                 </nav>
             </div>
             
-            {/* Main Content Area - UPDATED with admin page */}
+            {/* Main Content Area */}
             <div className={`content-area ${isSidebarOpen ? 'shrunk' : 'expanded'}`}>
                 {currentRoute === 'JobList' && (
                     <>
@@ -656,24 +1423,82 @@ function App() {
                                 <div className="job-form-container">
                                     <h2>➕ Add New Job</h2>
                                     <form onSubmit={handleAddProject} className="job-form">
-                                        <input name="drawingDate" value={newProject.drawingDate} onChange={handleInputChange} placeholder="Drawing Date (e.g., 1 Jan)" required/>
-                                        <input name="projectNo" value={newProject.projectNo} onChange={handleInputChange} placeholder="Job No." required/> 
-                                        <input name="customer" value={newProject.customer} onChange={handleInputChange} placeholder="Customer Name" required/>
-                                        <input name="poPayment" value={newProject.poPayment} onChange={handleInputChange} placeholder="PO/Payment Status (e.g., OK)" />
-                                        <input name="requestedDelivery" value={newProject.requestedDelivery} onChange={handleInputChange} placeholder="Requested Delivery" />
-                                        <input name="remarks" value={newProject.remarks} onChange={handleInputChange} placeholder="Remarks" />
+                                        <div className="form-row">
+                                            <DatePicker 
+                                                value={newProject.drawingDate}
+                                                onChange={handleInputChange}
+                                                name="drawingDate"
+                                                label="Drawing Date*"
+                                                required
+                                            />
+                                            
+                                            <div className="form-group">
+                                                <label htmlFor="projectNo">Job No.*</label>
+                                                <input 
+                                                    id="projectNo"
+                                                    name="projectNo" 
+                                                    value={newProject.projectNo} 
+                                                    onChange={handleInputChange} 
+                                                    placeholder="Job No." 
+                                                    required
+                                                />
+                                            </div>
+                                        </div>
                                         
-                                        {/* File Upload Section */}
-                                        <FileUploadSection 
-                                            filesToUpload={filesToUpload}
-                                            setFilesToUpload={setFilesToUpload}
-                                            isDragActive={isDragActive}
-                                            setIsDragActive={setIsDragActive}
-                                            fileInputRef={fileInputRef}
+                                        <div className="form-group">
+                                            <label htmlFor="customer">Customer Name*</label>
+                                            <input 
+                                                id="customer"
+                                                name="customer" 
+                                                value={newProject.customer} 
+                                                onChange={handleInputChange} 
+                                                placeholder="Customer Name" 
+                                                required
+                                            />
+                                        </div>
+                                        
+                                        <div className="form-row">
+                                            <PaymentStatusDropdown 
+                                                value={newProject.poPayment}
+                                                onChange={handleInputChange}
+                                                name="poPayment"
+                                            />
+                                            
+                                            <DatePicker 
+                                                value={newProject.requestedDelivery}
+                                                onChange={handleInputChange}
+                                                name="requestedDelivery"
+                                                label="Requested Delivery"
+                                                minDate={getTodayDate()}
+                                            />
+                                        </div>
+                                        
+                                        <div className="form-group">
+                                            <label htmlFor="remarks">Remarks</label>
+                                            <textarea 
+                                                id="remarks"
+                                                name="remarks" 
+                                                value={newProject.remarks} 
+                                                onChange={handleInputChange} 
+                                                placeholder="Additional notes or remarks"
+                                                rows="3"
+                                            />
+                                        </div>
+                                        
+                                        {/* Enhanced Category Selection with Optional File Upload */}
+                                        <EnhancedCategorySelection 
+                                            selectedCategories={selectedCategories}
+                                            onCategoryChange={handleCategoryChange}
+                                            categoryFiles={categoryFiles}
+                                            onCategoryFileUpload={handleCategoryFileUpload}
+                                            onRemoveCategoryFile={removeCategoryFile}
+                                            onClearCategoryFiles={clearCategoryFiles}
                                         />
 
-                                        <button type="submit" className="primary">Create Project and Upload</button>
-                                        <button type="button" onClick={toggleForm} className="secondary">Cancel</button>
+                                        <div className="form-actions">
+                                            <button type="submit" className="primary">Create Project</button>
+                                            <button type="button" onClick={toggleForm} className="secondary">Cancel</button>
+                                        </div>
                                     </form>
                                 </div>
                             )}
@@ -718,7 +1543,7 @@ function App() {
                     />
                 )}
 
-                {/* NEW: Admin Page */}
+                {/* Admin Page */}
                 {currentRoute === 'AdminPage' && (
                     <AdminPage 
                         projects={projects}
