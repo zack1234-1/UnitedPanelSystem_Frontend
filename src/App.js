@@ -8,6 +8,8 @@ import System from './System';
 import { FileView, FileUploadSection, real_uploadProjectFiles } from './FileComponents';
 import AdminPage from './AdminPage';
 import './App.css';
+import NotificationPage from './Notification';
+import ExcelExtractor from './ExcelExtractor'; // Import the Excel Extractor component
 
 // =========================================================
 // 1. REAL API Service Implementation
@@ -177,79 +179,6 @@ const createCategoryTasks = async (projectNo, selectedCategories) => {
   }
 };
 
-// =========================================================
-// 2. Notification Component
-// =========================================================
-
-const Notification = React.memo(({ message, onClose }) => {
-    return (
-        <div className="notification-item">
-            <div className="message" dangerouslySetInnerHTML={{ __html: message.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') }} />
-            <button className="close-btn" onClick={onClose}>&times;</button>
-        </div>
-    );
-});
-
-// =========================================================
-// 3. Notification Page Component
-// =========================================================
-
-const NotificationPage = ({ notifications, removeNotification, clearAllNotifications }) => {
-    return (
-        <div className="notification-page">
-            <header className="page-header">
-                <h1>📋 Notifications</h1>
-                {notifications.length > 0 && (
-                    <button 
-                        onClick={clearAllNotifications} 
-                        className="secondary clear-all-btn"
-                    >
-                        Clear All Notifications
-                    </button>
-                )}
-            </header>
-
-            <main className="notification-page-content">
-                {notifications.length === 0 ? (
-                    <div className="no-notifications-page">
-                        <div className="empty-state">
-                            <span className="empty-icon">🎉</span>
-                            <h2>You're all caught up!</h2>
-                            <p>No notifications at the moment.</p>
-                        </div>
-                    </div>
-                ) : (
-                    <div className="notification-list-page">
-                        <div className="notification-stats">
-                            <p>You have <strong>{notifications.length}</strong> notification{notifications.length !== 1 ? 's' : ''}</p>
-                        </div>
-                        <div className="notifications-grid">
-                            {notifications.map(notification => (
-                                <div key={notification.id} className="notification-card">
-                                    <div 
-                                        className="notification-message" 
-                                        dangerouslySetInnerHTML={{ 
-                                            __html: notification.message.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') 
-                                        }} 
-                                    />
-                                    <div className="notification-actions">
-                                        <button 
-                                            onClick={() => removeNotification(notification.id)}
-                                            className="close-btn"
-                                            title="Dismiss notification"
-                                        >
-                                            &times;
-                                        </button>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                )}
-            </main>
-        </div>
-    );
-};
 
 // =========================================================
 // 4. Enhanced Category Selection Component with Optional File Upload
@@ -267,7 +196,7 @@ const EnhancedCategorySelection = ({
         { id: 'panel', label: 'Panel / Slab', icon: '🖼️' },
         { id: 'cutting', label: 'Cutting', icon: '✂️' },
         { id: 'door', label: 'Door', icon: '🚪' },
-        { id: 'stripCurtain', label: 'Strip Curtain', icon: '🎪' },
+        { id: 'strip_curtain', label: 'Strip Curtain', icon: '🎪' },
         { id: 'accessories', label: 'Accessories', icon: '🔧' },
         { id: 'system', label: 'System', icon: '⚙️' }
     ];
@@ -548,7 +477,7 @@ const EnhancedCategorySelection = ({
 };
 
 // =========================================================
-// 5. Custom Router Logic
+// 5. Custom Router Logic (Updated to include Excel Extractor)
 // =========================================================
 
 const useSimpleRouter = () => {
@@ -576,6 +505,7 @@ const useSimpleRouter = () => {
     const matchSystem = path === '/system';
     const matchNotifications = path === '/notifications';
     const matchAdmin = path === '/admin';
+    const matchExcelExtractor = path === '/excel-extractor'; // New route
 
     let currentRoute = 'JobList';
     let params = {};
@@ -599,6 +529,8 @@ const useSimpleRouter = () => {
         currentRoute = 'NotificationPage';
     } else if (matchAdmin) {
         currentRoute = 'AdminPage';
+    } else if (matchExcelExtractor) {
+        currentRoute = 'ExcelExtractor'; // New route
     }
 
     return { navigate, currentRoute, params };
@@ -857,7 +789,7 @@ function App() {
                     system: { 
                         completed: project.completed_system || 0, 
                         total: project.total_system || 0 
-                    }
+                }
                 };
 
                 return {
@@ -1383,6 +1315,16 @@ function App() {
                         {isSidebarOpen && <span>System</span>}
                     </a>
 
+                    {/* Excel Extractor Navigation */}
+                    <a 
+                        href="#/excel-extractor" 
+                        className={`nav-item ${currentRoute === 'ExcelExtractor' ? 'active' : ''}`}
+                        onClick={() => navigate('/excel-extractor')}
+                    > 
+                        <span role="img" aria-label="excel">📊</span>
+                        {isSidebarOpen && <span>Excel Extractor</span>}
+                    </a>
+
                     {/* Admin Page Navigation */}
                     <a 
                         href="#/admin" 
@@ -1534,14 +1476,18 @@ function App() {
                 {currentRoute === 'Accessories' && <Accessories navigate={navigate} />}
                 {currentRoute === 'System' && <System navigate={navigate} />}
                 
+                {/* Excel Extractor Page */}
+                {currentRoute === 'ExcelExtractor' && <ExcelExtractor />}
+                
                 {/* Notification Page */}
                 {currentRoute === 'NotificationPage' && (
                     <NotificationPage 
                         notifications={notifications}
                         removeNotification={removeNotification}
                         clearAllNotifications={clearAllNotifications}
+                        showActivityLogs={false} 
                     />
-                )}
+                 )}
 
                 {/* Admin Page */}
                 {currentRoute === 'AdminPage' && (

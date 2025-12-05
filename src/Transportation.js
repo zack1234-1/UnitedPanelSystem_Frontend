@@ -1,0 +1,714 @@
+import React, { useState, useEffect, useMemo } from 'react';
+import { transportationTasksAPI, projectsAPI } from './apiService'; 
+// NOTE: Assuming 'apiService' has a transportationTasksAPI object 
+// and that 'projectsAPI' is shared/reused.
+import './Transportation.css'; // Assuming you'll create a Transportation-specific CSS file
+
+// Utility function to format date
+const formatDate = (dateString) => {
+    if (!dateString) return 'No due date';
+    const date = new Date(dateString);
+    return date.toLocaleDateString();
+};
+
+// --- Modal Components ---
+
+const CreateTaskModal = ({ 
+    isOpen, 
+    onClose, 
+    newTask, 
+    onInputChange, 
+    onSubmit, 
+    error,
+    uniqueProjectNos 
+}) => {
+    if (!isOpen) return null;
+
+    return (
+        <div className="modal-overlay" onClick={onClose}>
+            <div className="modal-content" onClick={e => e.stopPropagation()}>
+                <div className="modal-header">
+                    <h2>➕ Create New Transportation Task</h2>
+                    <button type="button" className="close-button" onClick={onClose}>
+                        &times;
+                    </button>
+                </div>
+
+                <div className="modal-body">
+                    <form onSubmit={onSubmit} className="task-form">
+                        <div className="form-group">
+                            <label htmlFor="project_no">Project No *</label>
+                            <select 
+                                id="project_no" 
+                                name="project_no" 
+                                value={newTask.project_no} 
+                                onChange={onInputChange} 
+                                required 
+                                className="form-select"
+                            >
+                                <option value="">Select a project</option>
+                                {uniqueProjectNos.map(projectNo => (
+                                    <option key={projectNo} value={projectNo}>
+                                        {projectNo}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+
+                        <div className="form-group">
+                            <label htmlFor="title">Task Title *</label>
+                            <input 
+                                type="text" 
+                                id="title" 
+                                name="title" 
+                                value={newTask.title} 
+                                onChange={onInputChange} 
+                                placeholder="Enter task title" 
+                                required 
+                                autoComplete="off" 
+                                className="form-input" 
+                            />
+                        </div>
+
+                        <div className="form-group">
+                            <label htmlFor="description">Description</label>
+                            <textarea 
+                                id="description" 
+                                name="description" 
+                                value={newTask.description} 
+                                onChange={onInputChange} 
+                                placeholder="Enter task description" 
+                                rows="3" 
+                                autoComplete="off" 
+                                className="form-textarea" 
+                            />
+                        </div>
+
+                        <div className="form-row">
+                            <div className="form-group">
+                                <label htmlFor="priority">Priority</label>
+                                <select 
+                                    id="priority" 
+                                    name="priority" 
+                                    value={newTask.priority} 
+                                    onChange={onInputChange} 
+                                    className="form-select"
+                                >
+                                    <option value="low">Low</option>
+                                    <option value="medium">Medium</option>
+                                    <option value="high">High</option>
+                                </select>
+                            </div>
+
+                            <div className="form-group">
+                                <label htmlFor="due_date">Due Date</label>
+                                <input
+                                    type="date"
+                                    id="due_date"
+                                    name="due_date"
+                                    value={newTask.due_date} 
+                                    onChange={onInputChange}
+                                    className="form-input"
+                                />
+                            </div>
+                        </div>
+
+                        {error && <div className="alert alert-danger">{error}</div>}
+
+                        <div className="modal-actions">
+                            <button type="button" className="secondary" onClick={onClose}>
+                                Cancel
+                            </button>
+                            <button type="submit" className="primary">
+                                Create Task
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+const EditTaskModal = ({ 
+    isOpen, 
+    onClose, 
+    editingTask, 
+    onInputChange, 
+    onSubmit, 
+    error,
+    uniqueProjectNos 
+}) => {
+    if (!isOpen || !editingTask) return null;
+
+    return (
+        <div className="modal-overlay" onClick={onClose}>
+            <div className="modal-content" onClick={e => e.stopPropagation()}>
+                <div className="modal-header">
+                    <h2>✏️ Edit Task: {editingTask.title}</h2>
+                    <button type="button" className="close-button" onClick={onClose}>
+                        &times;
+                    </button>
+                </div>
+
+                <div className="modal-body">
+                    <form onSubmit={onSubmit} className="task-form">
+                        <div className="form-group">
+                            <label htmlFor="editProjectNo">Project No *</label>
+                            <select 
+                                id="editProjectNo" 
+                                name="project_no" 
+                                value={editingTask.project_no || ''} 
+                                onChange={onInputChange} 
+                                required 
+                                className="form-select"
+                            >
+                                <option value="">Select a project</option>
+                                {uniqueProjectNos.map(projectNo => (
+                                    <option key={projectNo} value={projectNo}>
+                                        {projectNo}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+
+                        <div className="form-group">
+                            <label htmlFor="editTitle">Task Title *</label>
+                            <input 
+                                type="text" 
+                                id="editTitle" 
+                                name="title" 
+                                value={editingTask.title} 
+                                onChange={onInputChange} 
+                                required 
+                                autoComplete="off" 
+                                className="form-input" 
+                            />
+                        </div>
+
+                        <div className="form-group">
+                            <label htmlFor="editDescription">Description</label>
+                            <textarea 
+                                id="editDescription" 
+                                name="description" 
+                                value={editingTask.description || ''} 
+                                onChange={onInputChange} 
+                                rows="3" 
+                                autoComplete="off" 
+                                className="form-textarea" 
+                            />
+                        </div>
+
+                        <div className="form-row">
+                            <div className="form-group">
+                                <label htmlFor="editPriority">Priority</label>
+                                <select 
+                                    id="editPriority" 
+                                    name="priority" 
+                                    value={editingTask.priority} 
+                                    onChange={onInputChange} 
+                                    className="form-select"
+                                >
+                                    <option value="low">Low</option>
+                                    <option value="medium">Medium</option>
+                                    <option value="high">High</option>
+                                </select>
+                            </div>
+
+                            <div className="form-group">
+                                <label htmlFor="editStatus">Status</label>
+                                <select 
+                                    id="editStatus" 
+                                    name="status" 
+                                    value={editingTask.status} 
+                                    onChange={onInputChange} 
+                                    className="form-select"
+                                >
+                                    <option value="pending">Pending</option>
+                                    <option value="in-progress">In Progress</option>
+                                    <option value="completed">Completed</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div className="form-group">
+                            <label htmlFor="editDueDate">Due Date</label>
+                            <input
+                                type="date"
+                                id="editDueDate"
+                                name="due_date"
+                                value={editingTask.due_date || ''}
+                                onChange={onInputChange}
+                                className="form-input"
+                            />
+                        </div>
+
+                        {error && <div className="alert alert-danger">{error}</div>}
+
+                        <div className="modal-actions">
+                            <button type="button" className="secondary" onClick={onClose}>
+                                Cancel
+                            </button>
+                            <button type="submit" className="primary">
+                                Save Changes
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+// --- Main Component ---
+
+const Transportation = ({ navigate }) => {
+    const [tasks, setTasks] = useState([]);
+    const [projects, setProjects] = useState([]);
+    const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [editingTask, setEditingTask] = useState(null);
+    const [isLoading, setIsLoading] = useState(true);
+    const [isProjectsLoading, setIsProjectsLoading] = useState(true);
+    const [error, setError] = useState(null);
+    
+    const [filters, setFilters] = useState({ 
+        priority: 'all', 
+        status: 'all', 
+        projectNo: 'all',
+    });
+    
+    const [newTask, setNewTask] = useState({
+        title: '',
+        description: '',
+        priority: 'medium',
+        status: 'pending',
+        project_no: '',
+        due_date: '',
+    });
+
+    useEffect(() => {
+        fetchTasks();
+        fetchProjects();
+    }, []);
+
+    // --- API Calls ---
+
+    const fetchTasks = async () => {
+        setIsLoading(true);
+        setError(null);
+        try {
+            const data = await transportationTasksAPI.getAll();
+            setTasks(data);
+        } catch (err) {
+            console.error('Failed to fetch tasks:', err);
+            setError('Failed to load tasks. Please ensure the backend is running.');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const fetchProjects = async () => {
+        setIsProjectsLoading(true);
+        try {
+            const data = await projectsAPI.getAll();
+            setProjects(data);
+        } catch (err) {
+            console.error('Failed to fetch projects:', err);
+            setError(prev => prev || 'Failed to load projects list.'); // Only set if no other error exists
+        } finally {
+            setIsProjectsLoading(false);
+        }
+    };
+
+    // --- Memoized Values ---
+
+    const uniqueProjectNos = useMemo(() => {
+        const projectNumbers = projects.map(project => project.projectNo).filter(p => p);
+        return [...new Set(projectNumbers)].sort();
+    }, [projects]);
+
+    const filteredTasks = useMemo(() => {
+        return tasks.filter(task => {
+            if (filters.priority !== 'all' && task.priority !== filters.priority) {
+                return false;
+            }
+            if (filters.status !== 'all' && task.status !== filters.status) {
+                return false;
+            }
+            if (filters.projectNo !== 'all' && task.projectNo !== filters.projectNo) {
+                // Assuming projectNo on task is camelCase based on context
+                return false; 
+            }
+            return true;
+        });
+    }, [tasks, filters]); 
+
+    // --- Modal Handlers ---
+
+    const openCreateModal = () => {
+        setNewTask({
+            title: '',
+            description: '',
+            priority: 'medium',
+            status: 'pending',
+            project_no: uniqueProjectNos.length > 0 ? uniqueProjectNos[0] : '',
+            due_date: '',
+        });
+        setError(null);
+        setIsTaskModalOpen(true);
+    };
+
+    const closeCreateModal = () => {
+        setIsTaskModalOpen(false);
+        setError(null);
+    };
+
+    const openEditModal = (task) => {
+        const { id, title, description, priority, status, projectNo } = task;
+
+        setEditingTask({ 
+            id, 
+            title, 
+            description, 
+            priority, 
+            status,
+            // API expects 'project_no' but stores 'projectNo'
+            project_no: projectNo || (uniqueProjectNos.length > 0 ? uniqueProjectNos[0] : ''),
+            // Convert timestamp/datetime to YYYY-MM-DD for date input
+            due_date: task.dueDate ? task.dueDate.substring(0, 10) : '' 
+        });
+        setError(null);
+        setIsEditModalOpen(true);
+    };
+
+    const closeEditModal = () => {
+        setIsEditModalOpen(false);
+        setEditingTask(null);
+        setError(null);
+    };
+
+    // --- CRUD Handlers ---
+
+    const handleCreateTask = async (e) => {
+        e.preventDefault();
+        if (!newTask.title.trim() || !newTask.project_no.trim()) {
+            setError('Task title and Project No are required');
+            return;
+        }
+
+        try {
+            const createdTask = await transportationTasksAPI.create(newTask);
+            // Assuming the API returns the created task
+            setTasks(prev => [createdTask, ...prev]);
+            closeCreateModal();
+        } catch (err) {
+            console.error('Failed to create task:', err);
+            setError('Failed to create task. Check console for details.');
+        }
+    };
+
+    const handleUpdateTask = async (e) => {
+        e.preventDefault();
+        if (!editingTask.title.trim() || !editingTask.project_no.trim()) {
+            setError('Task title and Project No are required');
+            return;
+        }
+
+        try {
+            const payload = {
+                title: editingTask.title,
+                description: editingTask.description,
+                priority: editingTask.priority,
+                status: editingTask.status,
+                project_no: editingTask.project_no, 
+                due_date: editingTask.due_date,
+            };
+
+            const updatedTask = await transportationTasksAPI.update(editingTask.id, payload);
+            
+            // Update the state with the modified task
+            setTasks(prev => prev.map(task => 
+                task.id === updatedTask.id ? updatedTask : task
+            ));
+            closeEditModal();
+        } catch (err) {
+            console.error('Failed to update task:', err);
+            setError('Failed to save changes to the task.');
+        }
+    };
+
+    const handleUpdateTaskStatus = async (taskId, newStatus) => {
+        try {
+            const updatedTask = await transportationTasksAPI.update(taskId, { status: newStatus });
+            setTasks(prev => prev.map(task => 
+                task.id === taskId ? updatedTask : task
+            ));
+        } catch (err) {
+            console.error('Failed to update task status:', err);
+            setError('Failed to update task status.');
+        }
+    };
+
+    const handleDeleteTask = async (taskId) => {
+        if (!window.confirm('Are you sure you want to delete this task?')) return;
+
+        try {
+            await transportationTasksAPI.delete(taskId);
+            setTasks(prev => prev.filter(task => task.id !== taskId));
+        } catch (err) {
+            console.error('Failed to delete task:', err);
+            setError('Failed to delete task.');
+        }
+    };
+
+    // --- Input Change Handlers ---
+
+    const handleInputChange = (e) => {
+        const { name, value } = e.target;
+        setNewTask(prev => ({ 
+            ...prev, 
+            [name]: value 
+        }));
+    };
+
+    const handleEditInputChange = (e) => {
+        const { name, value } = e.target;
+        setEditingTask(prev => ({ 
+            ...prev, 
+            [name]: value 
+        }));
+    };
+
+    const handleFilterChange = (e) => {
+        const { name, value } = e.target;
+        setFilters(prev => ({
+            ...prev, 
+            [name]: value 
+        }));
+    };
+
+    // --- Style Utilities ---
+
+    const getPriorityColor = (priority) => {
+        switch (priority) {
+            case 'high': return '#dc3545';
+            case 'medium': return '#ffc107';
+            case 'low': return '#28a745';
+            default: return '#6c757d';
+        }
+    };
+
+    const getStatusColor = (status) => {
+        switch (status) {
+            case 'completed': return '#28a745';
+            case 'in-progress': return '#17a2b8';
+            case 'pending': return '#6c757d';
+            default: return '#6c757d';
+        }
+    };
+
+    // --- TaskCard Sub-Component ---
+
+    const TaskCard = ({ task }) => {
+        return (
+            <div className="task-card">
+                <div className="task-header">
+                    <div>
+                        <h4 className="task-title">{task.title}</h4>
+                        {task.projectNo && (
+                            <p className="task-project-no">
+                                <strong>Project:</strong> {task.projectNo}
+                            </p>
+                        )}
+                    </div>
+                    <div className="task-priority" style={{ backgroundColor: getPriorityColor(task.priority) }}>
+                        {task.priority}
+                    </div>
+                </div>
+
+                {task.description && (
+                    <p className="task-description">{task.description}</p>
+                )}
+
+                <div className="task-meta">
+                    <div className="task-due-date">
+                        <strong>Due:</strong> {formatDate(task.dueDate)} 
+                    </div>
+                    <div className="task-created">
+                        Created: {new Date(task.createdAt).toLocaleDateString()}
+                    </div>
+                </div>
+
+                <div className="task-actions">
+                    <select
+                        value={task.status}
+                        onChange={(e) => handleUpdateTaskStatus(task.id, e.target.value)}
+                        className="status-select"
+                        style={{ borderColor: getStatusColor(task.status) }}
+                    >
+                        <option value="pending">Pending</option>
+                        <option value="in-progress">In Progress</option>
+                        <option value="completed">Completed</option>
+                    </select>
+
+                    <button
+                        onClick={() => openEditModal(task)}
+                        className="secondary task-edit-btn"
+                        title="Edit task details"
+                    >
+                        Edit
+                    </button>
+                    
+                    <button
+                        onClick={() => handleDeleteTask(task.id)}
+                        className="danger task-delete-btn"
+                        title="Delete task"
+                    >
+                        Delete
+                    </button>
+                </div>
+            </div>
+        );
+    };
+    
+    // --- Render ---
+
+    return (
+        <div className="transportation-container">
+            <header className="page-header">
+                <div className="header-controls">
+                    <h1>Transportation Management</h1>
+                    <button
+                        className="primary"
+                        onClick={openCreateModal}
+                    >
+                        + Create Task
+                    </button>
+                </div>
+            </header>
+
+            <hr/>
+
+            <div className="filter-controls">
+                <h3 style={{ marginBottom: '10px' }}>🔍 Filter Tasks</h3>
+                <div className="filter-group">
+                    <div className="form-group">
+                        <label htmlFor="filter-priority">Priority</label>
+                        <select 
+                            id="filter-priority" 
+                            name="priority" 
+                            value={filters.priority} 
+                            onChange={handleFilterChange} 
+                            className="form-select"
+                        >
+                            <option value="all">All Priorities</option>
+                            <option value="low">Low</option>
+                            <option value="medium">Medium</option>
+                            <option value="high">High</option>
+                        </select>
+                    </div>
+                    
+                    <div className="form-group">
+                        <label htmlFor="filter-status">Status</label>
+                        <select 
+                            id="filter-status" 
+                            name="status" 
+                            value={filters.status} 
+                            onChange={handleFilterChange} 
+                            className="form-select"
+                        >
+                            <option value="all">All Statuses</option>
+                            <option value="pending">Pending</option>
+                            <option value="in-progress">In Progress</option>
+                            <option value="completed">Completed</option>
+                        </select>
+                    </div>
+
+                    <div className="form-group">
+                        <label htmlFor="filter-projectNo">Project No</label>
+                        <select
+                            id="filter-projectNo" 
+                            name="projectNo" 
+                            value={filters.projectNo} 
+                            onChange={handleFilterChange} 
+                            className="form-select"
+                        >
+                            <option value="all">All Projects</option>
+                            {uniqueProjectNos.map(pNo => (
+                                <option key={pNo} value={pNo}>{pNo}</option>
+                            ))}
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <hr/>
+            
+            <div className="transportation-content">
+                <div className="tasks-section">
+                    <div className="tasks-header">
+                        <h2>📋 Transportation Tasks ({filteredTasks.length} / {tasks.length})</h2>
+                        <div className="tasks-stats">
+                            <span className="stat pending">Pending: {filteredTasks.filter(t => t.status === 'pending').length}</span>
+                            <span className="stat in-progress">In Progress: {filteredTasks.filter(t => t.status === 'in-progress').length}</span>
+                            <span className="stat completed">Completed: {filteredTasks.filter(t => t.status === 'completed').length}</span>
+                        </div>
+                    </div>
+
+                    {error && <div className="alert alert-danger">{error}</div>}
+
+                    {isLoading ? (
+                        <div className="loading-state">
+                            <p>Loading tasks... 🔄</p>
+                        </div>
+                    ) : filteredTasks.length === 0 && tasks.length > 0 ? (
+                        <div className="empty-state">
+                            <h3>No tasks match your current filters.</h3>
+                            <p>Try clearing or adjusting your selections.</p>
+                        </div>
+                    ) : filteredTasks.length === 0 && tasks.length === 0 ? (
+                        <div className="empty-state">
+                            <h3>No tasks yet</h3>
+                            <p>Create your first task to get started with transportation management!</p>
+                            <button 
+                                className="primary" 
+                                onClick={openCreateModal}
+                            >
+                                Create Your First Task
+                            </button>
+                        </div>
+                    ) : (
+                        <div className="tasks-grid">
+                            {filteredTasks.map(task => (
+                                <TaskCard key={task.id} task={task} />
+                            ))}
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            <CreateTaskModal 
+                isOpen={isTaskModalOpen}
+                onClose={closeCreateModal}
+                newTask={newTask}
+                onInputChange={handleInputChange}
+                onSubmit={handleCreateTask}
+                error={error}
+                uniqueProjectNos={uniqueProjectNos}
+            />
+            
+            <EditTaskModal 
+                isOpen={isEditModalOpen}
+                onClose={closeEditModal}
+                editingTask={editingTask}
+                onInputChange={handleEditInputChange}
+                onSubmit={handleUpdateTask}
+                error={error}
+                uniqueProjectNos={uniqueProjectNos}
+            />
+        </div>
+    );
+};
+
+export default Transportation;

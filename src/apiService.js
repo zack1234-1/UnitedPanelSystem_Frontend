@@ -251,40 +251,21 @@ export const activityLogsAPI = {
         return apiRequest(endpoint);
     },
     
-    // Get activity logs for a specific project/job
-    getByProject: (projectNo) => apiRequest(`/activity-logs/project/${projectNo}`),
-    
-    // Get activity logs for a specific user
-    getByUser: (userId) => apiRequest(`/activity-logs/user/${userId}`),
-    
-    // Get a specific activity log by ID
-    getById: (logId) => apiRequest(`/activity-logs/${logId}`),
-    
-    // Create a new activity log entry
-    create: (logData) => apiRequest('/activity-logs', {
-        method: 'POST',
-        body: JSON.stringify(logData),
-    }),
-    
-    // Update an activity log entry
-    update: (logId, logData) => apiRequest(`/activity-logs/${logId}`, {
-        method: 'PATCH',
-        body: JSON.stringify(logData),
-    }),
-    
-    // Delete an activity log entry
-    delete: (logId) => apiRequest(`/activity-logs/${logId}`, {
-        method: 'DELETE',
-    }),
-    
-    // Get activity logs by date range
-    getByDateRange: (startDate, endDate) => apiRequest(`/activity-logs/range?start=${startDate}&end=${endDate}`),
-    
-    // Get activity logs by type/category
-    getByType: (type) => apiRequest(`/activity-logs/type/${type}`),
-    
-    // Search activity logs by text
-    search: (searchTerm) => apiRequest(`/activity-logs/search?q=${encodeURIComponent(searchTerm)}`),
+};
+
+export const transportationTasksAPI = {
+  getAll: () => apiRequest('/transportation-tasks'),
+  create: (taskData) => apiRequest('/transportation-tasks', {
+    method: 'POST',
+    body: JSON.stringify(taskData),
+  }),
+  update: (taskId, taskData) => apiRequest(`/transportation-tasks/${taskId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(taskData),
+  }),
+  delete: (taskId) => apiRequest(`/transportation-tasks/${taskId}`, {
+    method: 'DELETE',
+  }),
 };
 
 // =========================================================
@@ -345,12 +326,9 @@ export const deleteAdminJob = jobAdminAPI.deleteJob;
 export const getAdminJobByJobNo = jobAdminAPI.getJobByJobNo; 
 
 export const getAllActivityLogs = activityLogsAPI.getAll;
-export const getActivityLogsByProject = activityLogsAPI.getByProject;
-export const getActivityLogsByUser = activityLogsAPI.getByUser;
-export const getActivityLogById = activityLogsAPI.getById;
-export const createActivityLog = activityLogsAPI.create;
-export const updateActivityLog = activityLogsAPI.update;
-export const deleteActivityLog = activityLogsAPI.delete;
-export const getActivityLogsByDateRange = activityLogsAPI.getByDateRange;
-export const getActivityLogsByType = activityLogsAPI.getByType;
-export const searchActivityLogs = activityLogsAPI.search;
+
+// Transportation Tasks (NEW - Added)
+export const getAllTransportationTasks = transportationTasksAPI.getAll;
+export const createTransportationTask = transportationTasksAPI.create;
+export const updateTransportationTask = transportationTasksAPI.update;
+export const deleteTransportationTask = transportationTasksAPI.delete;

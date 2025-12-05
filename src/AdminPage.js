@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import './AdminPage.css';
 import { getAllAdminJobs, createAdminJob, updateAdminJob, deleteAdminJob } from './apiService';
+import { projectsAPI } from './apiService'; // Import the projects API
 
 const tableColumns = [
-    'DATE', 'JOB NO.', 'CUSTOMER', 'SALES', 'SELL', 'COST', 'MARGIN', 'APPROVAL', 'SIGNATURE', 'REMARKS'
+    'DATE', 'JOB NO.', 'CUSTOMER', 'SALES', 'SELL', 'COST', 'MARGIN', 'SIGNATURE', 'REMARKS'
 ];
 
 // =========================================================
@@ -178,13 +179,20 @@ const SignatureCanvas = ({ signatureData, onSaveSignature, onClearSignature }) =
 };
 
 // =========================================================
-// ProjectModal Component
+// ProjectModal Component (Updated - Approval removed)
 // =========================================================
-const ProjectModal = ({ isOpen, onClose, columns, onSave, jobToEdit }) => {
+const ProjectModal = ({ 
+    isOpen, 
+    onClose, 
+    columns, 
+    onSave, 
+    jobToEdit,
+    projectNumbers
+}) => {
     
     const getInitialValue = (col) => {
-        if (col === 'APPROVAL') return 'Pending';
         if (col === 'DATE') return getCurrentDate();
+        if (col === 'JOB NO.' && projectNumbers.length > 0) return projectNumbers[0];
         return '';
     };
 
@@ -208,7 +216,6 @@ const ProjectModal = ({ isOpen, onClose, columns, onSave, jobToEdit }) => {
                 'SELL': jobToEdit.sellPrice === null || jobToEdit.sellPrice === 0 ? '' : Number(jobToEdit.sellPrice),
                 'COST': jobToEdit.cost === null || jobToEdit.cost === 0 ? '' : Number(jobToEdit.cost),
                 'MARGIN': jobToEdit.margin === null || jobToEdit.margin === 0 ? '' : Number(jobToEdit.margin),
-                'APPROVAL': jobToEdit.approvalStatus || getInitialValue('APPROVAL'),
                 'SIGNATURE': jobToEdit.signatureData,
                 'REMARKS': jobToEdit.remarks || getInitialValue('REMARKS'),
             };
@@ -218,7 +225,7 @@ const ProjectModal = ({ isOpen, onClose, columns, onSave, jobToEdit }) => {
             setFormData(initialFormState);
             setTempSignature(null);
         }
-    }, [jobToEdit, isOpen]);
+    }, [jobToEdit, isOpen, projectNumbers]);
 
     useEffect(() => {
         const sell = formData['SELL'];
@@ -271,15 +278,18 @@ const ProjectModal = ({ isOpen, onClose, columns, onSave, jobToEdit }) => {
             return;
         }
 
+        // Get customer name from selected project if available
+        const selectedProjectNumber = formData['JOB NO.'];
+        const customerName = formData['CUSTOMER'] || `Customer for ${selectedProjectNumber}`;
+
         const payload = {
-            Job_No: formData['JOB NO.'],
-            Date_Entry: formData['DATE'], // Already in YYYY-MM-DD format
-            Customer_Name: formData['CUSTOMER'],
+            Job_No: selectedProjectNumber,
+            Date_Entry: formData['DATE'],
+            Customer_Name: customerName,
             Sales_Amount: formData['SALES'],
             Sell_Price: formData['SELL'],
             Cost: formData['COST'],
             Margin: formData['MARGIN'],
-            Approval_Status: formData['APPROVAL'],
             Remarks: formData['REMARKS'] || null,
             Signature_Data: tempSignature,
         };
@@ -338,12 +348,15 @@ const ProjectModal = ({ isOpen, onClose, columns, onSave, jobToEdit }) => {
             className: isReadOnly ? 'readonly-field' : ''
         };
 
-        if (col === 'APPROVAL') {
+        if (col === 'JOB NO.') {
             return (
                 <select {...inputProps}>
-                    <option value="Pending">Pending</option>
-                    <option value="Approved">Approved</option>
-                    <option value="Rejected">Rejected</option>
+                    <option value="">Select a project</option>
+                    {projectNumbers.map((projectNo) => (
+                        <option key={projectNo} value={projectNo}>
+                            {projectNo}
+                        </option>
+                    ))}
                 </select>
             );
         }
@@ -413,15 +426,18 @@ const ProjectModal = ({ isOpen, onClose, columns, onSave, jobToEdit }) => {
 };
 
 // =========================================================
-// AdminPage Component
+// AdminPage Component (Updated - Approval removed)
 // =========================================================
 const AdminPage = ({ navigate }) => {
     const [jobs, setJobs] = useState([]);
+    const [projects, setProjects] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [projectsLoading, setProjectsLoading] = useState(false);
     const [error, setError] = useState(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [jobToEdit, setJobToEdit] = useState(null);
 
+    // Fetch all jobs
     const fetchJobs = async () => {
         setLoading(true);
         try {
@@ -436,9 +452,41 @@ const AdminPage = ({ navigate }) => {
         }
     };
 
+    // Fetch all projects to get project numbers
+    const fetchProjects = async () => {
+        setProjectsLoading(true);
+        try {
+            const data = await projectsAPI.getAll();
+            setProjects(data);
+        } catch (err) {
+            console.error('Failed to fetch projects:', err);
+            console.log('Will use existing job numbers instead');
+        } finally {
+            setProjectsLoading(false);
+        }
+    };
+
     useEffect(() => {
         fetchJobs();
+        fetchProjects();
     }, []);
+
+    // Extract unique project numbers from both sources
+    const projectNumbers = useMemo(() => {
+        const numbersFromProjects = projects
+            .map(project => project.projectNo)
+            .filter(projectNo => projectNo && projectNo.trim() !== '');
+        
+        const numbersFromJobs = jobs
+            .map(job => job.jobNo)
+            .filter(jobNo => jobNo && jobNo.trim() !== '');
+        
+        // Combine and deduplicate
+        const allNumbers = [...numbersFromProjects, ...numbersFromJobs];
+        const uniqueNumbers = [...new Set(allNumbers)].sort();
+        
+        return uniqueNumbers;
+    }, [projects, jobs]);
 
     const formatCurrency = (value) => {
         if (value === null || value === undefined || value === '') {
@@ -467,7 +515,6 @@ const AdminPage = ({ navigate }) => {
         SELL: formatCurrency(job.sellPrice),
         COST: formatCurrency(job.cost),
         MARGIN: formatCurrency(job.margin),
-        APPROVAL: job.approvalStatus || 'Pending',
         SIGNATURE: job.signatureData,
         REMARKS: job.remarks || '-',
         signatureData: job.signatureData,
@@ -493,6 +540,11 @@ const AdminPage = ({ navigate }) => {
                     job.jobNo === processedPayload.Job_No ? { ...job, ...responseData } : job
                 ));
                 alert(`Successfully updated job ${processedPayload.Job_No}.`);
+            }
+            
+            // Refresh projects list to include any new project numbers
+            if (mode === 'CREATE') {
+                fetchProjects();
             }
             
             setError(null);
@@ -606,20 +658,40 @@ const AdminPage = ({ navigate }) => {
             <header className="page-header">
                 <h1>⚙️ Job/Sales Administration</h1>
                 <p>Manage and monitor all sales entries in the system</p>
+                <div className="project-stats">
+                    <span className="stat-item">
+                        📊 Total Jobs: <strong>{jobs.length}</strong>
+                    </span>
+                    <span className="stat-item">
+                        🏗️ Projects in DB: <strong>{projectNumbers.length}</strong>
+                    </span>
+                </div>
             </header>
 
             <main className="admin-content">
                 <div className="admin-section project-table-section">
                     <div className="table-header-row">
                         <h2>Sales Ledger 📈</h2>
-                        <button 
-                            className="create-icon-btn"
-                            onClick={openCreateModal}
-                            title="Create New Job"
-                        >
-                            ➕ Create New Entry
-                        </button>
+                        <div className="header-actions">
+                            {projectsLoading && (
+                                <span className="loading-text">Loading projects...</span>
+                            )}
+                            <button 
+                                className="create-icon-btn"
+                                onClick={openCreateModal}
+                                title="Create New Job"
+                                disabled={projectNumbers.length === 0 && projectsLoading}
+                            >
+                                ➕ Create New Entry
+                            </button>
+                        </div>
                     </div>
+                    
+                    {projectNumbers.length === 0 && !projectsLoading && (
+                        <div className="warning-banner">
+                            ⚠️ No projects found in the database. Please create projects first in the main Projects page.
+                        </div>
+                    )}
                     
                     <div className="project-table-container">
                         {loading && <div className="loading-message">Loading job data...</div>}
@@ -691,6 +763,7 @@ const AdminPage = ({ navigate }) => {
                 columns={tableColumns}
                 onSave={handleSaveJob}
                 jobToEdit={jobToEdit}
+                projectNumbers={projectNumbers}
             />
         </div>
     );
