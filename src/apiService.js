@@ -35,6 +35,7 @@ const apiRequest = async (endpoint, options = {}) => {
 export const projectsAPI = {
     // CRUD Operations
     getAll: () => apiRequest('/projects'),
+    getByStatus: (status) => apiRequest(`/projects/status/${status}`), 
     create: (projectData) => apiRequest('/projects', {
         method: 'POST',
         body: JSON.stringify(projectData),
@@ -46,6 +47,14 @@ export const projectsAPI = {
     delete: (projectId) => apiRequest(`/projects/${projectId}`, {
         method: 'DELETE',
     }),
+
+       updateStatus: (projectId, statusData) => apiRequest(`/projects/${projectId}/status`, {
+        method: 'PATCH',
+        body: JSON.stringify(statusData),
+    }),
+
+    // Get status counts - New
+    getStatusCounts: () => apiRequest('/projects/status/counts'),
 
     // File Operations
     uploadFiles: async (projectNo, filesToUpload) => {
@@ -281,6 +290,9 @@ export const uploadProjectFiles = projectsAPI.uploadFiles;
 export const deleteProjectFile = projectsAPI.deleteFile;
 export const getProjectFilesMetadata = projectsAPI.getFilesMetadata;
 export const downloadFileBlob = projectsAPI.downloadFileBlob;
+export const updateProjectStatus = projectsAPI.updateStatus; 
+export const getProjectStatusCounts = projectsAPI.getStatusCounts;
+export const getProjectsByStatus = projectsAPI.getByStatus; 
 
 // Panel Tasks
 export const getAllPanelTasks = panelTasksAPI.getAll;

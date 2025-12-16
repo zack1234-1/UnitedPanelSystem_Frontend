@@ -501,7 +501,7 @@ const System = ({ navigate }) => {
                         <h4 className="task-title">{task.title}</h4>
                         {task.projectNo && (
                             <p className="task-project-no">
-                                <strong>Project:</strong> {task.projectNo}
+                                <strong>Project No:</strong> {task.projectNo}
                             </p>
                         )}
                     </div>

@@ -501,12 +501,9 @@ const Cutting = ({ navigate }) => {
                         <h4 className="task-title">{task.title}</h4>
                         {task.projectNo && (
                             <p className="task-project-no">
-                                <strong>Project:</strong> {task.projectNo}
+                                <strong>Project No:</strong> {task.projectNo}
                             </p>
                         )}
-                    </div>
-                    <div className="task-priority" style={{ backgroundColor: getPriorityColor(task.priority) }}>
-                        {task.priority}
                     </div>
                 </div>
 
@@ -515,9 +512,6 @@ const Cutting = ({ navigate }) => {
                 )}
 
                 <div className="task-meta">
-                    <div className="task-due-date">
-                        <strong>Due:</strong> {formatDate(task.dueDate)} 
-                    </div>
                     <div className="task-created">
                         Created: {new Date(task.createdAt).toLocaleDateString()}
                     </div>

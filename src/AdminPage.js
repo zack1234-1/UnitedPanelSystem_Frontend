@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import './AdminPage.css';
 import { getAllAdminJobs, createAdminJob, updateAdminJob, deleteAdminJob } from './apiService';
 import { projectsAPI } from './apiService'; // Import the projects API
+import FileView from './FileComponents'; // Import the FileView component
 
 const tableColumns = [
     'DATE', 'JOB NO.', 'CUSTOMER', 'SALES', 'SELL', 'COST', 'MARGIN', 'SIGNATURE', 'REMARKS'
@@ -186,13 +187,11 @@ const ProjectModal = ({
     onClose, 
     columns, 
     onSave, 
-    jobToEdit,
-    projectNumbers
+    jobToEdit
 }) => {
     
     const getInitialValue = (col) => {
         if (col === 'DATE') return getCurrentDate();
-        if (col === 'JOB NO.' && projectNumbers.length > 0) return projectNumbers[0];
         return '';
     };
 
@@ -225,7 +224,7 @@ const ProjectModal = ({
             setFormData(initialFormState);
             setTempSignature(null);
         }
-    }, [jobToEdit, isOpen, projectNumbers]);
+    }, [jobToEdit, isOpen]);
 
     useEffect(() => {
         const sell = formData['SELL'];
@@ -273,6 +272,12 @@ const ProjectModal = ({
     const handleSubmit = (e) => {
         e.preventDefault();
 
+        // Validate required fields
+        if (!formData['JOB NO.'] || formData['JOB NO.'].trim() === '') {
+            setError('Job No. is required.');
+            return;
+        }
+
         if (formData['SELL'] === '' || formData['COST'] === '' || formData['SALES'] === '') {
             setError('Please ensure SELL, COST, and SALES amounts are entered.');
             return;
@@ -315,7 +320,7 @@ const ProjectModal = ({
         const type = getInputType(col);
         const isMarginField = col === 'MARGIN';
         const isJobNoField = col === 'JOB NO.';
-        const isReadOnly = isMarginField || (isJobNoField && jobToEdit);
+        const isReadOnly = isMarginField;
 
         if (col === 'SIGNATURE') {
             return (
@@ -345,19 +350,18 @@ const ProjectModal = ({
             onChange: isReadOnly ? undefined : handleChange,
             required: isRequired(col),
             readOnly: isReadOnly,
-            className: isReadOnly ? 'readonly-field' : ''
+            className: isReadOnly ? 'readonly-field' : '',
+            placeholder: col === 'JOB NO.' ? 'Enter Job/Project Number' : ''
         };
 
+        // For JOB NO. field - always text input, readOnly only when editing
         if (col === 'JOB NO.') {
             return (
-                <select {...inputProps}>
-                    <option value="">Select a project</option>
-                    {projectNumbers.map((projectNo) => (
-                        <option key={projectNo} value={projectNo}>
-                            {projectNo}
-                        </option>
-                    ))}
-                </select>
+                <input 
+                    {...inputProps}
+                    type="text"
+                    readOnly={jobToEdit} // Make readOnly only when editing
+                />
             );
         }
 
@@ -426,16 +430,15 @@ const ProjectModal = ({
 };
 
 // =========================================================
-// AdminPage Component (Updated - Approval removed)
+// AdminPage Component (Updated - with View Files button)
 // =========================================================
 const AdminPage = ({ navigate }) => {
     const [jobs, setJobs] = useState([]);
-    const [projects, setProjects] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [projectsLoading, setProjectsLoading] = useState(false);
     const [error, setError] = useState(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [jobToEdit, setJobToEdit] = useState(null);
+    const [viewingProjectNo, setViewingProjectNo] = useState(null); // New state for viewing files
 
     // Fetch all jobs
     const fetchJobs = async () => {
@@ -452,41 +455,21 @@ const AdminPage = ({ navigate }) => {
         }
     };
 
-    // Fetch all projects to get project numbers
-    const fetchProjects = async () => {
-        setProjectsLoading(true);
-        try {
-            const data = await projectsAPI.getAll();
-            setProjects(data);
-        } catch (err) {
-            console.error('Failed to fetch projects:', err);
-            console.log('Will use existing job numbers instead');
-        } finally {
-            setProjectsLoading(false);
-        }
-    };
-
     useEffect(() => {
         fetchJobs();
-        fetchProjects();
     }, []);
 
-    // Extract unique project numbers from both sources
+    // Extract unique project numbers from jobs only (no longer need projects from database)
     const projectNumbers = useMemo(() => {
-        const numbersFromProjects = projects
-            .map(project => project.projectNo)
-            .filter(projectNo => projectNo && projectNo.trim() !== '');
-        
         const numbersFromJobs = jobs
             .map(job => job.jobNo)
             .filter(jobNo => jobNo && jobNo.trim() !== '');
         
-        // Combine and deduplicate
-        const allNumbers = [...numbersFromProjects, ...numbersFromJobs];
-        const uniqueNumbers = [...new Set(allNumbers)].sort();
+        // Get unique numbers
+        const uniqueNumbers = [...new Set(numbersFromJobs)].sort();
         
         return uniqueNumbers;
-    }, [projects, jobs]);
+    }, [jobs]);
 
     const formatCurrency = (value) => {
         if (value === null || value === undefined || value === '') {
@@ -542,11 +525,6 @@ const AdminPage = ({ navigate }) => {
                 alert(`Successfully updated job ${processedPayload.Job_No}.`);
             }
             
-            // Refresh projects list to include any new project numbers
-            if (mode === 'CREATE') {
-                fetchProjects();
-            }
-            
             setError(null);
             closeModal();
         } catch (err) {
@@ -590,6 +568,14 @@ const AdminPage = ({ navigate }) => {
     const closeModal = () => {
         setIsModalOpen(false);
         setJobToEdit(null);
+    };
+
+    const handleViewFiles = (jobNo) => {
+        setViewingProjectNo(jobNo);
+    };
+
+    const handleBackFromFiles = () => {
+        setViewingProjectNo(null);
     };
 
     const renderSignatureCell = (signatureData) => {
@@ -653,6 +639,18 @@ const AdminPage = ({ navigate }) => {
         );
     };
 
+    // If viewing files, show the FileView component
+    if (viewingProjectNo) {
+        return (
+            <div className="admin-page">
+                <FileView 
+                    projectNo={viewingProjectNo}
+                    navigateHome={handleBackFromFiles}
+                />
+            </div>
+        );
+    }
+
     return (
         <div className="admin-page">
             <header className="page-header">
@@ -662,9 +660,6 @@ const AdminPage = ({ navigate }) => {
                     <span className="stat-item">
                         📊 Total Jobs: <strong>{jobs.length}</strong>
                     </span>
-                    <span className="stat-item">
-                        🏗️ Projects in DB: <strong>{projectNumbers.length}</strong>
-                    </span>
                 </div>
             </header>
 
@@ -673,25 +668,15 @@ const AdminPage = ({ navigate }) => {
                     <div className="table-header-row">
                         <h2>Sales Ledger 📈</h2>
                         <div className="header-actions">
-                            {projectsLoading && (
-                                <span className="loading-text">Loading projects...</span>
-                            )}
                             <button 
                                 className="create-icon-btn"
                                 onClick={openCreateModal}
                                 title="Create New Job"
-                                disabled={projectNumbers.length === 0 && projectsLoading}
                             >
                                 ➕ Create New Entry
                             </button>
                         </div>
                     </div>
-                    
-                    {projectNumbers.length === 0 && !projectsLoading && (
-                        <div className="warning-banner">
-                            ⚠️ No projects found in the database. Please create projects first in the main Projects page.
-                        </div>
-                    )}
                     
                     <div className="project-table-container">
                         {loading && <div className="loading-message">Loading job data...</div>}
@@ -728,6 +713,13 @@ const AdminPage = ({ navigate }) => {
                                                     })}
                                                     <td className="action-cell">
                                                         <button 
+                                                            onClick={() => handleViewFiles(job.jobNo)}
+                                                            className="table-action-btn view-btn"
+                                                            title="View project files"
+                                                        >
+                                                            📁 View Files
+                                                        </button>
+                                                        <button 
                                                             onClick={() => openEditModal(job)}
                                                             className="table-action-btn edit-btn"
                                                         >
@@ -763,7 +755,6 @@ const AdminPage = ({ navigate }) => {
                 columns={tableColumns}
                 onSave={handleSaveJob}
                 jobToEdit={jobToEdit}
-                projectNumbers={projectNumbers}
             />
         </div>
     );

@@ -480,3 +480,77 @@ tbody tr:hover {
         width: 100%;
     }
 }
+
+/* Add these styles to your existing AdminPage.css */
+
+/* View button styling */
+.table-action-btn.view-btn {
+    background-color: #4a6fa5;
+    color: white;
+    border: 1px solid #3a5a8a;
+}
+
+.table-action-btn.view-btn:hover {
+    background-color: #3a5a8a;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(74, 111, 165, 0.3);
+}
+
+.table-action-btn.view-btn:active {
+    background-color: #2a4a7a;
+    transform: translateY(0);
+}
+
+/* Adjust action cell for three buttons */
+.action-cell {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.table-action-btn {
+    padding: 6px 12px;
+    font-size: 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: none;
+    font-weight: 500;
+    flex: 1;
+    min-width: 80px;
+    text-align: center;
+}
+
+/* Specific button colors */
+.table-action-btn.edit-btn {
+    background-color: #f0ad4e;
+    color: white;
+    border: 1px solid #eea236;
+}
+
+.table-action-btn.edit-btn:hover {
+    background-color: #ec971f;
+}
+
+.table-action-btn.delete-btn {
+    background-color: #d9534f;
+    color: white;
+    border: 1px solid #d43f3a;
+}
+
+.table-action-btn.delete-btn:hover {
+    background-color: #c9302c;
+}
+
+/* Make buttons more compact on smaller screens */
+@media (max-width: 768px) {
+    .table-action-btn {
+        padding: 4px 8px;
+        font-size: 11px;
+        min-width: 70px;
+    }
+    
+    .action-cell {
+        gap: 4px;
+    }
+}

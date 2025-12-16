@@ -190,11 +190,17 @@ const CategoryCards = ({ projectNo, onCategorySelect }) => {
       description: 'System integration files'
     },
     { 
-      key: 'transportation', // NEW CATEGORY ADDED
+      key: 'transportation',
       label: 'Transportation', 
       icon: '🚚',
       description: 'Transportation logs, bills, and documents'
-    }
+    },
+    { 
+      key: 'quotation',  // NEW CATEGORY ADDED
+      label: 'Quotation', 
+      icon: '📄',
+      description: 'Quotation documents and pricing details'
+    },
   ];
 
   return (
@@ -270,16 +276,18 @@ export const FileView = ({ projectNo, navigateHome }) => {
     }
   };
 
-  // Fetch files for a specific category
+  // Fetch files for a specific category - FIXED VERSION
   const fetchFilesByCategory = useCallback(async (category) => {
     setIsLoading(true);
     setError(null);
     try {
       const data = await real_getProjectFilesByCategory(projectNo, category);
-      setFiles(data);
+      // Ensure files is always an array
+      setFiles(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error("Failed to fetch files for category:", err);
       setError(`Failed to load ${category} files for project ${projectNo}.`);
+      setFiles([]); // Reset to empty array on error
     } finally {
       setIsLoading(false);
     }
@@ -912,7 +920,18 @@ export const FileView = ({ projectNo, navigateHome }) => {
             )}
           </div>
           
-          {files.length === 0 ? (
+          {!Array.isArray(files) ? (
+            <div className="no-files-message">
+              <div className="no-files-icon">❌</div>
+              <p>Failed to load files. Data format error.</p>
+              <button 
+                className="secondary"
+                onClick={() => fetchFilesByCategory(selectedCategory)}
+              >
+                ↻ Retry
+              </button>
+            </div>
+          ) : files.length === 0 ? (
             <div className="no-files-message">
               <div className="no-files-icon">📁</div>
               <p>No files uploaded for {selectedCategoryLabel}.</p>
@@ -933,13 +952,14 @@ export const FileView = ({ projectNo, navigateHome }) => {
                     onClick={() => handleFileSelectForPreview(file)}
                   >
                     <span className="file-icon">
-                      {file.mime_type.startsWith('image/') ? '🖼️' : 
-                       file.mime_type.endsWith('/pdf') ? '📕' : '📄'}
+                      {file.mime_type && file.mime_type.startsWith('image/') ? '🖼️' : 
+                       file.mime_type && file.mime_type.endsWith('/pdf') ? '📕' : '📄'}
                     </span>
                     <div className="file-info">
                       <span className="file-name" title={file.file_name}>{file.file_name}</span>
                       <span className="file-meta">
-                        {(file.file_size / 1024 / 1024).toFixed(2)} MB • {file.mime_type.split('/')[1] || file.mime_type}
+                        {file.file_size ? `${(file.file_size / 1024 / 1024).toFixed(2)} MB` : 'Unknown size'} • 
+                        {file.mime_type ? file.mime_type.split('/')[1] || file.mime_type : 'Unknown type'}
                       </span>
                     </div>
                     <button 

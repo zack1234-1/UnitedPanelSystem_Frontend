@@ -9,7 +9,7 @@ import { FileView, FileUploadSection, real_uploadProjectFiles } from './FileComp
 import AdminPage from './AdminPage';
 import './App.css';
 import NotificationPage from './Notification';
-import ExcelExtractor from './ExcelExtractor'; // Import the Excel Extractor component
+import ExcelExtractor from './ExcelExtractor';
 
 // =========================================================
 // 1. REAL API Service Implementation
@@ -48,6 +48,10 @@ const real_getAllProjects = async () => {
   return await apiCall('/projects');
 };
 
+const real_getProjectsByStatus = async (status) => {
+  return await apiCall(`/projects/status/${status}`);
+};
+
 const real_createProject = async (newProject) => {
   return await apiCall('/projects', {
     method: 'POST',
@@ -68,21 +72,26 @@ const real_updateProject = async (id, updatedData) => {
   });
 };
 
+const real_updateProjectStatus = async (id, status) => {
+  return await apiCall(`/projects/${id}/status`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status }),
+  });
+};
+
 // New function to create initial tasks for categories
 const createCategoryTasks = async (projectNo, selectedCategories) => {
   try {
     const tasks = [];
     
-    // For each selected category, create initial task entry
     for (const category of selectedCategories) {
       let taskData = {
         projectNo: projectNo,
         status: 'Pending'
       };
       
-      // Add category-specific default fields
       switch(category) {
-        case 'panelSlab':
+        case 'panel':
           taskData = {
             ...taskData,
             panelName: '',
@@ -127,7 +136,7 @@ const createCategoryTasks = async (projectNo, selectedCategories) => {
           });
           break;
           
-        case 'stripCurtain':
+        case 'strip_curtain':
           taskData = {
             ...taskData,
             stripCurtainName: '',
@@ -179,9 +188,126 @@ const createCategoryTasks = async (projectNo, selectedCategories) => {
   }
 };
 
+// =========================================================
+// Status Tabs Component
+// =========================================================
+
+const StatusTabs = ({ activeTab, onTabChange}) => {
+  const tabs = [
+    { id: 'approved', label: 'Approved' },
+    { id: 'done', label: 'Done'},
+  ];
+
+  return (
+    <div className="status-tabs">
+      {tabs.map(tab => (
+        <button
+          key={tab.id}
+          className={`status-tab ${activeTab === tab.id ? 'active' : ''}`}
+          onClick={() => onTabChange(tab.id)}
+        >
+          <span className="tab-label">{tab.label}</span>
+        </button>
+      ))}
+    </div>
+  );
+};
 
 // =========================================================
-// 4. Enhanced Category Selection Component with Optional File Upload
+// Status Update Modal Component
+// =========================================================
+
+const StatusUpdateModal = ({ isOpen, onClose, project, onUpdateStatus }) => {
+  const [selectedStatus, setSelectedStatus] = useState('');
+  const [notes, setNotes] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const statusOptions = [
+    { value: 'active', label: 'Active', icon: '🔄' },
+    { value: 'done', label: 'Done', icon: '✅' },
+    { value: 'approved', label: 'Approved', icon: '🎯' }
+  ];
+
+  if (!isOpen) return null;
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!selectedStatus) return;
+
+    setIsSubmitting(true);
+    try {
+      await onUpdateStatus(project.id, selectedStatus, notes);
+      onClose();
+    } catch (error) {
+      console.error('Error updating status:', error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="modal-overlay">
+      <div className="modal-content">
+        <div className="modal-header">
+          <h3>Update Project Status</h3>
+          <button className="close-modal" onClick={onClose}>×</button>
+        </div>
+        
+        <div className="modal-body">
+          <div className="project-info">
+            <h4>{project.customer}</h4>
+            <p className="project-no">Job #{project.projectNo}</p>
+          </div>
+
+          <form onSubmit={handleSubmit}>
+            <div className="form-group">
+              <label>Select New Status</label>
+              <div className="status-options">
+                {statusOptions.map(option => (
+                  <div 
+                    key={option.value}
+                    className={`status-option ${selectedStatus === option.value ? 'selected' : ''}`}
+                    onClick={() => setSelectedStatus(option.value)}
+                  >
+                    <span className="status-icon">{option.icon}</span>
+                    <span className="status-label">{option.label}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="status-notes">Notes (Optional)</label>
+              <textarea
+                id="status-notes"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Add any notes about this status change..."
+                rows="3"
+              />
+            </div>
+
+            <div className="modal-actions">
+              <button type="button" onClick={onClose} className="secondary-btn">
+                Cancel
+              </button>
+              <button 
+                type="submit" 
+                className="primary-btn"
+                disabled={!selectedStatus || isSubmitting}
+              >
+                {isSubmitting ? 'Updating...' : 'Update Status'}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// =========================================================
+// 4. Enhanced Category Selection Component (Updated with Quotation)
 // =========================================================
 
 const EnhancedCategorySelection = ({ 
@@ -198,14 +324,14 @@ const EnhancedCategorySelection = ({
         { id: 'door', label: 'Door', icon: '🚪' },
         { id: 'strip_curtain', label: 'Strip Curtain', icon: '🎪' },
         { id: 'accessories', label: 'Accessories', icon: '🔧' },
-        { id: 'system', label: 'System', icon: '⚙️' }
+        { id: 'system', label: 'System', icon: '⚙️' },
+        { id: 'quotation', label: 'Quotation', icon: '📋' } // New category added
     ];
 
     const [dragActiveCategory, setDragActiveCategory] = useState(null);
     const [uploadProgress, setUploadProgress] = useState({});
     const [isUploading, setIsUploading] = useState(false);
 
-    // Format file size
     const formatFileSize = (bytes) => {
         if (bytes === 0) return '0 Bytes';
         const k = 1024;
@@ -214,7 +340,6 @@ const EnhancedCategorySelection = ({
         return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
     };
 
-    // Get file icon based on type
     const getFileIcon = (fileType) => {
         if (fileType.startsWith('image/')) return '🖼️';
         if (fileType.includes('pdf')) return '📄';
@@ -222,6 +347,7 @@ const EnhancedCategorySelection = ({
         if (fileType.includes('word') || fileType.includes('document')) return '📝';
         if (fileType.includes('excel') || fileType.includes('sheet')) return '📊';
         if (fileType.includes('zip') || fileType.includes('rar')) return '📦';
+        if (fileType.includes('quotation') || fileType.includes('quote')) return '📋';
         return '📎';
     };
 
@@ -237,12 +363,10 @@ const EnhancedCategorySelection = ({
         if (files.length > 0) {
             setIsUploading(true);
             
-            // Simulate upload progress for each file
             const progressUpdates = {};
             files.forEach((file, index) => {
                 progressUpdates[`${categoryId}-${file.name}`] = 0;
                 
-                // Simulate progress updates
                 const interval = setInterval(() => {
                     setUploadProgress(prev => {
                         const newProgress = { ...prev };
@@ -256,7 +380,6 @@ const EnhancedCategorySelection = ({
                     });
                 }, 200);
                 
-                // Complete progress after 2 seconds
                 setTimeout(() => {
                     setUploadProgress(prev => ({
                         ...prev,
@@ -265,10 +388,8 @@ const EnhancedCategorySelection = ({
                 }, 2000);
             });
 
-            // Add files to state
             onCategoryFileUpload(categoryId, files);
             
-            // Reset uploading state
             setTimeout(() => {
                 setIsUploading(false);
                 setUploadProgress({});
@@ -293,7 +414,6 @@ const EnhancedCategorySelection = ({
         
         const files = Array.from(e.dataTransfer.files);
         if (files.length > 0) {
-            // Create a synthetic event to reuse the handleFileUpload function
             const syntheticEvent = {
                 target: { files }
             };
@@ -477,7 +597,7 @@ const EnhancedCategorySelection = ({
 };
 
 // =========================================================
-// 5. Custom Router Logic (Updated to include Excel Extractor)
+// 5. Custom Router Logic
 // =========================================================
 
 const useSimpleRouter = () => {
@@ -505,7 +625,7 @@ const useSimpleRouter = () => {
     const matchSystem = path === '/system';
     const matchNotifications = path === '/notifications';
     const matchAdmin = path === '/admin';
-    const matchExcelExtractor = path === '/excel-extractor'; // New route
+    const matchExcelExtractor = path === '/excel-extractor';
 
     let currentRoute = 'JobList';
     let params = {};
@@ -530,7 +650,7 @@ const useSimpleRouter = () => {
     } else if (matchAdmin) {
         currentRoute = 'AdminPage';
     } else if (matchExcelExtractor) {
-        currentRoute = 'ExcelExtractor'; // New route
+        currentRoute = 'ExcelExtractor';
     }
 
     return { navigate, currentRoute, params };
@@ -615,7 +735,7 @@ const PaymentStatusDropdown = ({ value, onChange, name, required = false, disabl
 };
 
 // =========================================================
-// 8. Date Picker Component (Updated for both dates)
+// 8. Date Picker Component
 // =========================================================
 
 const DatePicker = ({ 
@@ -657,7 +777,7 @@ function App() {
     // --- Routing ---
     const { navigate, currentRoute, params } = useSimpleRouter();
 
-    // Get today's date in YYYY-MM-DD format for date inputs
+    // Get today's date in YYYY-MM-DD format
     const getTodayDate = () => {
         return new Date().toISOString().split('T')[0];
     };
@@ -670,7 +790,11 @@ function App() {
         customer: '', 
         poPayment: '', 
         requestedDelivery: '', 
-        remarks: ''
+        remarks: '',
+        sales: '',
+        sell: '',
+        cost: '',
+        margin: ''
     });
     const [selectedCategories, setSelectedCategories] = useState([]);
     const [categoryFiles, setCategoryFiles] = useState({});
@@ -682,17 +806,53 @@ function App() {
     const [isFormOpen, setIsFormOpen] = useState(false); 
     const [confirmDeleteId, setConfirmDeleteId] = useState(null);
 
+    // --- Status Filtering ---
+    const [activeTab, setActiveTab] = useState('active');
+    const [statusUpdateModal, setStatusUpdateModal] = useState({
+        isOpen: false,
+        project: null
+    });
+
     // --- API State Variables ---
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
     
     const fileInputRef = useRef(null); 
 
+    // Calculate margin when sell or cost changes
+    useEffect(() => {
+        const sell = parseFloat(newProject.sell) || 0;
+        const cost = parseFloat(newProject.cost) || 0;
+        const margin = sell - cost;
+        
+        if (!isNaN(margin) && newProject.margin !== margin.toFixed(2)) {
+            setNewProject(prev => ({
+                ...prev,
+                margin: margin.toFixed(2)
+            }));
+        }
+    }, [newProject.sell, newProject.cost]);
+
+    // Calculate margin when editing
+    useEffect(() => {
+        if (editingProject) {
+            const sell = parseFloat(editingProject.sell) || 0;
+            const cost = parseFloat(editingProject.cost) || 0;
+            const margin = sell - cost;
+            
+            if (!isNaN(margin) && editingProject.margin !== margin.toFixed(2)) {
+                setEditingProject(prev => ({
+                    ...prev,
+                    margin: margin.toFixed(2)
+                }));
+            }
+        }
+    }, [editingProject?.sell, editingProject?.cost]);
+
     // =========================================================
     // Category Files Management
     // =========================================================
 
-    // Initialize files for a category
     const initializeCategoryFiles = useCallback((categoryId) => {
         if (!categoryFiles[categoryId]) {
             setCategoryFiles(prev => ({
@@ -702,7 +862,6 @@ function App() {
         }
     }, [categoryFiles]);
 
-    // Handle file upload for a specific category
     const handleCategoryFileUpload = useCallback((categoryId, files) => {
         setCategoryFiles(prev => ({
             ...prev,
@@ -710,7 +869,6 @@ function App() {
         }));
     }, []);
 
-    // Remove file from a specific category
     const removeCategoryFile = useCallback((categoryId, fileIndex) => {
         setCategoryFiles(prev => {
             const updatedFiles = [...(prev[categoryId] || [])];
@@ -722,7 +880,6 @@ function App() {
         });
     }, []);
 
-    // Clear all files for a category
     const clearCategoryFiles = useCallback((categoryId) => {
         setCategoryFiles(prev => ({
             ...prev,
@@ -730,16 +887,13 @@ function App() {
         }));
     }, []);
 
-    // Handle category selection change
     const handleCategoryChange = useCallback((categories) => {
-        // Initialize files for newly selected categories
         categories.forEach(categoryId => {
             if (!selectedCategories.includes(categoryId)) {
                 initializeCategoryFiles(categoryId);
             }
         });
         
-        // Remove files from deselected categories
         const deselectedCategories = selectedCategories.filter(
             cat => !categories.includes(cat)
         );
@@ -758,11 +912,14 @@ function App() {
     // =========================================================
     // API Data Fetching Logic
     // =========================================================
-    const fetchProjects = useCallback(async () => {
+    const fetchProjects = useCallback(async (status = 'active') => {
         setIsLoading(true);
         setError(null);
         try {
-            const data = await real_getAllProjects(); 
+            let data;
+
+            data = await real_getProjectsByStatus(status);
+
             
             const projectsWithCompletion = data.map((project) => {
                 const completion = {
@@ -789,7 +946,11 @@ function App() {
                     system: { 
                         completed: project.completed_system || 0, 
                         total: project.total_system || 0 
-                }
+                    },
+                    quotation: { 
+                        completed: project.completed_quotation || 0, 
+                        total: project.total_quotation || 0 
+                    }
                 };
 
                 return {
@@ -809,9 +970,52 @@ function App() {
 
     useEffect(() => {
         if (currentRoute === 'JobList' || currentRoute === 'AdminPage') {
-            fetchProjects();
+            fetchProjects(activeTab === 'active' ? 'active' : activeTab);
         }
-    }, [fetchProjects, currentRoute]);
+    }, [fetchProjects, currentRoute, activeTab]);
+
+    // =========================================================
+    // Status Management Functions
+    // =========================================================
+
+    const handleStatusTabChange = (tab) => {
+        setActiveTab(tab);
+        fetchProjects(tab === 'active' ? 'active' : tab);
+    };
+
+    const openStatusUpdateModal = (project) => {
+        setStatusUpdateModal({
+            isOpen: true,
+            project: project
+        });
+    };
+
+    const closeStatusUpdateModal = () => {
+        setStatusUpdateModal({
+            isOpen: false,
+            project: null
+        });
+    };
+
+    const handleUpdateProjectStatus = async (projectId, status, notes) => {
+        try {
+            await real_updateProjectStatus(projectId, status);
+            
+            // Update local state
+            setProjects(prev => prev.map(project => 
+                project.id === projectId 
+                    ? { ...project, status: status, statusNotes: notes } 
+                    : project
+            ));
+            
+            addNotification(`✅ Project status updated to ${status}`);
+            fetchProjects(activeTab === 'active' ? 'active' : activeTab);
+        } catch (error) {
+            console.error('Error updating project status:', error);
+            addNotification(`❌ Failed to update project status: ${error.message}`);
+            throw error;
+        }
+    };
 
     // =========================================================
     // Core App Handlers
@@ -830,7 +1034,11 @@ function App() {
                 customer: '', 
                 poPayment: '', 
                 requestedDelivery: '', 
-                remarks: ''
+                remarks: '',
+                sales: '',
+                sell: '',
+                cost: '',
+                margin: ''
             }); 
             setSelectedCategories([]);
             setCategoryFiles({});
@@ -876,27 +1084,31 @@ function App() {
             // Add selected categories to project data
             const projectWithCategories = {
                 ...newProject,
-                selectedCategories: selectedCategories
+                selectedCategories: selectedCategories,
+                status: 'active' // Default status
             };
 
             // Create the project
             const addedProject = await real_createProject(projectWithCategories); 
             
-            // Create initial tasks for each selected category
+            // Create initial tasks for each selected category (except quotation)
             let createdTasksCount = 0;
+            const categoriesForTasks = selectedCategories.filter(cat => cat !== 'quotation');
+            
             try {
-                await createCategoryTasks(addedProject.projectNo, selectedCategories);
-                createdTasksCount = selectedCategories.length;
+                if (categoriesForTasks.length > 0) {
+                    await createCategoryTasks(addedProject.projectNo, categoriesForTasks);
+                    createdTasksCount = categoriesForTasks.length;
+                }
             } catch (taskError) {
                 console.error("Error creating category tasks:", taskError);
                 addNotification("⚠️ Project created but could not create category tasks. You can add them manually later.");
             }
 
-            // Handle file uploads for EACH selected category (OPTIONAL)
+            // Handle file uploads for EACH selected category
             let totalFilesUploaded = 0;
             let uploadResults = [];
             
-            // Only attempt to upload files if there are any files for any category
             const hasFiles = Object.values(categoryFiles).some(files => files && files.length > 0);
             
             if (hasFiles) {
@@ -925,7 +1137,7 @@ function App() {
             }
 
             // Refresh projects list
-            await fetchProjects();
+            await fetchProjects(activeTab);
             
             // Reset form
             setNewProject({ 
@@ -934,7 +1146,11 @@ function App() {
                 customer: '', 
                 poPayment: '', 
                 requestedDelivery: '', 
-                remarks: '' 
+                remarks: '',
+                sales: '',
+                sell: '',
+                cost: '',
+                margin: ''
             }); 
             setSelectedCategories([]);
             setCategoryFiles({});
@@ -947,12 +1163,13 @@ function App() {
             
             // Success notification
             const categoryNames = {
-                panelSlab: 'Panel/Slab',
+                panel: 'Panel/Slab',
                 cutting: 'Cutting',
                 door: 'Door',
-                stripCurtain: 'Strip Curtain',
+                strip_curtain: 'Strip Curtain',
                 accessories: 'Accessories',
-                system: 'System'
+                system: 'System',
+                quotation: 'Quotation'
             };
             
             const categoryList = selectedCategories.map(cat => categoryNames[cat]).join(', ');
@@ -965,6 +1182,11 @@ function App() {
                 notificationMessage += ` ${totalFilesUploaded} file(s) uploaded: ${uploadResults.join(', ')}.`;
             } else {
                 notificationMessage += ` No files uploaded (optional).`;
+            }
+            
+            // Add financial information if provided
+            if (newProject.sales || newProject.sell || newProject.cost) {
+                notificationMessage += ` Financials: Sales: RM${newProject.sales || '0.00'}, Sell: RM${newProject.sell || '0.00'}, Cost: RM${newProject.cost || '0.00'}, Margin: RM${newProject.margin || '0.00'}.`;
             }
             
             addNotification(notificationMessage);
@@ -1032,10 +1254,10 @@ function App() {
         { key: 'door', label: 'Door' },
         { key: 'stripCurtain', label: 'Strip Curtain' },
         { key: 'accessories', label: 'Accessories' },
-        { key: 'system', label: 'System' }
+        { key: 'system', label: 'System' },
+        { key: 'quotation', label: 'Quotation' }
     ];
 
-    // Function to format date for display
     const formatDateForDisplay = (dateString) => {
         if (!dateString) return 'Not set';
         try {
@@ -1047,11 +1269,10 @@ function App() {
                 day: 'numeric'
             });
         } catch (error) {
-            return dateString; // Return original string if parsing fails
+            return dateString;
         }
     };
 
-    // Function to get payment status color
     const getPaymentStatusColor = (status) => {
         switch(status) {
             case 'Done': return '#10B981';
@@ -1063,7 +1284,6 @@ function App() {
         }
     };
 
-    // Function to get payment status icon
     const getPaymentStatusIcon = (status) => {
         switch(status) {
             case 'Done': return '✅';
@@ -1075,6 +1295,42 @@ function App() {
         }
     };
 
+    const getProjectStatusBadge = (status) => {
+        const statusConfig = {
+            active: { color: '#3B82F6', icon: '🔄', label: 'Production' },
+            done: { color: '#10B981', icon: '✅', label: 'Done' },
+            completed: { color: '#8B5CF6', icon: '🎯', label: 'Approved' }
+        };
+        
+        const config = statusConfig[status] || statusConfig.active;
+        
+        return (
+            <span 
+                className="project-status-badge"
+                style={{
+                    backgroundColor: `${config.color}20`,
+                    borderColor: config.color,
+                    color: config.color
+                }}
+            >
+                {config.icon} {config.label}
+            </span>
+        );
+    };
+
+    const formatCurrency = (value) => {
+        if (value === null || value === undefined || value === '') {
+            return 'RM 0.00';
+        }
+        
+        const numValue = Number(value);
+        if (isNaN(numValue)) {
+            return 'RM 0.00';
+        }
+
+        return `RM ${numValue.toFixed(2)}`;
+    };
+
     const renderProjectCard = (project) => {
         const isEditing = editingProject && editingProject.id === project.id;
         const completion = project.completion || {
@@ -1083,7 +1339,8 @@ function App() {
             door: { completed: 0, total: 0 },
             stripCurtain: { completed: 0, total: 0 },
             accessories: { completed: 0, total: 0 },
-            system: { completed: 0, total: 0 }
+            system: { completed: 0, total: 0 },
+            quotation: { completed: 0, total: 0 }
         };
 
         if (isEditing) {
@@ -1110,6 +1367,28 @@ function App() {
                                 required
                             />
                         </div>
+                    </div>
+
+                    <div className="form-group">
+                        <label htmlFor="edit-projectName">Project Name</label>
+                        <input 
+                            id="edit-projectName"
+                            name="projectName" 
+                            value={editingProject.projectName} 
+                            onChange={handleEditInputChange} 
+                            placeholder="Project Name"
+                        />
+                    </div>
+
+                    <div className="form-group">
+                        <label htmlFor="edit-salesman">Salesman Name</label>
+                        <input 
+                            id="edit-salesman"
+                            name="salesman" 
+                            value={editingProject.salesman} 
+                            onChange={handleEditInputChange} 
+                            placeholder="Salesman Name"
+                        />
                     </div>
                     
                     <div className="form-group">
@@ -1139,6 +1418,66 @@ function App() {
                             minDate={getTodayDate()}
                         />
                     </div>
+
+                    {/* Financial Details Section */}
+                    <div className="financial-section">
+                        <h4>Financial Details (Optional)</h4>
+                        <div className="financial-grid">
+                            <div className="form-group">
+                                <label htmlFor="edit-sales">Sales (RM)</label>
+                                <input 
+                                    id="edit-sales"
+                                    name="sales" 
+                                    type="number"
+                                    step="0.01"
+                                    value={editingProject.sales} 
+                                    onChange={handleEditInputChange} 
+                                    placeholder="Sales Amount"
+                                />
+                            </div>
+                            
+                            <div className="form-group">
+                                <label htmlFor="edit-sell">Sell (RM)</label>
+                                <input 
+                                    id="edit-sell"
+                                    name="sell" 
+                                    type="number"
+                                    step="0.01"
+                                    value={editingProject.sell} 
+                                    onChange={handleEditInputChange} 
+                                    placeholder="Sell Price"
+                                />
+                            </div>
+                            
+                            <div className="form-group">
+                                <label htmlFor="edit-cost">Cost (RM)</label>
+                                <input 
+                                    id="edit-cost"
+                                    name="cost" 
+                                    type="number"
+                                    step="0.01"
+                                    value={editingProject.cost} 
+                                    onChange={handleEditInputChange} 
+                                    placeholder="Cost"
+                                />
+                            </div>
+                            
+                            <div className="form-group">
+                                <label htmlFor="edit-margin">Margin (RM)</label>
+                                <input 
+                                    id="edit-margin"
+                                    name="margin" 
+                                    type="number"
+                                    step="0.01"
+                                    value={editingProject.margin} 
+                                    onChange={handleEditInputChange} 
+                                    placeholder="Margin"
+                                    readOnly
+                                    className="readonly-field"
+                                />
+                            </div>
+                        </div>
+                    </div>
                     
                     <div className="form-group">
                         <label htmlFor="edit-remarks">Remarks</label>
@@ -1166,7 +1505,9 @@ function App() {
                 onClick={() => handleViewFiles(project.projectNo)} 
             >
                 <div className="job-header">
-                    <h3 className="card-title">{project.customer}</h3>
+                    <div className="job-title-section">
+                        <h3 className="card-title">{project.customer}</h3>
+                    </div>
                     <span className="job-no-tag">Job #{project.projectNo}</span> 
                 </div>
                 
@@ -1189,10 +1530,45 @@ function App() {
                         </span>
                     </p>
                     <p>
+                        <strong>Project Name:</strong> 
+                        <span className="date-value">{project.projectName}</span>
+                    </p>
+                    <p>
+                        <strong>Salesman:</strong> 
+                        <span className="date-value">{project.salesman}</span>
+                    </p>
+                    <p>
                         <strong>Requested Delivery:</strong> 
                         <span className="date-value">{formatDateForDisplay(project.requestedDelivery)}</span>
                     </p>
                 </div>
+
+                {/* Financial Summary */}
+                {(project.sales || project.sell || project.cost || project.margin) && (
+                    <div className="financial-summary">
+                        <h4>Financial Summary</h4>
+                        <div className="financial-items">
+                            <div className="financial-item">
+                                <span className="financial-label">Sales:</span>
+                                <span className="financial-value">{formatCurrency(project.sales)}</span>
+                            </div>
+                            <div className="financial-item">
+                                <span className="financial-label">Sell:</span>
+                                <span className="financial-value">{formatCurrency(project.sell)}</span>
+                            </div>
+                            <div className="financial-item">
+                                <span className="financial-label">Cost:</span>
+                                <span className="financial-value">{formatCurrency(project.cost)}</span>
+                            </div>
+                            <div className="financial-item">
+                                <span className="financial-label">Margin:</span>
+                                <span className={`financial-value ${(parseFloat(project.margin) || 0) >= 0 ? 'positive' : 'negative'}`}>
+                                    {formatCurrency(project.margin)}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                 <div className="status-grid" onClick={e => e.stopPropagation()}> 
                     {progressColumns.map(({ key, label }) => (
@@ -1214,6 +1590,15 @@ function App() {
                 </div>
                 
                 <div className="card-actions">
+                        <button 
+                            onClick={(e) => { 
+                                e.stopPropagation(); 
+                                openStatusUpdateModal(project); 
+                            }} 
+                            className="status-btn"
+                        >
+                            Update Status
+                        </button>
                     <button onClick={(e) => { e.stopPropagation(); handleEdit(project); }} className="secondary">Edit</button>
                     <button onClick={(e) => { e.stopPropagation(); startDeleteConfirmation(project.id, project.projectNo); }} className="danger">Delete</button> 
                 </div>
@@ -1232,7 +1617,7 @@ function App() {
         return <div className="App" style={{ textAlign: 'center', padding: '50px', color: '#B91C1C' }}>
             <h2>Error Connecting to API</h2>
             <p className="error-detail">Details: {error}</p>
-            <button onClick={fetchProjects} className="primary" style={{ marginTop: '20px' }}>Try Reloading Data</button>
+            <button onClick={() => fetchProjects(activeTab)} className="primary" style={{ marginTop: '20px' }}>Try Reloading Data</button>
         </div>;
     }
 
@@ -1355,12 +1740,18 @@ function App() {
                 {currentRoute === 'JobList' && (
                     <>
                         <header className="page-header">
-                            <h1>Active Project Tracker</h1>
+                            <h1>Project Tracker</h1>
                             <button onClick={toggleForm} className="primary toggle-form-button">
                                 {isFormOpen ? '✖️ Close Form' : '➕ Add New Project'}
                             </button>
                         </header>
                         <main>
+                            {/* Status Tabs */}
+                            <StatusTabs 
+                                activeTab={activeTab}
+                                onTabChange={handleStatusTabChange}
+                            />
+                            
                             {isFormOpen && (
                                 <div className="job-form-container">
                                     <h2>➕ Add New Job</h2>
@@ -1385,6 +1776,26 @@ function App() {
                                                     required
                                                 />
                                             </div>
+                                        </div>
+
+                                        <div className="form-group">
+                                            <label htmlFor="projectName">Project Name</label>
+                                            <input 
+                                                id="projectName"
+                                                name="projectName" 
+                                                value={newProject.projectName} 
+                                                onChange={handleInputChange} 
+                                            />
+                                        </div>
+
+                                        <div className="form-group">
+                                            <label htmlFor="salesman">Salesman Name</label>
+                                            <input 
+                                                id="salesman"
+                                                name="salesman" 
+                                                value={newProject.salesman} 
+                                                onChange={handleInputChange} 
+                                            />
                                         </div>
                                         
                                         <div className="form-group">
@@ -1414,6 +1825,67 @@ function App() {
                                                 minDate={getTodayDate()}
                                             />
                                         </div>
+
+                                        {/* Financial Details Section */}
+                                        <div className="financial-section">
+                                            <h4>Financial Details (Optional)</h4>
+                                            <div className="financial-grid">
+                                                <div className="form-group">
+                                                    <label htmlFor="sales">Sales (RM)</label>
+                                                    <input 
+                                                        id="sales"
+                                                        name="sales" 
+                                                        type="number"
+                                                        step="0.01"
+                                                        value={newProject.sales} 
+                                                        onChange={handleInputChange} 
+                                                        placeholder="Sales Amount"
+                                                    />
+                                                </div>
+                                                
+                                                <div className="form-group">
+                                                    <label htmlFor="sell">Sell (RM)</label>
+                                                    <input 
+                                                        id="sell"
+                                                        name="sell" 
+                                                        type="number"
+                                                        step="0.01"
+                                                        value={newProject.sell} 
+                                                        onChange={handleInputChange} 
+                                                        placeholder="Sell Price"
+                                                    />
+                                                </div>
+                                                
+                                                <div className="form-group">
+                                                    <label htmlFor="cost">Cost (RM)</label>
+                                                    <input 
+                                                        id="cost"
+                                                        name="cost" 
+                                                        type="number"
+                                                        step="0.01"
+                                                        value={newProject.cost} 
+                                                        onChange={handleInputChange} 
+                                                        placeholder="Cost"
+                                                    />
+                                                </div>
+                                                
+                                                <div className="form-group">
+                                                    <label htmlFor="margin">Margin (RM)</label>
+                                                    <input 
+                                                        id="margin"
+                                                        name="margin" 
+                                                        type="number"
+                                                        step="0.01"
+                                                        value={newProject.margin} 
+                                                        onChange={handleInputChange} 
+                                                        placeholder="Margin"
+                                                        readOnly
+                                                        className="readonly-field"
+                                                    />
+                                                </div>
+                                            </div>
+                                            <small className="field-hint">Margin is automatically calculated as Sell - Cost</small>
+                                        </div>
                                         
                                         <div className="form-group">
                                             <label htmlFor="remarks">Remarks</label>
@@ -1427,7 +1899,7 @@ function App() {
                                             />
                                         </div>
                                         
-                                        {/* Enhanced Category Selection with Optional File Upload */}
+                                        {/* Enhanced Category Selection with Optional File Upload (now includes Quotation) */}
                                         <EnhancedCategorySelection 
                                             selectedCategories={selectedCategories}
                                             onCategoryChange={handleCategoryChange}
@@ -1446,12 +1918,21 @@ function App() {
                             )}
                             
                             <div className="job-list-header">
-                                <h3>Active Projects ({projects.length})</h3>
+                                <h3>
+                                    {activeTab === 'Production' ? 'Active Projects' : 
+                                     activeTab === 'done' ? 'Done Projects' : 
+                                     'Approved Projects'} 
+                                    ({projects.length})
+                                </h3>
                             </div>
                             
                             <div className="job-list">
                                 {projects.length === 0 ? (
-                                    <p className="no-jobs-message">No projects found. Create your first project to get started!</p>
+                                    <p className="no-jobs-message">
+                                        {activeTab === 'active' ? 'No active projects found. Create your first project to get started!' :
+                                         activeTab === 'done' ? 'No done projects found.' :
+                                         'No completed projects found.'}
+                                    </p>
                                 ) : (
                                     projects.map(project => (
                                         <div key={project.id}>{renderProjectCard(project)}</div>
@@ -1497,6 +1978,14 @@ function App() {
                     />
                 )}
             </div>
+
+            {/* Status Update Modal */}
+            <StatusUpdateModal
+                isOpen={statusUpdateModal.isOpen}
+                onClose={closeStatusUpdateModal}
+                project={statusUpdateModal.project}
+                onUpdateStatus={handleUpdateProjectStatus}
+            />
 
             {/* Confirmation Modal */}
             {confirmDeleteId && (
