@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { stripCurtainTasksAPI } from './apiService';
-import './StripCurtain.css';
+import { stripCurtainTasksAPI, projectsAPI } from './apiService'; // Changed API import
+import './PanelSlab.css';
 
 // Move modal components outside the main component
-const CreateTaskModal = ({ 
+const CreateStripeCurtainTaskModal = ({ 
     isOpen, 
     onClose, 
     newTask, 
@@ -18,7 +18,7 @@ const CreateTaskModal = ({
         <div className="modal-overlay" onClick={onClose}>
             <div className="modal-content" onClick={e => e.stopPropagation()}>
                 <div className="modal-header">
-                    <h2>➕ Create New Strip Curtain Task</h2>
+                    <h2>➕ Create New Stripe Curtain Task</h2>
                     <button type="button" className="close-button" onClick={onClose}>
                         &times;
                     </button>
@@ -53,7 +53,7 @@ const CreateTaskModal = ({
                                 name="title" 
                                 value={newTask.title} 
                                 onChange={onInputChange} 
-                                placeholder="Enter strip curtain task title" 
+                                placeholder="Enter stripe curtain task title" 
                                 required 
                                 autoComplete="off" 
                                 className="form-input" 
@@ -67,7 +67,7 @@ const CreateTaskModal = ({
                                 name="description" 
                                 value={newTask.description} 
                                 onChange={onInputChange} 
-                                placeholder="Enter strip curtain task description" 
+                                placeholder="Enter stripe curtain task description" 
                                 rows="3" 
                                 autoComplete="off" 
                                 className="form-textarea" 
@@ -120,7 +120,7 @@ const CreateTaskModal = ({
     );
 };
 
-const EditTaskModal = ({ 
+const EditStripeCurtainTaskModal = ({ 
     isOpen, 
     onClose, 
     editingTask, 
@@ -199,6 +199,7 @@ const EditTaskModal = ({
                                     onChange={onInputChange} 
                                     className="form-select"
                                 >
+                                    <option value="empty">Empty</option>
                                     <option value="low">Low</option>
                                     <option value="medium">Medium</option>
                                     <option value="high">High</option>
@@ -215,22 +216,11 @@ const EditTaskModal = ({
                                     className="form-select"
                                 >
                                     <option value="pending">Pending</option>
+                                    <option value="on-hold">On Hold</option>
                                     <option value="in-progress">In Progress</option>
                                     <option value="completed">Completed</option>
                                 </select>
                             </div>
-                        </div>
-
-                        <div className="form-group">
-                            <label htmlFor="editDueDate">Due Date</label>
-                            <input
-                                type="date"
-                                id="editDueDate"
-                                name="due_date"
-                                value={editingTask.due_date || ''}
-                                onChange={onInputChange}
-                                className="form-input"
-                            />
                         </div>
 
                         {error && <div className="alert alert-danger">{error}</div>}
@@ -250,19 +240,26 @@ const EditTaskModal = ({
     );
 };
 
-const StripCurtain = ({ navigate }) => {
+const StripeCurtain = ({ navigate }) => {
     const [tasks, setTasks] = useState([]);
+    const [projects, setProjects] = useState([]);
     const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [editingTask, setEditingTask] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [isProjectsLoading, setIsProjectsLoading] = useState(true);
     const [error, setError] = useState(null);
     
-    // --- State for Filters ---
     const [filters, setFilters] = useState({
-        priority: 'all',
-        status: 'all',
-        projectNo: 'all', 
+        priority: 'all', 
+        status: 'all', 
+        projectNo: 'all',
+        search: ''
+    });
+    
+    const [sortConfig, setSortConfig] = useState({
+        key: 'createdAt',
+        direction: 'desc'
     });
     
     const [newTask, setNewTask] = useState({
@@ -276,44 +273,97 @@ const StripCurtain = ({ navigate }) => {
 
     useEffect(() => {
         fetchTasks();
+        fetchProjects();
     }, []);
 
     const fetchTasks = async () => {
         setIsLoading(true);
         setError(null);
         try {
-            const data = await stripCurtainTasksAPI.getAll();
+            const data = await stripCurtainTasksAPI.getAll(); // Changed API call
             setTasks(data);
         } catch (err) {
-            console.error('Failed to fetch strip curtain tasks:', err);
+            console.error('Failed to fetch stripe curtain tasks:', err);
             setError('Failed to load tasks. Please ensure the backend is running.');
         } finally {
             setIsLoading(false);
         }
     };
-    
-    // --- Logic to extract Unique Project Numbers ---
+
+    const fetchProjects = async () => {
+        setIsProjectsLoading(true);
+        try {
+            const data = await projectsAPI.getAll();
+            setProjects(data);
+        } catch (err) {
+            console.error('Failed to fetch projects:', err);
+            setError('Failed to load projects list.');
+        } finally {
+            setIsProjectsLoading(false);
+        }
+    };
+
     const uniqueProjectNos = useMemo(() => {
-        const projects = [...new Set(tasks.map(t => t.projectNo).filter(p => p))];
-        return projects.sort();
-    }, [tasks]);
+        const projectNumbers = projects.map(project => project.projectNo).filter(p => p);
+        return [...new Set(projectNumbers)].sort();
+    }, [projects]);
 
-    // --- Filtering Logic ---
-    const filteredTasks = useMemo(() => {
-        return tasks.filter(task => {
-            if (filters.priority !== 'all' && task.priority !== filters.priority) {
-                return false;
-            }
-            if (filters.status !== 'all' && task.status !== filters.status) {
-                return false;
-            }
-            if (filters.projectNo !== 'all' && task.projectNo !== filters.projectNo) {
-                return false;
-            }
-            return true;
-        });
-    }, [tasks, filters]); 
-
+      const filteredTasks = useMemo(() => {
+               let filtered = tasks.filter(task => {
+                   // ... (Keep your existing filtering logic for priority, status, search)
+                   if (filters.priority !== 'all' && task.priority !== filters.priority) return false;
+                   if (filters.status !== 'all' && task.status !== filters.status) return false;
+                   if (filters.projectNo !== 'all' && task.projectNo !== filters.projectNo) return false;
+                   if (filters.search) {
+                       const searchLower = filters.search.toLowerCase();
+                       return (
+                           (task.title?.toLowerCase().includes(searchLower)) ||
+                           (task.description?.toLowerCase().includes(searchLower)) ||
+                           (task.projectNo?.toLowerCase().includes(searchLower))
+                       );
+                   }
+                   return true;
+               });
+       
+               // Tiered Sorting
+               filtered.sort((a, b) => {
+                   // TIER 1: Completion Status (Always forces completed to bottom)
+                   // We use a simple boolean check: Is it completed? (true = 1, false = 0)
+                   const isACompleted = a.status?.toLowerCase() === 'completed';
+                   const isBCompleted = b.status?.toLowerCase() === 'completed';
+       
+                   if (isACompleted !== isBCompleted) {
+                       return isACompleted ? 1 : -1; 
+                   }
+       
+                   // TIER 2: User-selected Sort (only if the status tier is the same)
+                   if (sortConfig.key) {
+                       let aValue = a[sortConfig.key];
+                       let bValue = b[sortConfig.key];
+       
+                       // Special handling for Priority levels if sorting by Priority
+                       if (sortConfig.key === 'priority') {
+                           const priorityWeight = { high: 1, medium: 2, low: 3 };
+                           aValue = priorityWeight[a.priority?.toLowerCase()] || 4;
+                           bValue = priorityWeight[b.priority?.toLowerCase()] || 4;
+                       }
+       
+                       // Special handling for Dates
+                       if (sortConfig.key.includes('Date') || sortConfig.key === 'createdAt') {
+                           aValue = new Date(aValue || 0).getTime();
+                           bValue = new Date(bValue || 0).getTime();
+                       }
+       
+                       if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
+                       if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
+                   }
+       
+                   return 0;
+               });
+       
+               return filtered;
+           }, [tasks, filters, sortConfig]);
+    
     const openCreateModal = () => {
         setNewTask({
             title: '',
@@ -366,11 +416,11 @@ const StripCurtain = ({ navigate }) => {
         }
 
         try {
-            const createdTask = await stripCurtainTasksAPI.create(newTask);
+            const createdTask = await stripCurtainTasksAPI.create(newTask); // Changed API call
             setTasks(prev => [createdTask, ...prev]);
             closeCreateModal();
         } catch (err) {
-            console.error('Failed to create strip curtain task:', err);
+            console.error('Failed to create stripe curtain task:', err);
             setError('Failed to create task. Check console for details.');
         }
     };
@@ -396,26 +446,26 @@ const StripCurtain = ({ navigate }) => {
                 due_date: editingTask.due_date,
             };
 
-            const updatedTask = await stripCurtainTasksAPI.update(editingTask.id, payload);
+            const updatedTask = await stripCurtainTasksAPI.update(editingTask.id, payload); // Changed API call
             
             setTasks(prev => prev.map(task => 
                 task.id === updatedTask.id ? updatedTask : task
             ));
             closeEditModal();
         } catch (err) {
-            console.error('Failed to update strip curtain task:', err);
+            console.error('Failed to update stripe curtain task:', err);
             setError('Failed to save changes to the task.');
         }
     };
 
     const handleUpdateTaskStatus = async (taskId, newStatus) => {
         try {
-            const updatedTask = await stripCurtainTasksAPI.update(taskId, { status: newStatus });
+            const updatedTask = await stripCurtainTasksAPI.update(taskId, { status: newStatus }); // Changed API call
             setTasks(prev => prev.map(task => 
                 task.id === taskId ? updatedTask : task
             ));
         } catch (err) {
-            console.error('Failed to update strip curtain task status:', err);
+            console.error('Failed to update task status:', err);
             setError('Failed to update task status.');
         }
     };
@@ -424,20 +474,17 @@ const StripCurtain = ({ navigate }) => {
         if (!window.confirm('Are you sure you want to delete this task?')) return;
 
         try {
-            await stripCurtainTasksAPI.delete(taskId);
+            await stripCurtainTasksAPI.delete(taskId); // Changed API call
             setTasks(prev => prev.filter(task => task.id !== taskId));
         } catch (err) {
-            console.error('Failed to delete strip curtain task:', err);
+            console.error('Failed to delete stripe curtain task:', err);
             setError('Failed to delete task.');
         }
     };
 
     const handleInputChange = (e) => {
         const { name, value } = e.target;
-        setNewTask(prev => ({ 
-            ...prev, 
-            [name]: value 
-        }));
+        setNewTask(prev => ({ ...prev, [name]: value }));
     };
 
     const handleEditInputChange = (e) => {
@@ -447,13 +494,26 @@ const StripCurtain = ({ navigate }) => {
             [name]: value 
         }));
     };
-    
-    // --- Filter Handler ---
+
     const handleFilterChange = (e) => {
         const { name, value } = e.target;
         setFilters(prev => ({
             ...prev,
             [name]: value
+        }));
+    };
+
+    const handleSearchChange = (e) => {
+        setFilters(prev => ({
+            ...prev,
+            search: e.target.value
+        }));
+    };
+
+    const handleSort = (key) => {
+        setSortConfig(prev => ({
+            key,
+            direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc'
         }));
     };
 
@@ -470,121 +530,110 @@ const StripCurtain = ({ navigate }) => {
         switch (status) {
             case 'completed': return '#28a745';
             case 'in-progress': return '#17a2b8';
-            case 'pending': return '#6c757d';
+            case 'pending': return '#ffc107';
             default: return '#6c757d';
         }
     };
 
-    const TaskCard = ({ task }) => {
-        const formatDate = (dateString) => {
-            if (!dateString) return 'No due date';
-            const date = new Date(dateString);
-            return date.toLocaleDateString();
-        };
+    const getStatusIcon = (status) => {
+        switch (status) {
+            case 'completed': return '✅';
+            case 'in-progress': return '🔄';
+            case 'pending': return '⏳';
+            default: return '📝';
+        }
+    };
 
-        return (
-            <div className="task-card">
-                <div className="task-header">
-                    <div>
-                        <h4 className="task-title">{task.title}</h4>
-                        {task.projectNo && (
-                            <p className="task-project-no">
-                                <strong>Project No:</strong> {task.projectNo}
-                            </p>
-                        )}
-                    </div>
-                    <div className="task-priority" style={{ backgroundColor: getPriorityColor(task.priority) }}>
-                        {task.priority}
-                    </div>
-                </div>
+    const formatDate = (dateString) => {
+        if (!dateString) return 'Not set';
+        const date = new Date(dateString);
+        return date.toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric'
+        });
+    };
 
-                {task.description && (
-                    <p className="task-description">{task.description}</p>
-                )}
-
-                <div className="task-meta">
-                    <div className="task-due-date">
-                        <strong>Due:</strong> {formatDate(task.dueDate)} 
-                    </div>
-                    <div className="task-created">
-                        Created: {new Date(task.createdAt).toLocaleDateString()}
-                    </div>
-                </div>
-
-                <div className="task-actions">
-                    <select
-                        value={task.status}
-                        onChange={(e) => handleUpdateTaskStatus(task.id, e.target.value)}
-                        className="status-select"
-                        style={{ borderColor: getStatusColor(task.status) }}
-                    >
-                        <option value="pending">Pending</option>
-                        <option value="in-progress">In Progress</option>
-                        <option value="completed">Completed</option>
-                    </select>
-
-                    <button
-                        onClick={() => openEditModal(task)}
-                        className="secondary task-edit-btn"
-                        title="Edit task details"
-                    >
-                        Edit
-                    </button>
-                    
-                    <button
-                        onClick={() => handleDeleteTask(task.id)}
-                        className="danger task-delete-btn"
-                        title="Delete task"
-                    >
-                        Delete
-                    </button>
-                </div>
-            </div>
-        );
+    const getSortIcon = (key) => {
+        if (sortConfig.key !== key) return '↕️';
+        return sortConfig.direction === 'asc' ? '⬆️' : '⬇️';
     };
 
     return (
-        <div className="strip-curtain-container">
+        <div className="panel-slab-container">
             <header className="page-header">
-                <div className="header-controls">
-                    <h1>⛓️ Strip Curtain Management</h1>
-                    <button
-                        className="primary"
-                        onClick={openCreateModal}
-                    >
-                        + Create Task
+                <div className="header-left">
+                    <button className="back-btn" onClick={() => navigate('/')}>
+                        ← Back to Projects
                     </button>
+                    <h1>🎪 Stripe Curtain Tasks Management</h1> {/* Changed title */}
                 </div>
             </header>
-            
-            <hr/>
-            
-            {/* Filter Section */}
-            <div className="filter-controls">
-                <h3 style={{ marginBottom: '10px' }}>🔍 Filter Tasks</h3>
-                <div className="filter-group">
-                    {/* Priority Filter */}
-                    <div className="form-group">
-                        <label htmlFor="filter-priority">Priority</label>
+
+            <div className="dashboard-cards">
+                <div className="dashboard-card">
+                    <div className="card-icon">📋</div>
+                    <div className="card-content">
+                        <h3>Total Tasks</h3>
+                        <p className="card-value">{tasks.length}</p>
+                    </div>
+                </div>
+                <div className="dashboard-card">
+                    <div className="card-icon">⏳</div>
+                    <div className="card-content">
+                        <h3>Pending</h3>
+                        <p className="card-value">{tasks.filter(t => t.status === 'pending').length}</p>
+                    </div>
+                </div>
+                <div className="dashboard-card">
+                    <div className="card-icon">🔄</div>
+                    <div className="card-content">
+                        <h3>In Progress</h3>
+                        <p className="card-value">{tasks.filter(t => t.status === 'in-progress').length}</p>
+                    </div>
+                </div>
+                <div className="dashboard-card">
+                    <div className="card-icon">✅</div>
+                    <div className="card-content">
+                        <h3>Completed</h3>
+                        <p className="card-value">{tasks.filter(t => t.status === 'completed').length}</p>
+                    </div>
+                </div>
+                <div className="dashboard-card">
+                    <div className="card-icon">⏸️</div>
+                    <div className="card-content">
+                        <h3>On Hold</h3>
+                        <p className="card-value">{tasks.filter(t => t.status === 'on-hold').length}</p>
+                    </div>
+                </div>
+            </div>
+
+            <div className="filters-section">
+                <div className="filter-row">
+                    <div className="search-box">
+                        <input
+                            type="text"
+                            placeholder="🔍 Search tasks..."
+                            value={filters.search}
+                            onChange={handleSearchChange}
+                            className="search-input"
+                        />
+                    </div>
+                    <div className="filter-group">
                         <select 
-                            id="filter-priority" 
                             name="priority" 
                             value={filters.priority} 
                             onChange={handleFilterChange} 
                             className="form-select"
                         >
                             <option value="all">All Priorities</option>
+                            <option value="empty">Empty</option>
                             <option value="low">Low</option>
                             <option value="medium">Medium</option>
                             <option value="high">High</option>
                         </select>
-                    </div>
-                    
-                    {/* Status Filter */}
-                    <div className="form-group">
-                        <label htmlFor="filter-status">Status</label>
+                        
                         <select 
-                            id="filter-status" 
                             name="status" 
                             value={filters.status} 
                             onChange={handleFilterChange} 
@@ -592,16 +641,12 @@ const StripCurtain = ({ navigate }) => {
                         >
                             <option value="all">All Statuses</option>
                             <option value="pending">Pending</option>
+                            <option value="on-hold">On Hold</option>
                             <option value="in-progress">In Progress</option>
                             <option value="completed">Completed</option>
                         </select>
-                    </div>
 
-                    {/* Project No Filter */}
-                    <div className="form-group">
-                        <label htmlFor="filter-projectNo">Project No</label>
                         <select
-                            id="filter-projectNo" 
                             name="projectNo" 
                             value={filters.projectNo} 
                             onChange={handleFilterChange} 
@@ -616,53 +661,125 @@ const StripCurtain = ({ navigate }) => {
                 </div>
             </div>
 
-            <hr/>
-            
-            <div className="strip-curtain-content">
-                <div className="tasks-section">
-                    <div className="tasks-header">
-                        <h2>📋 Strip Curtain Tasks ({filteredTasks.length} / {tasks.length})</h2>
-                        <div className="tasks-stats">
-                            <span className="stat pending">Pending: {filteredTasks.filter(t => t.status === 'pending').length}</span>
-                            <span className="stat in-progress">In Progress: {filteredTasks.filter(t => t.status === 'in-progress').length}</span>
-                            <span className="stat completed">Completed: {filteredTasks.filter(t => t.status === 'completed').length}</span>
+            <div className="tasks-table-container">
+                {error && <div className="alert alert-danger">{error}</div>}
+
+                {isLoading ? (
+                    <div className="loading-state">
+                        <p>Loading tasks... 🔄</p>
+                    </div>
+                ) : filteredTasks.length === 0 && tasks.length > 0 ? (
+                    <div className="empty-state">
+                        <h3>No tasks match your current filters.</h3>
+                        <p>Try clearing or adjusting your search/filters.</p>
+                    </div>
+                ) : filteredTasks.length === 0 && tasks.length === 0 ? (
+                    <div className="empty-state">
+                        <h3>No tasks yet</h3>
+                    </div>
+                ) : (
+                    <div className="table-wrapper">
+                        <table className="tasks-table">
+                            <thead>
+                                <tr>
+                                    <th onClick={() => handleSort('title')}>
+                                        Task Title {getSortIcon('title')}
+                                    </th>
+                                    <th onClick={() => handleSort('projectNo')}>
+                                        Project No {getSortIcon('projectNo')}
+                                    </th>
+                                    <th onClick={() => handleSort('priority')}>
+                                        Priority {getSortIcon('priority')}
+                                    </th>
+                                    <th onClick={() => handleSort('status')}>
+                                        Status {getSortIcon('status')}
+                                    </th>
+                                    <th onClick={() => handleSort('createdAt')}>
+                                        Created {getSortIcon('createdAt')}
+                                    </th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {filteredTasks.map(task => (
+                                    <tr key={task.id} className="task-row">
+                                        <td className="task-title-cell">
+                                            <div className="task-title-main">{task.title}</div>
+                                            {task.description && (
+                                                <div className="task-description">{task.description}</div>
+                                            )}
+                                        </td>
+                                        <td>
+                                            <span className="project-no-badge">
+                                                {task.projectNo || 'N/A'}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <span 
+                                                className="priority-badge"
+                                                style={{ backgroundColor: getPriorityColor(task.priority) }}
+                                            >
+                                                {task.priority}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <div className="status-cell">
+                                                <select
+                                                    value={task.status}
+                                                    onChange={(e) => handleUpdateTaskStatus(task.id, e.target.value)}
+                                                    className="status-select"
+                                                    style={{ 
+                                                        borderColor: getStatusColor(task.status),
+                                                        backgroundColor: getStatusColor(task.status) + '20'
+                                                    }}
+                                                >
+                                                    <option value="pending">⏳ Pending</option>
+                                                    <option value="on-hold">On Hold</option>
+                                                    <option value="in-progress">🔄 In Progress</option>
+                                                    <option value="completed">✅ Completed</option>
+                                                </select>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div className="created-date">
+                                                {formatDate(task.createdAt)}
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div className="action-buttons">
+                                                <button
+                                                    onClick={() => openEditModal(task)}
+                                                    className="edit-btn"
+                                                    title="Edit task"
+                                                >
+                                                    ✏️
+                                                </button>
+                                                <button
+                                                    onClick={() => handleDeleteTask(task.id)}
+                                                    className="delete-btn"
+                                                    title="Delete task"
+                                                >
+                                                    🗑️
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+
+                {filteredTasks.length > 0 && (
+                    <div className="table-footer">
+                        <div className="table-summary">
+                            Showing {filteredTasks.length} of {tasks.length} tasks
                         </div>
                     </div>
-
-                    {error && <div className="alert alert-danger">{error}</div>}
-
-                    {isLoading ? (
-                        <div className="loading-state">
-                            <p>Loading tasks... 🔄</p>
-                        </div>
-                    ) : filteredTasks.length === 0 && tasks.length > 0 ? (
-                        <div className="empty-state">
-                            <h3>No tasks match your current filters.</h3>
-                            <p>Try clearing or adjusting your selections.</p>
-                        </div>
-                    ) : filteredTasks.length === 0 && tasks.length === 0 ? (
-                        <div className="empty-state">
-                            <h3>No strip curtain tasks yet</h3>
-                            <p>Create your first strip curtain task to get started!</p>
-                            <button 
-                                className="primary" 
-                                onClick={openCreateModal}
-                            >
-                                Create Your First Task
-                            </button>
-                        </div>
-                    ) : (
-                        <div className="tasks-grid">
-                            {filteredTasks.map(task => (
-                                <TaskCard key={task.id} task={task} />
-                            ))}
-                        </div>
-                    )}
-                </div>
+                )}
             </div>
 
-            {/* Use the external modal components */}
-            <CreateTaskModal 
+            <CreateStripeCurtainTaskModal 
                 isOpen={isTaskModalOpen}
                 onClose={closeCreateModal}
                 newTask={newTask}
@@ -672,7 +789,7 @@ const StripCurtain = ({ navigate }) => {
                 uniqueProjectNos={uniqueProjectNos}
             />
             
-            <EditTaskModal 
+            <EditStripeCurtainTaskModal 
                 isOpen={isEditModalOpen}
                 onClose={closeEditModal}
                 editingTask={editingTask}
@@ -685,4 +802,4 @@ const StripCurtain = ({ navigate }) => {
     );
 };
 
-export default StripCurtain;
+export default StripeCurtain;

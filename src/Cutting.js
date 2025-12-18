@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { cuttingTasksAPI, projectsAPI } from './apiService'; 
-import './Cutting.css';
+import './PanelSlab.css'; // Using the same CSS file
 
 // Move modal components outside the main component
 const CreateTaskModal = ({ 
@@ -85,6 +85,7 @@ const CreateTaskModal = ({
                                     className="form-select"
                                 >
                                     <option value="low">Low</option>
+                                    <option value="empty">Empty</option>
                                     <option value="medium">Medium</option>
                                     <option value="high">High</option>
                                 </select>
@@ -199,6 +200,7 @@ const EditTaskModal = ({
                                     onChange={onInputChange} 
                                     className="form-select"
                                 >
+                                    <option value="empty">Empty</option>
                                     <option value="low">Low</option>
                                     <option value="medium">Medium</option>
                                     <option value="high">High</option>
@@ -215,22 +217,11 @@ const EditTaskModal = ({
                                     className="form-select"
                                 >
                                     <option value="pending">Pending</option>
+                                    <option value="on-hold">On Hold</option>
                                     <option value="in-progress">In Progress</option>
                                     <option value="completed">Completed</option>
                                 </select>
                             </div>
-                        </div>
-
-                        <div className="form-group">
-                            <label htmlFor="editDueDate">Due Date</label>
-                            <input
-                                type="date"
-                                id="editDueDate"
-                                name="due_date"
-                                value={editingTask.due_date || ''}
-                                onChange={onInputChange}
-                                className="form-input"
-                            />
                         </div>
 
                         {error && <div className="alert alert-danger">{error}</div>}
@@ -264,6 +255,12 @@ const Cutting = ({ navigate }) => {
         priority: 'all', 
         status: 'all', 
         projectNo: 'all',
+        search: ''
+    });
+    
+    const [sortConfig, setSortConfig] = useState({
+        key: 'createdAt',
+        direction: 'desc'
     });
     
     const [newTask, setNewTask] = useState({
@@ -313,19 +310,60 @@ const Cutting = ({ navigate }) => {
     }, [projects]);
 
     const filteredTasks = useMemo(() => {
-        return tasks.filter(task => {
-            if (filters.priority !== 'all' && task.priority !== filters.priority) {
-                return false;
-            }
-            if (filters.status !== 'all' && task.status !== filters.status) {
-                return false;
-            }
-            if (filters.projectNo !== 'all' && task.projectNo !== filters.projectNo) {
-                return false;
+        let filtered = tasks.filter(task => {
+            // ... (Keep your existing filtering logic for priority, status, search)
+            if (filters.priority !== 'all' && task.priority !== filters.priority) return false;
+            if (filters.status !== 'all' && task.status !== filters.status) return false;
+            if (filters.projectNo !== 'all' && task.projectNo !== filters.projectNo) return false;
+            if (filters.search) {
+                const searchLower = filters.search.toLowerCase();
+                return (
+                    (task.title?.toLowerCase().includes(searchLower)) ||
+                    (task.description?.toLowerCase().includes(searchLower)) ||
+                    (task.projectNo?.toLowerCase().includes(searchLower))
+                );
             }
             return true;
         });
-    }, [tasks, filters]); 
+
+        // Tiered Sorting
+        filtered.sort((a, b) => {
+            // TIER 1: Completion Status (Always forces completed to bottom)
+            // We use a simple boolean check: Is it completed? (true = 1, false = 0)
+            const isACompleted = a.status?.toLowerCase() === 'completed';
+            const isBCompleted = b.status?.toLowerCase() === 'completed';
+
+            if (isACompleted !== isBCompleted) {
+                return isACompleted ? 1 : -1; 
+            }
+
+            // TIER 2: User-selected Sort (only if the status tier is the same)
+            if (sortConfig.key) {
+                let aValue = a[sortConfig.key];
+                let bValue = b[sortConfig.key];
+
+                // Special handling for Priority levels if sorting by Priority
+                if (sortConfig.key === 'priority') {
+                    const priorityWeight = { high: 1, medium: 2, low: 3 };
+                    aValue = priorityWeight[a.priority?.toLowerCase()] || 4;
+                    bValue = priorityWeight[b.priority?.toLowerCase()] || 4;
+                }
+
+                // Special handling for Dates
+                if (sortConfig.key.includes('Date') || sortConfig.key === 'createdAt') {
+                    aValue = new Date(aValue || 0).getTime();
+                    bValue = new Date(bValue || 0).getTime();
+                }
+
+                if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
+                if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
+            }
+
+            return 0;
+        });
+
+        return filtered;
+    }, [tasks, filters, sortConfig]);
     
     const openCreateModal = () => {
         setNewTask({
@@ -447,10 +485,7 @@ const Cutting = ({ navigate }) => {
 
     const handleInputChange = (e) => {
         const { name, value } = e.target;
-        setNewTask(prev => ({ 
-            ...prev, 
-            [name]: value 
-        }));
+        setNewTask(prev => ({ ...prev, [name]: value }));
     };
 
     const handleEditInputChange = (e) => {
@@ -469,6 +504,20 @@ const Cutting = ({ navigate }) => {
         }));
     };
 
+    const handleSearchChange = (e) => {
+        setFilters(prev => ({
+            ...prev,
+            search: e.target.value
+        }));
+    };
+
+    const handleSort = (key) => {
+        setSortConfig(prev => ({
+            key,
+            direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc'
+        }));
+    };
+
     const getPriorityColor = (priority) => {
         switch (priority) {
             case 'high': return '#dc3545';
@@ -482,128 +531,123 @@ const Cutting = ({ navigate }) => {
         switch (status) {
             case 'completed': return '#28a745';
             case 'in-progress': return '#17a2b8';
-            case 'pending': return '#6c757d';
+            case 'pending': return '#ffc107';
             default: return '#6c757d';
         }
     };
 
-    const TaskCard = ({ task }) => {
-        const formatDate = (dateString) => {
-            if (!dateString) return 'No due date';
-            const date = new Date(dateString);
-            return date.toLocaleDateString();
-        };
+    const getStatusIcon = (status) => {
+        switch (status) {
+            case 'completed': return '✅';
+            case 'in-progress': return '🔄';
+            case 'pending': return '⏳';
+            default: return '📝';
+        }
+    };
 
-        return (
-            <div className="task-card">
-                <div className="task-header">
-                    <div>
-                        <h4 className="task-title">{task.title}</h4>
-                        {task.projectNo && (
-                            <p className="task-project-no">
-                                <strong>Project No:</strong> {task.projectNo}
-                            </p>
-                        )}
-                    </div>
-                </div>
+    const formatDate = (dateString) => {
+        if (!dateString) return 'Not set';
+        const date = new Date(dateString);
+        return date.toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric'
+        });
+    };
 
-                {task.description && (
-                    <p className="task-description">{task.description}</p>
-                )}
-
-                <div className="task-meta">
-                    <div className="task-created">
-                        Created: {new Date(task.createdAt).toLocaleDateString()}
-                    </div>
-                </div>
-
-                <div className="task-actions">
-                    <select
-                        value={task.status}
-                        onChange={(e) => handleUpdateTaskStatus(task.id, e.target.value)}
-                        className="status-select"
-                        style={{ borderColor: getStatusColor(task.status) }}
-                    >
-                        <option value="pending">Pending</option>
-                        <option value="in-progress">In Progress</option>
-                        <option value="completed">Completed</option>
-                    </select>
-
-                    <button
-                        onClick={() => openEditModal(task)}
-                        className="secondary task-edit-btn"
-                        title="Edit task details"
-                    >
-                        Edit
-                    </button>
-                    
-                    <button
-                        onClick={() => handleDeleteTask(task.id)}
-                        className="danger task-delete-btn"
-                        title="Delete task"
-                    >
-                        Delete
-                    </button>
-                </div>
-            </div>
-        );
+    const getSortIcon = (key) => {
+        if (sortConfig.key !== key) return '↕️';
+        return sortConfig.direction === 'asc' ? '⬆️' : '⬇️';
     };
 
     return (
-        <div className="cutting-container">
+        <div className="panel-slab-container">
             <header className="page-header">
-                <div className="header-controls">
-                    <h1>Cutting Management</h1>
-                    <button
-                        className="primary"
-                        onClick={openCreateModal}
-                    >
-                        + Create Task
+                <div className="header-left">
+                    <button className="back-btn" onClick={() => navigate('/')}>
+                        ← Back to Projects
                     </button>
+                    <h1>Cutting Tasks Management</h1>
                 </div>
             </header>
 
-            <hr/>
+            <div className="dashboard-cards">
+                <div className="dashboard-card">
+                    <div className="card-icon">📋</div>
+                    <div className="card-content">
+                        <h3>Total Tasks</h3>
+                        <p className="card-value">{tasks.length}</p>
+                    </div>
+                </div>
+                <div className="dashboard-card">
+                    <div className="card-icon">⏳</div>
+                    <div className="card-content">
+                        <h3>Pending</h3>
+                        <p className="card-value">{tasks.filter(t => t.status === 'pending').length}</p>
+                    </div>
+                </div>
+                <div className="dashboard-card">
+                    <div className="card-icon">🔄</div>
+                    <div className="card-content">
+                        <h3>In Progress</h3>
+                        <p className="card-value">{tasks.filter(t => t.status === 'in-progress').length}</p>
+                    </div>
+                </div>
+                <div className="dashboard-card">
+                    <div className="card-icon">✅</div>
+                    <div className="card-content">
+                        <h3>Completed</h3>
+                        <p className="card-value">{tasks.filter(t => t.status === 'completed').length}</p>
+                    </div>
+                </div>
+                <div className="dashboard-card">
+                    <div className="card-icon">⏸️</div>
+                    <div className="card-content">
+                        <h3>On Hold</h3>
+                        <p className="card-value">{tasks.filter(t => t.status === 'on-hold').length}</p>
+                    </div>
+                </div>
+            </div>
 
-            <div className="filter-controls">
-                <h3 style={{ marginBottom: '10px' }}>🔍 Filter Tasks</h3>
-                <div className="filter-group">
-                    <div className="form-group">
-                        <label htmlFor="filter-priority">Priority</label>
+            <div className="filters-section">
+                <div className="filter-row">
+                    <div className="search-box">
+                        <input
+                            type="text"
+                            placeholder="🔍 Search tasks..."
+                            value={filters.search}
+                            onChange={handleSearchChange}
+                            className="search-input"
+                        />
+                    </div>
+                    <div className="filter-group">
                         <select 
-                            id="filter-priority" 
                             name="priority" 
                             value={filters.priority} 
                             onChange={handleFilterChange} 
                             className="form-select"
                         >
                             <option value="all">All Priorities</option>
+                            <option value="empty">Empty</option>
                             <option value="low">Low</option>
                             <option value="medium">Medium</option>
                             <option value="high">High</option>
                         </select>
-                    </div>
-                    
-                    <div className="form-group">
-                        <label htmlFor="filter-status">Status</label>
+                        
                         <select 
-                            id="filter-status" 
                             name="status" 
                             value={filters.status} 
                             onChange={handleFilterChange} 
                             className="form-select"
                         >
                             <option value="all">All Statuses</option>
+                             <option value="on-hold">On Hold</option>
                             <option value="pending">Pending</option>
                             <option value="in-progress">In Progress</option>
                             <option value="completed">Completed</option>
                         </select>
-                    </div>
 
-                    <div className="form-group">
-                        <label htmlFor="filter-projectNo">Project No</label>
                         <select
-                            id="filter-projectNo" 
                             name="projectNo" 
                             value={filters.projectNo} 
                             onChange={handleFilterChange} 
@@ -618,49 +662,122 @@ const Cutting = ({ navigate }) => {
                 </div>
             </div>
 
-            <hr/>
-            
-            <div className="cutting-content">
-                <div className="tasks-section">
-                    <div className="tasks-header">
-                        <h2>📋 Cutting Tasks ({filteredTasks.length} / {tasks.length})</h2>
-                        <div className="tasks-stats">
-                            <span className="stat pending">Pending: {filteredTasks.filter(t => t.status === 'pending').length}</span>
-                            <span className="stat in-progress">In Progress: {filteredTasks.filter(t => t.status === 'in-progress').length}</span>
-                            <span className="stat completed">Completed: {filteredTasks.filter(t => t.status === 'completed').length}</span>
+            <div className="tasks-table-container">
+                {error && <div className="alert alert-danger">{error}</div>}
+
+                {isLoading ? (
+                    <div className="loading-state">
+                        <p>Loading tasks... 🔄</p>
+                    </div>
+                ) : filteredTasks.length === 0 && tasks.length > 0 ? (
+                    <div className="empty-state">
+                        <h3>No tasks match your current filters.</h3>
+                        <p>Try clearing or adjusting your search/filters.</p>
+                    </div>
+                ) : filteredTasks.length === 0 && tasks.length === 0 ? (
+                    <div className="empty-state">
+                        <h3>No tasks yet</h3>
+                    </div>
+                ) : (
+                    <div className="table-wrapper">
+                        <table className="tasks-table">
+                            <thead>
+                                <tr>
+                                    <th onClick={() => handleSort('title')}>
+                                        Task Title {getSortIcon('title')}
+                                    </th>
+                                    <th onClick={() => handleSort('projectNo')}>
+                                        Project No {getSortIcon('projectNo')}
+                                    </th>
+                                    <th onClick={() => handleSort('priority')}>
+                                        Priority {getSortIcon('priority')}
+                                    </th>
+                                    <th onClick={() => handleSort('status')}>
+                                        Status {getSortIcon('status')}
+                                    </th>
+                                    <th onClick={() => handleSort('createdAt')}>
+                                        Created {getSortIcon('createdAt')}
+                                    </th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {filteredTasks.map(task => (
+                                    <tr key={task.id} className="task-row">
+                                        <td className="task-title-cell">
+                                            <div className="task-title-main">{task.title}</div>
+                                            {task.description && (
+                                                <div className="task-description">{task.description}</div>
+                                            )}
+                                        </td>
+                                        <td>
+                                            <span className="project-no-badge">
+                                                {task.projectNo || 'N/A'}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <span 
+                                                className="priority-badge"
+                                                style={{ backgroundColor: getPriorityColor(task.priority) }}
+                                            >
+                                                {task.priority}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <div className="status-cell">
+                                                <select
+                                                    value={task.status}
+                                                    onChange={(e) => handleUpdateTaskStatus(task.id, e.target.value)}
+                                                    className="status-select"
+                                                    style={{ 
+                                                        borderColor: getStatusColor(task.status),
+                                                        backgroundColor: getStatusColor(task.status) + '20'
+                                                    }}
+                                                >
+                                                    <option value="pending">⏳ Pending</option>
+                                                    <option value="on-hold">⏳ On Hold</option>
+                                                    <option value="in-progress">🔄 In Progress</option>
+                                                    <option value="completed">✅ Completed</option>
+                                                </select>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div className="created-date">
+                                                {formatDate(task.createdAt)}
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div className="action-buttons">
+                                                <button
+                                                    onClick={() => openEditModal(task)}
+                                                    className="edit-btn"
+                                                    title="Edit task"
+                                                >
+                                                    ✏️
+                                                </button>
+                                                <button
+                                                    onClick={() => handleDeleteTask(task.id)}
+                                                    className="delete-btn"
+                                                    title="Delete task"
+                                                >
+                                                    🗑️
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+
+                {filteredTasks.length > 0 && (
+                    <div className="table-footer">
+                        <div className="table-summary">
+                            Showing {filteredTasks.length} of {tasks.length} tasks
                         </div>
                     </div>
-
-                    {error && <div className="alert alert-danger">{error}</div>}
-
-                    {isLoading ? (
-                        <div className="loading-state">
-                            <p>Loading tasks... 🔄</p>
-                        </div>
-                    ) : filteredTasks.length === 0 && tasks.length > 0 ? (
-                        <div className="empty-state">
-                            <h3>No tasks match your current filters.</h3>
-                            <p>Try clearing or adjusting your selections.</p>
-                        </div>
-                    ) : filteredTasks.length === 0 && tasks.length === 0 ? (
-                        <div className="empty-state">
-                            <h3>No tasks yet</h3>
-                            <p>Create your first task to get started with cutting management!</p>
-                            <button 
-                                className="primary" 
-                                onClick={openCreateModal}
-                            >
-                                Create Your First Task
-                            </button>
-                        </div>
-                    ) : (
-                        <div className="tasks-grid">
-                            {filteredTasks.map(task => (
-                                <TaskCard key={task.id} task={task} />
-                            ))}
-                        </div>
-                    )}
-                </div>
+                )}
             </div>
 
             <CreateTaskModal 

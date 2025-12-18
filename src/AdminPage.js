@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import './AdminPage.css';
 import { getAllAdminJobs, createAdminJob, updateAdminJob, deleteAdminJob } from './apiService';
-import { projectsAPI } from './apiService'; // Import the projects API
-import FileView from './FileComponents'; // Import the FileView component
+import FileView from './FileComponents';
 
 const tableColumns = [
     'DATE', 'JOB NO.', 'CUSTOMER', 'SALES', 'SELL', 'COST', 'MARGIN', 'SIGNATURE', 'REMARKS'
@@ -43,6 +42,11 @@ const getCurrentDate = () => {
     return `${year}-${month}-${day}`;
 };
 
+const getInitialValue = (col) => {
+    if (col === 'DATE') return getCurrentDate();
+    return '';
+};
+
 // =========================================================
 // SignatureCanvas Component
 // =========================================================
@@ -56,6 +60,7 @@ const SignatureCanvas = ({ signatureData, onSaveSignature, onClearSignature }) =
             const canvas = canvasRef.current;
             const context = canvas.getContext('2d');
             
+            // Set canvas background to white before drawing
             context.fillStyle = 'white';
             context.fillRect(0, 0, canvas.width, canvas.height);
             
@@ -75,13 +80,29 @@ const SignatureCanvas = ({ signatureData, onSaveSignature, onClearSignature }) =
             }
         }
     }, [signatureData]);
+
+    // Utility to get canvas coordinates
+    const getCoordinates = (e) => {
+        const canvas = canvasRef.current;
+        const rect = canvas.getBoundingClientRect();
+        let clientX, clientY;
+
+        if (e.touches && e.touches.length === 1) {
+            clientX = e.touches[0].clientX;
+            clientY = e.touches[0].clientY;
+        } else {
+            clientX = e.clientX;
+            clientY = e.clientY;
+        }
+
+        const x = clientX - rect.left;
+        const y = clientY - rect.top;
+        return { x, y };
+    }
     
     const startDrawing = (e) => {
         if (!ctx) return;
-        const canvas = canvasRef.current;
-        const rect = canvas.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
+        const { x, y } = getCoordinates(e);
         
         ctx.beginPath();
         ctx.moveTo(x, y);
@@ -90,10 +111,7 @@ const SignatureCanvas = ({ signatureData, onSaveSignature, onClearSignature }) =
     
     const draw = (e) => {
         if (!isDrawing || !ctx) return;
-        const canvas = canvasRef.current;
-        const rect = canvas.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
+        const { x, y } = getCoordinates(e);
         
         ctx.lineTo(x, y);
         ctx.stroke();
@@ -105,24 +123,26 @@ const SignatureCanvas = ({ signatureData, onSaveSignature, onClearSignature }) =
     
     const handleSave = () => {
         if (canvasRef.current) {
-            // Optimize image size before saving
+            // Optimization: Scale down the signature before saving the data URL
             const originalCanvas = canvasRef.current;
             const tempCanvas = document.createElement('canvas');
             const tempCtx = tempCanvas.getContext('2d');
             
-            tempCanvas.width = 300;
-            tempCanvas.height = 100;
+            tempCanvas.width = 400; // Match the display width
+            tempCanvas.height = 150; // Match the display height
             
             tempCtx.drawImage(originalCanvas, 0, 0, originalCanvas.width, originalCanvas.height, 
                               0, 0, tempCanvas.width, tempCanvas.height);
             
-            const dataUrl = tempCanvas.toDataURL('image/png');
+            // Use image/jpeg for smaller file size, unless transparency is required
+            const dataUrl = tempCanvas.toDataURL('image/jpeg', 0.8); 
             onSaveSignature(dataUrl);
         }
     };
     
     const handleClear = () => {
         if (canvasRef.current && ctx) {
+            // Redraw white background to clear
             ctx.fillStyle = 'white';
             ctx.fillRect(0, 0, canvasRef.current.width, canvasRef.current.height);
             onClearSignature();
@@ -144,17 +164,19 @@ const SignatureCanvas = ({ signatureData, onSaveSignature, onClearSignature }) =
                     width={400}
                     height={150}
                     className="signature-canvas"
+                    // Mouse handlers
                     onMouseDown={startDrawing}
                     onMouseMove={draw}
                     onMouseUp={stopDrawing}
                     onMouseLeave={stopDrawing}
+                    // Touch handlers
                     onTouchStart={(e) => {
                         e.preventDefault();
-                        if (e.touches.length === 1) startDrawing(e.touches[0]);
+                        if (e.touches.length === 1) startDrawing(e);
                     }}
                     onTouchMove={(e) => {
                         e.preventDefault();
-                        if (e.touches.length === 1) draw(e.touches[0]);
+                        if (e.touches.length === 1) draw(e);
                     }}
                     onTouchEnd={stopDrawing}
                 />
@@ -180,7 +202,7 @@ const SignatureCanvas = ({ signatureData, onSaveSignature, onClearSignature }) =
 };
 
 // =========================================================
-// ProjectModal Component (Updated - Approval removed)
+// ProjectModal Component
 // =========================================================
 const ProjectModal = ({ 
     isOpen, 
@@ -190,23 +212,26 @@ const ProjectModal = ({
     jobToEdit
 }) => {
     
-    const getInitialValue = (col) => {
-        if (col === 'DATE') return getCurrentDate();
-        return '';
-    };
-
-    const initialFormState = columns.reduce((acc, col) => ({ 
+    // Create initial state using useMemo to ensure stability across renders
+    const initialFormState = useMemo(() => columns.reduce((acc, col) => ({ 
         ...acc, 
         [col]: col === 'SIGNATURE' ? null : getInitialValue(col)
-    }), {});
+    }), {}), [columns]);
     
     const [formData, setFormData] = useState(initialFormState);
     const [error, setError] = useState(null);
     const [showSignaturePad, setShowSignaturePad] = useState(false);
     const [tempSignature, setTempSignature] = useState(null);
 
+    // Extract specific form values for dependency tracking
+    const sellValue = formData['SELL'];
+    const costValue = formData['COST'];
+    const marginValue = formData['MARGIN'];
+
+    // FIX 1: Initialization/Reset useEffect
     useEffect(() => {
         if (jobToEdit) {
+            // Map API response to form data structure
             const mappedData = {
                 'DATE': formatDateToYYYYMMDD(jobToEdit.dateEntry) || getInitialValue('DATE'),
                 'JOB NO.': jobToEdit.jobNo || getInitialValue('JOB NO.'),
@@ -221,30 +246,32 @@ const ProjectModal = ({
             setFormData(mappedData);
             setTempSignature(jobToEdit.signatureData);
         } else {
+            // Reset to initial state for a new entry
             setFormData(initialFormState);
             setTempSignature(null);
         }
-    }, [jobToEdit, isOpen]);
+    }, [jobToEdit, isOpen, initialFormState]);
 
+    // FIX 2: Margin Calculation useEffect - Fixed dependency array
     useEffect(() => {
-        const sell = formData['SELL'];
-        const cost = formData['COST'];
+        const sellNum = Number(sellValue);
+        const costNum = Number(costValue);
+        const currentMargin = marginValue;
         
-        const sellNum = Number(sell);
-        const costNum = Number(cost);
+        if (!isNaN(sellNum) && !isNaN(costNum) && sellValue !== '' && costValue !== '') {
+            const marginValueCalc = sellNum - costNum;
+            const calculatedMargin = parseFloat(marginValueCalc.toFixed(2));
 
-        if (!isNaN(sellNum) && !isNaN(costNum) && sell !== '' && cost !== '') {
-            const marginValue = sellNum - costNum;
-            if (parseFloat(marginValue.toFixed(2)) !== formData['MARGIN']) {
+            if (calculatedMargin !== currentMargin) {
                 setFormData(prev => ({ 
                     ...prev, 
-                    'MARGIN': parseFloat(marginValue.toFixed(2)) 
+                    'MARGIN': calculatedMargin 
                 }));
             }
-        } else if (formData['MARGIN'] !== '') {
+        } else if (currentMargin !== '') {
             setFormData(prev => ({ ...prev, 'MARGIN': '' }));
         }
-    }, [formData['SELL'], formData['COST']]);
+    }, [sellValue, costValue, marginValue]);
 
     if (!isOpen) return null;
 
@@ -273,7 +300,7 @@ const ProjectModal = ({
         e.preventDefault();
 
         // Validate required fields
-        if (!formData['JOB NO.'] || formData['JOB NO.'].trim() === '') {
+        if (!formData['JOB NO.'] || String(formData['JOB NO.']).trim() === '') {
             setError('Job No. is required.');
             return;
         }
@@ -283,18 +310,17 @@ const ProjectModal = ({
             return;
         }
 
-        // Get customer name from selected project if available
-        const selectedProjectNumber = formData['JOB NO.'];
+        const selectedProjectNumber = String(formData['JOB NO.']);
         const customerName = formData['CUSTOMER'] || `Customer for ${selectedProjectNumber}`;
 
         const payload = {
             Job_No: selectedProjectNumber,
             Date_Entry: formData['DATE'],
             Customer_Name: customerName,
-            Sales_Amount: formData['SALES'],
-            Sell_Price: formData['SELL'],
-            Cost: formData['COST'],
-            Margin: formData['MARGIN'],
+            Sales_Amount: formData['SALES'] === '' ? null : formData['SALES'],
+            Sell_Price: formData['SELL'] === '' ? null : formData['SELL'],
+            Cost: formData['COST'] === '' ? null : formData['COST'],
+            Margin: formData['MARGIN'] === '' ? null : formData['MARGIN'],
             Remarks: formData['REMARKS'] || null,
             Signature_Data: tempSignature,
         };
@@ -304,7 +330,9 @@ const ProjectModal = ({
             Signature_Data: tempSignature ? `Base64 data URL (${tempSignature.length} chars)` : 'null'
         });
 
-        onSave(payload, jobToEdit ? 'UPDATE' : 'CREATE');
+        // FIX: Pass the old job number when editing
+        const oldJobNo = jobToEdit ? jobToEdit.jobNo : null;
+        onSave(payload, jobToEdit ? 'UPDATE' : 'CREATE', oldJobNo);
     };
 
     const getInputType = (col) => {
@@ -319,7 +347,6 @@ const ProjectModal = ({
     const renderField = (col) => {
         const type = getInputType(col);
         const isMarginField = col === 'MARGIN';
-        const isJobNoField = col === 'JOB NO.';
         const isReadOnly = isMarginField;
 
         if (col === 'SIGNATURE') {
@@ -346,7 +373,7 @@ const ProjectModal = ({
         const inputProps = {
             id: col,
             name: col,
-            value: formData[col] === null || formData[col] === '' ? '' : formData[col],
+            value: formData[col] === null || formData[col] === '' ? '' : formData[col], 
             onChange: isReadOnly ? undefined : handleChange,
             required: isRequired(col),
             readOnly: isReadOnly,
@@ -360,7 +387,6 @@ const ProjectModal = ({
                 <input 
                     {...inputProps}
                     type="text"
-                    readOnly={jobToEdit} // Make readOnly only when editing
                 />
             );
         }
@@ -380,7 +406,6 @@ const ProjectModal = ({
         <>
             <div className="modal-backdrop">
                 <div className="modal-content">
-                    <h3>{jobToEdit ? `✍️ Edit Job ${formData['JOB NO.']}` : '➕ Create New Job Entry'}</h3>
                     {error && <div className="error-message">⚠️ {error}</div>}
                     <form onSubmit={handleSubmit}>
                         {columns.map(col => (
@@ -430,7 +455,7 @@ const ProjectModal = ({
 };
 
 // =========================================================
-// AdminPage Component (Updated - with View Files button)
+// AdminPage Component
 // =========================================================
 const AdminPage = ({ navigate }) => {
     const [jobs, setJobs] = useState([]);
@@ -438,14 +463,58 @@ const AdminPage = ({ navigate }) => {
     const [error, setError] = useState(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [jobToEdit, setJobToEdit] = useState(null);
-    const [viewingProjectNo, setViewingProjectNo] = useState(null); // New state for viewing files
+    
+    // --- NEW LOGIC: Hash-Based Routing ---
+    
+    // 1. Utility to extract projectNo from the URL hash
+    const getProjectNoFromHash = () => {
+        // Expected hash format: #/files/212121
+        const hash = window.location.hash;
+        const match = hash.match(/^#\/files\/([^/]+)$/);
+        return match ? match[1] : null;
+    };
+    
+    // 2. Initialize state from the URL hash
+    const [viewingProjectNo, setViewingProjectNo] = useState(getProjectNoFromHash());
+    
+    // 3. Effect to synchronize state with URL hash changes
+    useEffect(() => {
+        // Function to listen to browser back/forward buttons
+        const handleHashChange = () => {
+            const newProjectNo = getProjectNoFromHash();
+            if (newProjectNo !== viewingProjectNo) {
+                setViewingProjectNo(newProjectNo);
+            }
+        };
+
+        window.addEventListener('hashchange', handleHashChange);
+        return () => window.removeEventListener('hashchange', handleHashChange);
+    }, [viewingProjectNo]);
+    
+    // 4. Effect to update URL hash when state changes
+    useEffect(() => {
+        if (viewingProjectNo) {
+            // Set hash to #/files/jobNo when viewing files
+            window.location.hash = `/files/${viewingProjectNo}`;
+        } else {
+            // Set hash back to base path (assuming #/ is the base)
+            // This happens when handleBackFromFiles is called
+            if (getProjectNoFromHash()) {
+                 window.location.hash = '/'; // Change this if your base route is different (e.g., '/admin')
+            }
+        }
+        // This runs when the state changes via handleViewFiles/handleBackFromFiles
+    }, [viewingProjectNo]);
+    
+    // ------------------------------------
+
 
     // Fetch all jobs
     const fetchJobs = async () => {
         setLoading(true);
         try {
             const data = await getAllAdminJobs();
-            setJobs(data);
+            setJobs(data.sort((a, b) => new Date(b.dateEntry) - new Date(a.dateEntry))); 
             setError(null);
         } catch (err) {
             console.error(err);
@@ -455,21 +524,12 @@ const AdminPage = ({ navigate }) => {
         }
     };
 
+    // Only fetch jobs if not already in file view mode
     useEffect(() => {
-        fetchJobs();
-    }, []);
-
-    // Extract unique project numbers from jobs only (no longer need projects from database)
-    const projectNumbers = useMemo(() => {
-        const numbersFromJobs = jobs
-            .map(job => job.jobNo)
-            .filter(jobNo => jobNo && jobNo.trim() !== '');
-        
-        // Get unique numbers
-        const uniqueNumbers = [...new Set(numbersFromJobs)].sort();
-        
-        return uniqueNumbers;
-    }, [jobs]);
+        if (!viewingProjectNo) {
+            fetchJobs();
+        }
+    }, [viewingProjectNo]); // Depend on viewingProjectNo to prevent fetching when in file view
 
     const formatCurrency = (value) => {
         if (value === null || value === undefined || value === '') {
@@ -503,37 +563,102 @@ const AdminPage = ({ navigate }) => {
         signatureData: job.signatureData,
     });
 
-    const handleSaveJob = async (payload, mode) => {
+    const handleSaveJob = async (payload, mode, oldJobNo = null) => {
         try {
-            // Ensure date is in YYYY-MM-DD format before sending
             const processedPayload = {
                 ...payload,
                 Date_Entry: formatDateToYYYYMMDD(payload.Date_Entry)
             };
 
-            let responseData;
+            let responseJob;
             
             if (mode === 'CREATE') {
-                responseData = await createAdminJob(processedPayload);
-                setJobs(prevJobs => [responseData, ...prevJobs].sort((a, b) => new Date(b.dateEntry) - new Date(a.dateEntry)));
-                alert(`Successfully created job ${responseData.jobNo}.`);
+                const response = await createAdminJob(processedPayload);
+                responseJob = response.job || response;
+                
+                setJobs(prevJobs => {
+                    const updatedJobs = [responseJob, ...prevJobs];
+                    return updatedJobs.sort((a, b) => new Date(b.dateEntry) - new Date(a.dateEntry));
+                });
+                
+                alert(`✅ Successfully created job ${responseJob.jobNo}`);
+
             } else if (mode === 'UPDATE') {
-                responseData = await updateAdminJob(processedPayload.Job_No, processedPayload);
-                setJobs(prevJobs => prevJobs.map(job => 
-                    job.jobNo === processedPayload.Job_No ? { ...job, ...responseData } : job
-                ));
-                alert(`Successfully updated job ${processedPayload.Job_No}.`);
+                // Always use the OLD job number in the URL for the API call
+                const jobNoForUpdate = oldJobNo || processedPayload.Job_No;
+                
+                try {
+                    const response = await updateAdminJob(jobNoForUpdate, processedPayload);
+                    responseJob = response.job || response;
+                    
+                    // Update the jobs list - always handle as if job number might have changed
+                    setJobs(prevJobs => {
+                        // Remove the old entry if job number changed
+                        const filteredJobs = oldJobNo && oldJobNo !== responseJob.jobNo 
+                            ? prevJobs.filter(job => job.jobNo !== oldJobNo)
+                            : prevJobs;
+                        
+                        // Add/update with new job
+                        const existingIndex = filteredJobs.findIndex(job => job.jobNo === responseJob.jobNo);
+                        let updatedJobs;
+                        
+                        if (existingIndex >= 0) {
+                            // Update existing job
+                            updatedJobs = filteredJobs.map(job => 
+                                job.jobNo === responseJob.jobNo ? responseJob : job
+                            );
+                        } else {
+                            // Add new job entry (job number changed to a new one)
+                            updatedJobs = [responseJob, ...filteredJobs];
+                        }
+                        
+                        return updatedJobs.sort((a, b) => new Date(b.dateEntry) - new Date(a.dateEntry));
+                    });
+                    
+                    if (oldJobNo && oldJobNo !== responseJob.jobNo) {
+                        alert(`✅ Successfully updated job ${oldJobNo} to ${responseJob.jobNo}`);
+                    } else {
+                        alert(`✅ Successfully updated job ${responseJob.jobNo}`);
+                    }
+                    
+                } catch (updateErr) {
+                    // If update fails with 404 (job not found), treat it as changing to a non-existent job
+                    if (updateErr.message.includes('404') || (updateErr.response && updateErr.response.status === 404)) {
+                        console.log(`Job ${jobNoForUpdate} not found, treating as job number change to new number ${processedPayload.Job_No}`);
+                        
+                        // Try to create as new job instead
+                        try {
+                            const createResponse = await createAdminJob(processedPayload);
+                            responseJob = createResponse.job || createResponse;
+                            
+                            // Remove old job and add new one
+                            setJobs(prevJobs => {
+                                const filteredJobs = prevJobs.filter(job => job.jobNo !== oldJobNo);
+                                const updatedJobs = [responseJob, ...filteredJobs];
+                                return updatedJobs.sort((a, b) => new Date(b.dateEntry) - new Date(a.dateEntry));
+                            });
+                            
+                            alert(`✅ Job number changed from ${oldJobNo} to new job ${responseJob.jobNo}`);
+                            
+                        } catch (createErr) {
+                            throw new Error(`Failed to create new job after job number change: ${createErr.message}`);
+                        }
+                    } else {
+                        throw updateErr;
+                    }
+                }
             }
             
             setError(null);
             closeModal();
+            
         } catch (err) {
             console.error('API Error:', err);
             let alertMessage = 'Operation failed due to an unknown error.';
-            if (err.message.includes('409')) {
-                alertMessage = `Operation failed: Job No. ${payload.Job_No} already exists (Conflict).`;
+            if (err.message.includes('409') || (err.response && err.response.status === 409)) {
+                alertMessage = `❌ Operation failed: Job No. ${payload.Job_No} already exists (Conflict).`;
             } else {
-                alertMessage = `${mode} failed: ${err.message}`;
+                alertMessage = `❌ ${mode} failed: ${err.message}`;
             }
             alert(alertMessage);
         }
@@ -583,7 +708,6 @@ const AdminPage = ({ navigate }) => {
             return <span className="no-signature-text">No signature</span>;
         }
         
-        // Ensure it's a data URL
         const imgSrc = signatureData.startsWith('data:image/') 
             ? signatureData 
             : `data:image/png;base64,${signatureData}`;
@@ -639,26 +763,23 @@ const AdminPage = ({ navigate }) => {
         );
     };
 
-    // If viewing files, show the FileView component
-    if (viewingProjectNo) {
+    if (viewingProjectNo) 
+    {
         return (
-            <div className="admin-page">
-                <FileView 
-                    projectNo={viewingProjectNo}
-                    navigateHome={handleBackFromFiles}
-                />
-            </div>
+            <FileView 
+                projectNo={viewingProjectNo}
+                navigateHome={handleBackFromFiles}
+            />
         );
     }
 
     return (
         <div className="admin-page">
             <header className="page-header">
-                <h1>⚙️ Job/Sales Administration</h1>
-                <p>Manage and monitor all sales entries in the system</p>
+                <h1>⚙️ Sales Administration</h1>
                 <div className="project-stats">
                     <span className="stat-item">
-                        📊 Total Jobs: <strong>{jobs.length}</strong>
+                        📊 Total Entries: <strong>{jobs.length}</strong>
                     </span>
                 </div>
             </header>
@@ -667,15 +788,6 @@ const AdminPage = ({ navigate }) => {
                 <div className="admin-section project-table-section">
                     <div className="table-header-row">
                         <h2>Sales Ledger 📈</h2>
-                        <div className="header-actions">
-                            <button 
-                                className="create-icon-btn"
-                                onClick={openCreateModal}
-                                title="Create New Job"
-                            >
-                                ➕ Create New Entry
-                            </button>
-                        </div>
                     </div>
                     
                     <div className="project-table-container">
@@ -695,7 +807,7 @@ const AdminPage = ({ navigate }) => {
                                 <tbody>
                                     {jobs.length > 0 ? (
                                         jobs.map((job) => {
-                                            const key = job.recordId || job.jobNo;
+                                            const key = job.jobNo; 
                                             const data = formatJobData(job);
                                             return (
                                                 <tr key={key}>
@@ -716,6 +828,7 @@ const AdminPage = ({ navigate }) => {
                                                             onClick={() => handleViewFiles(job.jobNo)}
                                                             className="table-action-btn view-btn"
                                                             title="View project files"
+                                                            disabled={!job.jobNo}
                                                         >
                                                             📁 View Files
                                                         </button>
@@ -738,7 +851,7 @@ const AdminPage = ({ navigate }) => {
                                     ) : (
                                         <tr>
                                             <td colSpan={tableColumns.length + 1} className="no-data">
-                                                No jobs found. Use the ➕ button to start tracking!
+                                                No sales found. Use the ➕ button to start tracking!
                                             </td>
                                         </tr>
                                     )}

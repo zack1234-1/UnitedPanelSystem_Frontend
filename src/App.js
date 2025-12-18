@@ -10,6 +10,7 @@ import AdminPage from './AdminPage';
 import './App.css';
 import NotificationPage from './Notification';
 import ExcelExtractor from './ExcelExtractor';
+import ReportGenerator from './ReportGenerator';
 
 // =========================================================
 // 1. REAL API Service Implementation
@@ -223,7 +224,6 @@ const StatusUpdateModal = ({ isOpen, onClose, project, onUpdateStatus }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const statusOptions = [
-    { value: 'active', label: 'Active', icon: '🔄' },
     { value: 'done', label: 'Done', icon: '✅' },
     { value: 'approved', label: 'Approved', icon: '🎯' }
   ];
@@ -256,7 +256,7 @@ const StatusUpdateModal = ({ isOpen, onClose, project, onUpdateStatus }) => {
         <div className="modal-body">
           <div className="project-info">
             <h4>{project.customer}</h4>
-            <p className="project-no">Job #{project.projectNo}</p>
+            <p className="project-no">Project #{project.projectNo}</p>
           </div>
 
           <form onSubmit={handleSubmit}>
@@ -274,17 +274,6 @@ const StatusUpdateModal = ({ isOpen, onClose, project, onUpdateStatus }) => {
                   </div>
                 ))}
               </div>
-            </div>
-
-            <div className="form-group">
-              <label htmlFor="status-notes">Notes (Optional)</label>
-              <textarea
-                id="status-notes"
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="Add any notes about this status change..."
-                rows="3"
-              />
             </div>
 
             <div className="modal-actions">
@@ -310,6 +299,10 @@ const StatusUpdateModal = ({ isOpen, onClose, project, onUpdateStatus }) => {
 // 4. Enhanced Category Selection Component (Updated with Quotation)
 // =========================================================
 
+// =========================================================
+// 4. Enhanced Category Selection Component (Updated with Quotation)
+// =========================================================
+
 const EnhancedCategorySelection = ({ 
     selectedCategories, 
     onCategoryChange, 
@@ -325,12 +318,13 @@ const EnhancedCategorySelection = ({
         { id: 'strip_curtain', label: 'Strip Curtain', icon: '🎪' },
         { id: 'accessories', label: 'Accessories', icon: '🔧' },
         { id: 'system', label: 'System', icon: '⚙️' },
-        { id: 'quotation', label: 'Quotation', icon: '📋' } // New category added
+        { id: 'quotation', label: 'Quotation', icon: '📋' }
     ];
 
     const [dragActiveCategory, setDragActiveCategory] = useState(null);
     const [uploadProgress, setUploadProgress] = useState({});
-    const [isUploading, setIsUploading] = useState(false);
+    // Changed from single boolean to object tracking upload state per category
+    const [isUploadingPerCategory, setIsUploadingPerCategory] = useState({});
 
     const formatFileSize = (bytes) => {
         if (bytes === 0) return '0 Bytes';
@@ -361,7 +355,11 @@ const EnhancedCategorySelection = ({
     const handleFileUpload = async (categoryId, event) => {
         const files = Array.from(event.target.files);
         if (files.length > 0) {
-            setIsUploading(true);
+            // Set uploading state only for this specific category
+            setIsUploadingPerCategory(prev => ({
+                ...prev,
+                [categoryId]: true
+            }));
             
             const progressUpdates = {};
             files.forEach((file, index) => {
@@ -388,11 +386,25 @@ const EnhancedCategorySelection = ({
                 }, 2000);
             });
 
+            // Call the parent upload handler
             onCategoryFileUpload(categoryId, files);
             
+            // Reset upload state for this category after upload completes
             setTimeout(() => {
-                setIsUploading(false);
-                setUploadProgress({});
+                setIsUploadingPerCategory(prev => ({
+                    ...prev,
+                    [categoryId]: false
+                }));
+                setUploadProgress(prev => {
+                    const newProgress = { ...prev };
+                    // Remove progress indicators for this category's files
+                    Object.keys(newProgress).forEach(key => {
+                        if (key.startsWith(`${categoryId}-`)) {
+                            delete newProgress[key];
+                        }
+                    });
+                    return newProgress;
+                });
             }, 2500);
         }
     };
@@ -440,6 +452,7 @@ const EnhancedCategorySelection = ({
                     const isSelected = selectedCategories.includes(category.id);
                     const files = categoryFiles[category.id] || [];
                     const isDraggingOver = dragActiveCategory === category.id;
+                    const isUploadingThisCategory = isUploadingPerCategory[category.id] || false;
                     
                     return (
                         <div 
@@ -467,11 +480,11 @@ const EnhancedCategorySelection = ({
                                 {isSelected && (
                                     <div className="category-file-upload">
                                         <div 
-                                            className={`category-file-dropzone ${isDraggingOver ? 'drag-active' : ''} ${isUploading ? 'uploading' : ''}`}
+                                            className={`category-file-dropzone ${isDraggingOver ? 'drag-active' : ''} ${isUploadingThisCategory ? 'uploading' : ''}`}
                                             onDragOver={(e) => handleDragOver(category.id, e)}
                                             onDragLeave={() => handleDragLeave(category.id)}
                                             onDrop={(e) => handleDrop(category.id, e)}
-                                            onClick={() => !isUploading && triggerFileInput(category.id)}
+                                            onClick={() => !isUploadingThisCategory && triggerFileInput(category.id)}
                                         >
                                             <input
                                                 type="file"
@@ -480,17 +493,18 @@ const EnhancedCategorySelection = ({
                                                 style={{ display: 'none' }}
                                                 id={`file-input-${category.id}`}
                                                 accept="image/*,application/pdf,.dwg,.dxf,.doc,.docx,.xls,.xlsx,.zip,.rar"
+                                                disabled={isUploadingThisCategory}
                                             />
                                             <div className="upload-area-content">
                                                 <div className="upload-icon">
-                                                    {isUploading ? '⏳' : isDraggingOver ? '⬇️' : '📁'}
+                                                    {isUploadingThisCategory ? '⏳' : isDraggingOver ? '⬇️' : '📁'}
                                                 </div>
                                                 <div className="upload-text">
                                                     <div className="upload-label">
-                                                        {isUploading ? 'Uploading...' : 'Click or drop files here (optional)'}
+                                                        {isUploadingThisCategory ? 'Uploading...' : 'Click or drop files here (optional)'}
                                                     </div>
                                                     <div className="upload-subtext">
-                                                        {isUploading ? 'Please wait while files upload' : 'Drag & drop or click to browse'}
+                                                        {isUploadingThisCategory ? 'Please wait while files upload' : 'Drag & drop or click to browse'}
                                                     </div>
                                                     <div className="upload-hint">
                                                         Supports images, PDFs, CAD files, documents
@@ -517,7 +531,7 @@ const EnhancedCategorySelection = ({
                                                             e.stopPropagation();
                                                             onClearCategoryFiles(category.id);
                                                         }}
-                                                        disabled={isUploading}
+                                                        disabled={isUploadingThisCategory}
                                                     >
                                                         Clear All
                                                     </button>
@@ -573,7 +587,7 @@ const EnhancedCategorySelection = ({
                                                                                 onRemoveCategoryFile(category.id, index);
                                                                             }}
                                                                             title="Remove file"
-                                                                            disabled={isUploading}
+                                                                            disabled={isUploadingThisCategory}
                                                                         >
                                                                             ×
                                                                         </button>
@@ -626,6 +640,7 @@ const useSimpleRouter = () => {
     const matchNotifications = path === '/notifications';
     const matchAdmin = path === '/admin';
     const matchExcelExtractor = path === '/excel-extractor';
+    const matchReportGenerator = path === '/report-generator';  // ADD THIS LINE
 
     let currentRoute = 'JobList';
     let params = {};
@@ -651,11 +666,12 @@ const useSimpleRouter = () => {
         currentRoute = 'AdminPage';
     } else if (matchExcelExtractor) {
         currentRoute = 'ExcelExtractor';
+    } else if (matchReportGenerator) {  // ADD THIS CONDITION
+        currentRoute = 'ReportGenerator';
     }
 
     return { navigate, currentRoute, params };
 };
-
 // =========================================================
 // 6. Progress Component for Task Count Display
 // =========================================================
@@ -807,7 +823,7 @@ function App() {
     const [confirmDeleteId, setConfirmDeleteId] = useState(null);
 
     // --- Status Filtering ---
-    const [activeTab, setActiveTab] = useState('active');
+    const [activeTab, setActiveTab] = useState('approved');
     const [statusUpdateModal, setStatusUpdateModal] = useState({
         isOpen: false,
         project: null
@@ -1643,7 +1659,7 @@ function App() {
                         onClick={() => navigate('/')}
                     > 
                         <span role="img" aria-label="home">🏠</span>
-                        {isSidebarOpen && <span>Job List</span>}
+                        {isSidebarOpen && <span>Project List</span>}
                     </a>
                     
                     <a 
@@ -1717,7 +1733,16 @@ function App() {
                         onClick={() => navigate('/admin')}
                     > 
                         <span role="img" aria-label="admin">👨‍💼</span>
-                        {isSidebarOpen && <span>Project Admin</span>}
+                        {isSidebarOpen && <span>Sales</span>}
+                    </a>
+                    {/* Report Generator Navigation */}
+                    <a 
+                        href="#/report-generator" 
+                        className={`nav-item ${currentRoute === 'ReportGenerator' ? 'active' : ''}`}
+                        onClick={() => navigate('/report-generator')}
+                    > 
+                        <span role="img" aria-label="generator">📑</span>
+                        {isSidebarOpen && <span>Report Generator</span>}
                     </a>
 
                     {/* Notification Page Navigation */}
@@ -1778,13 +1803,15 @@ function App() {
                                             </div>
                                         </div>
 
-                                        <div className="form-group">
-                                            <label htmlFor="projectName">Project Name</label>
+                                          <div className="form-group">
+                                            <label htmlFor="customer">Customer Name*</label>
                                             <input 
-                                                id="projectName"
-                                                name="projectName" 
-                                                value={newProject.projectName} 
+                                                id="customer"
+                                                name="customer" 
+                                                value={newProject.customer} 
                                                 onChange={handleInputChange} 
+                                                placeholder="Customer Name" 
+                                                required
                                             />
                                         </div>
 
@@ -1797,16 +1824,14 @@ function App() {
                                                 onChange={handleInputChange} 
                                             />
                                         </div>
-                                        
+
                                         <div className="form-group">
-                                            <label htmlFor="customer">Customer Name*</label>
+                                            <label htmlFor="projectName">Project Name</label>
                                             <input 
-                                                id="customer"
-                                                name="customer" 
-                                                value={newProject.customer} 
+                                                id="projectName"
+                                                name="projectName" 
+                                                value={newProject.projectName} 
                                                 onChange={handleInputChange} 
-                                                placeholder="Customer Name" 
-                                                required
                                             />
                                         </div>
                                         
@@ -1931,7 +1956,7 @@ function App() {
                                     <p className="no-jobs-message">
                                         {activeTab === 'active' ? 'No active projects found. Create your first project to get started!' :
                                          activeTab === 'done' ? 'No done projects found.' :
-                                         'No completed projects found.'}
+                                         'No approved projects found.'}
                                     </p>
                                 ) : (
                                     projects.map(project => (
@@ -1956,6 +1981,7 @@ function App() {
                 {currentRoute === 'StripCurtain' && <StripCurtain navigate={navigate} />}
                 {currentRoute === 'Accessories' && <Accessories navigate={navigate} />}
                 {currentRoute === 'System' && <System navigate={navigate} />}
+                {currentRoute === 'ReportGenerator' && <ReportGenerator />}
                 
                 {/* Excel Extractor Page */}
                 {currentRoute === 'ExcelExtractor' && <ExcelExtractor />}

@@ -1,6 +1,7 @@
-// FileComponents.js
+// FileComponents.js - Fixed with No Recursive Call
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import imageCompression from 'browser-image-compression';
+import './FileView.css';
 
 const API_BASE = 'http://localhost:5000/api';
 
@@ -12,15 +13,204 @@ const MAX_UPLOAD_SIZE_BYTES = 300 * 1024 * 1024; // 300 MB
 const INDIVIDUAL_FILE_LIMIT = 50 * 1024 * 1024; // 50 MB per file
 
 // =========================================================
-// Compression Utility Functions
+// Thumbnail Generator Functions - FIXED VERSION
 // =========================================================
 
 /**
- * Enhanced compression function using browser-image-compression
- * @param {File} file - The original File object
- * @param {Object} options - Compression options
- * @returns {Promise<File>} - Compressed file
+ * Create thumbnail from file blob - FIXED: No recursive call
  */
+const createThumbnail = async (blob, mimeType, fileName) => {
+  try {
+    if (mimeType && mimeType.startsWith('image/')) {
+      return new Promise((resolve) => {
+        const img = new Image();
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        img.onload = () => {
+          try {
+            // Set canvas dimensions (thumbnail size)
+            const maxWidth = 200;
+            const maxHeight = 120;
+            let width = img.width;
+            let height = img.height;
+            
+            // Calculate new dimensions while maintaining aspect ratio
+            if (width > height) {
+              if (width > maxWidth) {
+                height *= maxWidth / width;
+                width = maxWidth;
+              }
+            } else {
+              if (height > maxHeight) {
+                width *= maxHeight / height;
+                height = maxHeight;
+              }
+            }
+            
+            canvas.width = width;
+            canvas.height = height;
+            
+            // Draw image with white background
+            ctx.fillStyle = 'white';
+            ctx.fillRect(0, 0, width, height);
+            ctx.drawImage(img, 0, 0, width, height);
+            
+            // Convert to data URL
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+            resolve(dataUrl);
+          } catch (error) {
+            console.warn('Canvas error for image:', fileName, error);
+            resolve(createFallbackThumbnail(mimeType, fileName));
+          }
+        };
+        
+        img.onerror = () => {
+          console.warn('Failed to load image for thumbnail:', fileName);
+          resolve(createFallbackThumbnail(mimeType, fileName));
+        };
+        
+        // Create object URL and clean up after loading
+        const objectUrl = URL.createObjectURL(blob);
+        img.src = objectUrl;
+        
+        // Clean up object URL after image loads
+        img.onload = () => {
+          URL.revokeObjectURL(objectUrl);
+          // Call the original onload logic
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
+          
+          // Set canvas dimensions (thumbnail size)
+          const maxWidth = 200;
+          const maxHeight = 120;
+          let width = img.width;
+          let height = img.height;
+          
+          // Calculate new dimensions while maintaining aspect ratio
+          if (width > height) {
+            if (width > maxWidth) {
+              height *= maxWidth / width;
+              width = maxWidth;
+            }
+          } else {
+            if (height > maxHeight) {
+              width *= maxHeight / height;
+              height = maxHeight;
+            }
+          }
+          
+          canvas.width = width;
+          canvas.height = height;
+          
+          // Draw image with white background
+          ctx.fillStyle = 'white';
+          ctx.fillRect(0, 0, width, height);
+          ctx.drawImage(img, 0, 0, width, height);
+          
+          // Convert to data URL
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+          resolve(dataUrl);
+        };
+      });
+    } else {
+      // For non-image files, create a styled thumbnail
+      return createFallbackThumbnail(mimeType, fileName);
+    }
+  } catch (error) {
+    console.error('Error creating thumbnail:', error);
+    return createFallbackThumbnail(mimeType, fileName);
+  }
+};
+
+/**
+ * Create fallback thumbnail for non-image files - SIMPLIFIED VERSION
+ */
+const createFallbackThumbnail = (mimeType, fileName) => {
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
+  canvas.width = 200;
+  canvas.height = 120;
+  
+  // Determine background color and icon based on file type
+  let bgColor, icon, typeLabel;
+  
+  const ext = fileName.toLowerCase().split('.').pop();
+  
+  if (ext === 'pdf' || mimeType === 'application/pdf') {
+    bgColor = '#e74c3c';
+    icon = '📕';
+    typeLabel = 'PDF';
+  } else if (['doc', 'docx'].includes(ext)) {
+    bgColor = '#2c3e50';
+    icon = '📝';
+    typeLabel = 'DOC';
+  } else if (['xls', 'xlsx'].includes(ext)) {
+    bgColor = '#27ae60';
+    icon = '📊';
+    typeLabel = 'XLS';
+  } else if (['zip', 'rar', '7z'].includes(ext)) {
+    bgColor = '#f39c12';
+    icon = '🗜️';
+    typeLabel = 'ZIP';
+  } else if (ext === 'txt' || mimeType?.includes('text')) {
+    bgColor = '#3498db';
+    icon = '📄';
+    typeLabel = 'TXT';
+  } else if (ext === 'png' || ext === 'jpg' || ext === 'jpeg' || ext === 'gif') {
+    bgColor = '#9b59b6';
+    icon = '🖼️';
+    typeLabel = 'IMG';
+  } else {
+    bgColor = '#95a5a6';
+    icon = '📁';
+    typeLabel = 'FILE';
+  }
+  
+  // Draw background
+  ctx.fillStyle = bgColor;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  
+  // Draw icon
+  ctx.fillStyle = 'white';
+  ctx.font = 'bold 40px Arial';
+  ctx.textAlign = 'center';
+  ctx.fillText(icon, canvas.width / 2, 50);
+  
+  // Draw file type label
+  ctx.font = 'bold 12px Arial';
+  ctx.fillText(typeLabel, canvas.width / 2, 80);
+  
+  // Draw file name (truncated)
+  const shortName = fileName.length > 20 ? fileName.substring(0, 17) + '...' : fileName;
+  ctx.font = '10px Arial';
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+  ctx.fillText(shortName, canvas.width / 2, 100);
+  
+  return canvas.toDataURL();
+};
+
+// =========================================================
+// Simplified Thumbnail Loader (Alternative Approach)
+// =========================================================
+
+/**
+ * Alternative: Use blob URL directly for images, create canvas for others
+ */
+const createThumbnailSimple = async (blob, mimeType, fileName) => {
+  if (mimeType && mimeType.startsWith('image/')) {
+    // For images, create a blob URL directly (no canvas processing)
+    return URL.createObjectURL(blob);
+  } else {
+    // For non-images, create fallback thumbnail
+    return createFallbackThumbnail(mimeType, fileName);
+  }
+};
+
+// =========================================================
+// Compression Utility Functions
+// =========================================================
+
 const compressImageFile = async (file, options = {}) => {
   const {
     maxSizeMB = 5,
@@ -29,7 +219,6 @@ const compressImageFile = async (file, options = {}) => {
     useWebWorker = true
   } = options;
 
-  // Skip compression for non-images and GIFs
   if (!file.type.startsWith('image/') || file.type === 'image/gif') {
     return file;
   }
@@ -47,28 +236,21 @@ const compressImageFile = async (file, options = {}) => {
 
     const compressedFile = await imageCompression(file, compressionOptions);
     
-    // Convert compressed blob back to File object
     return new File([compressedFile], file.name, {
       type: compressedFile.type,
       lastModified: Date.now(),
     });
   } catch (error) {
     console.warn('Compression failed, using original file:', error);
-    return file; // Return original if compression fails
+    return file;
   }
 };
 
-/**
- * Check if file needs aggressive compression
- * @param {File} file - File to check
- * @returns {boolean} - True if needs aggressive compression
- */
 const needsAggressiveCompression = (file) => {
   if (!file.type.startsWith('image/') || file.type === 'image/gif') {
     return false;
   }
   
-  // If file is larger than 10MB, it needs aggressive compression
   return file.size > 10 * 1024 * 1024;
 };
 
@@ -76,7 +258,6 @@ const needsAggressiveCompression = (file) => {
 // File API Functions
 // =========================================================
 
-// Helper function for API calls
 const apiCall = async (endpoint, options = {}) => {
   try {
     const response = await fetch(`${API_BASE}${endpoint}`, {
@@ -102,17 +283,10 @@ const apiCall = async (endpoint, options = {}) => {
   }
 };
 
-// Get files for a project
-export const real_getProjectFiles = async (projectNo) => {
-  return await apiCall(`/projects/files/${projectNo}`);
-};
-
-// Get files for a specific category
 export const real_getProjectFilesByCategory = async (projectNo, category) => {
   return await apiCall(`/projects/files/${projectNo}?category=${category}`);
 };
 
-// Download a file
 export const real_downloadFile = async (fileId) => {
   const response = await fetch(`${API_BASE}/projects/file/blob/${fileId}`);
   if (!response.ok) {
@@ -121,14 +295,12 @@ export const real_downloadFile = async (fileId) => {
   return response.blob();
 };
 
-// Delete a project file
 export const real_deleteProjectFile = async (fileId) => {
   return await apiCall(`/projects/file/${fileId}`, {
     method: 'DELETE',
   });
 };
 
-// Upload project files
 export const real_uploadProjectFiles = async (formData) => {
   try {
     const response = await fetch(`${API_BASE}/projects/upload`, {
@@ -148,59 +320,19 @@ export const real_uploadProjectFiles = async (formData) => {
 };
 
 // =========================================================
-// Category Cards Component - UPDATED with Transportation
+// Category Cards Component
 // =========================================================
 
 const CategoryCards = ({ projectNo, onCategorySelect }) => {
   const categories = [
-    { 
-      key: 'panel', 
-      label: 'Panel / Slab', 
-      icon: '🖼️',
-      description: 'Panel and slab related files'
-    },
-    { 
-      key: 'cutting', 
-      label: 'Cutting', 
-      icon: '✂️',
-      description: 'Cutting plans and documents'
-    },
-    { 
-      key: 'door', 
-      label: 'Door', 
-      icon: '🚪',
-      description: 'Door specifications and drawings'
-    },
-    { 
-      key: 'strip_curtain', 
-      label: 'Strip Curtain', 
-      icon: '🎪',
-      description: 'Strip curtain documentation'
-    },
-    { 
-      key: 'accessories', 
-      label: 'Accessories', 
-      icon: '🔧',
-      description: 'Accessories and fittings'
-    },
-    { 
-      key: 'system', 
-      label: 'System', 
-      icon: '⚙️',
-      description: 'System integration files'
-    },
-    { 
-      key: 'transportation',
-      label: 'Transportation', 
-      icon: '🚚',
-      description: 'Transportation logs, bills, and documents'
-    },
-    { 
-      key: 'quotation',  // NEW CATEGORY ADDED
-      label: 'Quotation', 
-      icon: '📄',
-      description: 'Quotation documents and pricing details'
-    },
+    { key: 'panel', label: 'Panel / Slab', icon: '🖼️', description: 'Panel and slab related files' },
+    { key: 'cutting', label: 'Cutting', icon: '✂️', description: 'Cutting plans and documents' },
+    { key: 'door', label: 'Door', icon: '🚪', description: 'Door specifications and drawings' },
+    { key: 'strip_curtain', label: 'Strip Curtain', icon: '🎪', description: 'Strip curtain documentation' },
+    { key: 'accessories', label: 'Accessories', icon: '🔧', description: 'Accessories and fittings' },
+    { key: 'system', label: 'System', icon: '⚙️', description: 'System integration files' },
+    { key: 'transportation', label: 'Transportation', icon: '🚚', description: 'Transportation logs and documents' },
+    { key: 'quotation', label: 'Quotation', icon: '📄', description: 'Quotation documents and pricing details' },
   ];
 
   return (
@@ -229,7 +361,7 @@ const CategoryCards = ({ projectNo, onCategorySelect }) => {
 };
 
 // =========================================================
-// FileView Component
+// FileView Component - OPTIMIZED VERSION
 // =========================================================
 
 export const FileView = ({ projectNo, navigateHome }) => {
@@ -245,6 +377,11 @@ export const FileView = ({ projectNo, navigateHome }) => {
   const [previewUrl, setPreviewUrl] = useState('');
   const [isFetchingBlob, setIsFetchingBlob] = useState(false);
   
+  // Thumbnail states
+  const [thumbnails, setThumbnails] = useState({});
+  const [loadingThumbnails, setLoadingThumbnails] = useState({});
+  
+  // Upload states
   const [filesToUpload, setFilesToUpload] = useState([]);
   const [isUploading, setIsUploading] = useState(false);
   const [isDragActive, setIsDragActive] = useState(false);
@@ -260,6 +397,8 @@ export const FileView = ({ projectNo, navigateHome }) => {
     setSelectedCategory(category);
     setSelectedCategoryLabel(label);
     setCurrentView('files');
+    setThumbnails({});
+    setLoadingThumbnails({});
     await fetchFilesByCategory(category);
   };
 
@@ -270,42 +409,94 @@ export const FileView = ({ projectNo, navigateHome }) => {
     setSelectedCategoryLabel('');
     setFiles([]);
     setSelectedFile(null);
+    setThumbnails({});
+    setLoadingThumbnails({});
+    
+    // Clean up all blob URLs
+    Object.values(thumbnails).forEach(url => {
+      if (typeof url === 'string' && url.startsWith('blob:')) {
+        URL.revokeObjectURL(url);
+      }
+    });
+    
     if (previewUrl) {
       URL.revokeObjectURL(previewUrl);
       setPreviewUrl('');
     }
   };
 
-  // Fetch files for a specific category - FIXED VERSION
+  // Fetch files for a specific category
   const fetchFilesByCategory = useCallback(async (category) => {
     setIsLoading(true);
     setError(null);
     try {
       const data = await real_getProjectFilesByCategory(projectNo, category);
-      // Ensure files is always an array
-      setFiles(Array.isArray(data) ? data : []);
+      const filesArray = Array.isArray(data) ? data : [];
+      setFiles(filesArray);
+      
+      // Load thumbnails for files
+      await loadThumbnails(filesArray);
     } catch (err) {
       console.error("Failed to fetch files for category:", err);
       setError(`Failed to load ${category} files for project ${projectNo}.`);
-      setFiles([]); // Reset to empty array on error
+      setFiles([]);
     } finally {
       setIsLoading(false);
     }
   }, [projectNo]);
 
-  useEffect(() => {
-    if (currentView === 'files' && selectedCategory) {
-      fetchFilesByCategory(selectedCategory);
-    }
-    return () => {
-      if (previewUrl) {
-        URL.revokeObjectURL(previewUrl);
+  // Load thumbnails for files - OPTIMIZED
+  const loadThumbnails = async (filesArray) => {
+    const thumbnailPromises = filesArray.map(async (file) => {
+      try {
+        setLoadingThumbnails(prev => ({ ...prev, [file.id]: true }));
+        
+        // Fetch file data
+        const blob = await real_downloadFile(file.id);
+        
+        // For images, create blob URL (no canvas processing to avoid stack overflow)
+        if (file.mime_type && file.mime_type.startsWith('image/')) {
+          const blobUrl = URL.createObjectURL(blob);
+          setThumbnails(prev => ({ ...prev, [file.id]: blobUrl }));
+        } else {
+          // For non-images, create fallback thumbnail
+          const thumbnail = createFallbackThumbnail(file.mime_type, file.file_name);
+          setThumbnails(prev => ({ ...prev, [file.id]: thumbnail }));
+        }
+        
+        // Don't need to keep the blob since we have URL or thumbnail
+        URL.revokeObjectURL(blob);
+        
+      } catch (err) {
+        console.warn(`Failed to load thumbnail for ${file.file_name}:`, err);
+        // Create fallback thumbnail
+        const fallbackThumbnail = createFallbackThumbnail(file.mime_type, file.file_name);
+        setThumbnails(prev => ({ ...prev, [file.id]: fallbackThumbnail }));
+      } finally {
+        setLoadingThumbnails(prev => ({ ...prev, [file.id]: false }));
       }
-    };
-  }, [fetchFilesByCategory, currentView, selectedCategory, previewUrl]);
+    });
+    
+    // Load thumbnails in smaller batches to avoid overwhelming
+    const batchSize = 2;
+    for (let i = 0; i < thumbnailPromises.length; i += batchSize) {
+      const batch = thumbnailPromises.slice(i, i + batchSize);
+      await Promise.all(batch);
+      // Small delay between batches
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+  };
 
-  const isPreviewable = (mimeType) => mimeType && (mimeType.startsWith('image/') || mimeType.endsWith('/pdf'));
+  // Check if file is previewable
+  const isPreviewable = (mimeType) => {
+    return mimeType && (
+      mimeType.startsWith('image/') || 
+      mimeType === 'application/pdf' ||
+      mimeType.endsWith('/pdf')
+    );
+  };
 
+  // Handle file selection for preview
   const handleFileSelectForPreview = async (file) => {
     if (selectedFile?.id === file.id && previewUrl) return;
 
@@ -339,7 +530,25 @@ export const FileView = ({ projectNo, navigateHome }) => {
 
     try {
       await real_deleteProjectFile(file.id);
+      
+      // Remove thumbnail and clean up blob URL
+      if (thumbnails[file.id] && typeof thumbnails[file.id] === 'string' && thumbnails[file.id].startsWith('blob:')) {
+        URL.revokeObjectURL(thumbnails[file.id]);
+      }
+      
       setFiles(prevFiles => prevFiles.filter(f => f.id !== file.id));
+      setThumbnails(prev => {
+        const newThumbnails = { ...prev };
+        delete newThumbnails[file.id];
+        return newThumbnails;
+      });
+      
+      setLoadingThumbnails(prev => {
+        const newLoading = { ...prev };
+        delete newLoading[file.id];
+        return newLoading;
+      });
+      
       if (selectedFile?.id === file.id) {
         if (previewUrl) URL.revokeObjectURL(previewUrl);
         setSelectedFile(null);
@@ -371,13 +580,7 @@ export const FileView = ({ projectNo, navigateHome }) => {
   const handleFilesChange = (e) => {
     const selected = e.target.files;
     if (selected) {
-      const newFiles = Array.from(selected).filter(
-        newFile => !filesToUpload.some(existingFile => 
-          existingFile.name === newFile.name && 
-          existingFile.size === newFile.size &&
-          existingFile.lastModified === newFile.lastModified
-        )
-      );
+      const newFiles = Array.from(selected);
       
       // Check individual file size limit
       const oversizedFiles = newFiles.filter(file => file.size > INDIVIDUAL_FILE_LIMIT);
@@ -394,20 +597,14 @@ export const FileView = ({ projectNo, navigateHome }) => {
     e.preventDefault();
     setIsDragActive(false);
     const droppedFiles = Array.from(e.dataTransfer.files);
-    const newFiles = droppedFiles.filter(
-      newFile => !filesToUpload.some(existingFile => 
-        existingFile.name === newFile.name && 
-        existingFile.size === newFile.size
-      )
-    );
     
     // Check individual file size limit
-    const oversizedFiles = newFiles.filter(file => file.size > INDIVIDUAL_FILE_LIMIT);
+    const oversizedFiles = droppedFiles.filter(file => file.size > INDIVIDUAL_FILE_LIMIT);
     if (oversizedFiles.length > 0) {
       setError(`Some files exceed 50MB limit: ${oversizedFiles.map(f => f.name).join(', ')}`);
     }
     
-    const validFiles = newFiles.filter(file => file.size <= INDIVIDUAL_FILE_LIMIT);
+    const validFiles = droppedFiles.filter(file => file.size <= INDIVIDUAL_FILE_LIMIT);
     setFilesToUpload(prev => [...prev, ...validFiles]);
   };
 
@@ -459,7 +656,6 @@ export const FileView = ({ projectNo, navigateHome }) => {
         // Skip compression for non-images and GIFs
         if (file.type.startsWith('image/') && file.type !== 'image/gif') {
           try {
-            // Determine compression level based on file size
             let compressionOptions = {
               maxSizeMB: 5,
               maxWidthOrHeight: 1920,
@@ -479,7 +675,6 @@ export const FileView = ({ projectNo, navigateHome }) => {
               compressionDetails.compressionLevel = 'standard';
             }
             
-            console.log(`Compressing ${file.name} with ${compressionDetails.compressionLevel} settings`);
             finalFile = await compressImageFile(file, compressionOptions);
             
             if (finalFile.size < file.size) {
@@ -491,7 +686,6 @@ export const FileView = ({ projectNo, navigateHome }) => {
           } catch (compressionError) {
             console.warn(`Compression failed for ${file.name}:`, compressionError);
             compressionDetails.reason = 'Compression failed';
-            // Use original file
           }
         } else {
           compressionDetails.reason = 'Not an image or GIF file';
@@ -507,7 +701,7 @@ export const FileView = ({ projectNo, navigateHome }) => {
           skippedCount++;
           
           compressionResults.push(compressionDetails);
-          setError(`Upload limit exceeded! Current total: ${currentTotalMB}MB + ${fileMB}MB = exceeds ${limitMB}MB limit. Skipping remaining files.`);
+          setError(`Upload limit exceeded! Skipping remaining files.`);
           break;
         }
 
@@ -555,14 +749,13 @@ export const FileView = ({ projectNo, navigateHome }) => {
       
       // Upload files
       setUploadProgress(100);
-      const uploadResult = await real_uploadProjectFiles(formData);
+      await real_uploadProjectFiles(formData);
       
       // Update report with success
       setCompressionReport({
         ...report,
         uploadStarted: true,
-        uploadSuccessful: true,
-        uploadResult
+        uploadSuccessful: true
       });
 
       // Refresh file list
@@ -598,37 +791,17 @@ export const FileView = ({ projectNo, navigateHome }) => {
     return (bytes / 1024 / 1024).toFixed(2) + ' MB';
   };
 
-  const getReductionPercentage = (original, compressed) => {
-    if (original === 0) return '0%';
-    const reduction = ((original - compressed) / original) * 100;
-    return reduction > 0 ? reduction.toFixed(1) + '%' : '0%';
-  };
-
-  // Render file preview
-  const renderFilePreview = () => {
-    if (!selectedFile) return <p>Select a file from the list to preview its content.</p>;
-    if (isFetchingBlob) return <p>Loading <strong>{selectedFile.file_name}</strong> content... 🔄</p>;
+  const getFileIcon = (mimeType) => {
+    if (!mimeType) return '📄';
     
-    if (!isPreviewable(selectedFile.mime_type) || !previewUrl) {
-      return (
-        <div className="preview-placeholder">
-          <h4 className="no-preview-title">Cannot Display Preview</h4>
-          <p className="no-preview-message">
-            The file <strong>{selectedFile.file_name}</strong> is of type <strong>{selectedFile.mime_type}</strong>.
-            <br/>
-            Use the download button to view it locally.
-          </p>
-        </div>
-      );
-    }
+    if (mimeType.startsWith('image/')) return '🖼️';
+    if (mimeType === 'application/pdf' || mimeType.endsWith('/pdf')) return '📕';
+    if (mimeType.includes('word') || mimeType.includes('document')) return '📝';
+    if (mimeType.includes('excel') || mimeType.includes('sheet')) return '📊';
+    if (mimeType.includes('zip') || mimeType.includes('compressed')) return '🗜️';
+    if (mimeType.includes('text')) return '📄';
     
-    if (selectedFile.mime_type.startsWith('image/')) {
-      return <img src={previewUrl} alt={`Preview of ${selectedFile.file_name}`} className="preview-content preview-image" />;
-    } 
-    
-    if (selectedFile.mime_type.endsWith('/pdf')) {
-      return <iframe src={previewUrl} title={`Preview of ${selectedFile.file_name}`} className="preview-content preview-iframe" />;
-    }
+    return '📄';
   };
 
   // Upload Modal Component
@@ -654,7 +827,7 @@ export const FileView = ({ projectNo, navigateHome }) => {
                   ></div>
                 </div>
                 <div className="progress-text">
-                  {uploadProgress < 100 ? 'Compressing files...' : 'Uploading...'}
+                  {uploadProgress < 100 ? 'Processing files...' : 'Uploading...'}
                   <span>{uploadProgress}%</span>
                 </div>
               </div>
@@ -674,16 +847,6 @@ export const FileView = ({ projectNo, navigateHome }) => {
                   )}
                 </p>
                 
-                {compressionReport.sizeReduction > 0 && (
-                  <div className="size-reduction-details">
-                    <p>
-                      <strong>Total size reduction:</strong> {formatSize(compressionReport.originalSize)} →{' '}
-                      <strong>{formatSize(compressionReport.compressedSize)}</strong>{' '}
-                      ({getReductionPercentage(compressionReport.originalSize, compressionReport.compressedSize)} saved)
-                    </p>
-                  </div>
-                )}
-                
                 {compressionReport.uploadSuccessful && (
                   <div className="success-message">
                     <p>✅ Files uploaded successfully! Refreshing file list...</p>
@@ -700,7 +863,7 @@ export const FileView = ({ projectNo, navigateHome }) => {
               </div>
             )}
             
-            {/* Upload Form (only show if not in success state) */}
+            {/* Upload Form */}
             {(!compressionReport || !compressionReport.uploadStarted) && (
               <>
                 <div className="upload-info">
@@ -752,9 +915,9 @@ export const FileView = ({ projectNo, navigateHome }) => {
                     <div className="staged-file-list-container">
                       <ul className="staged-file-list">
                         {filesToUpload.map((file, index) => (
-                          <li key={file.name + index} className="staged-file-item"> 
+                          <li key={index} className="staged-file-item"> 
                             <div className="file-info">
-                              <span className="file-icon">📄</span>
+                              <span className="file-icon">{getFileIcon(file.type)}</span>
                               <div className="file-details">
                                 <span className="file-name">{file.name}</span>
                                 <span className="file-size">{formatSize(file.size)}</span>
@@ -782,7 +945,7 @@ export const FileView = ({ projectNo, navigateHome }) => {
                         {isUploading ? (
                           <>
                             <span className="spinner"></span>
-                            Compressing & Uploading...
+                            Processing & Uploading...
                           </>
                         ) : (
                           `Upload ${filesToUpload.length} File${filesToUpload.length !== 1 ? 's' : ''}`
@@ -830,16 +993,18 @@ export const FileView = ({ projectNo, navigateHome }) => {
     );
   }
 
-  // Show files view for selected category
+  // Show loading state
   if (isLoading) {
     return (
       <div className="file-view-container">
         <header className="page-header">
           <div className="header-controls">
-            <button onClick={handleBackToCategories} className="secondary back-button">
-              ← Back to Categories
-            </button>
-            <h1>{selectedCategoryLabel} Files</h1>
+            <div className="header-left">
+              <button onClick={handleBackToCategories} className="secondary back-button">
+                ← Back to Categories
+              </button>
+              <h1>{selectedCategoryLabel} Files</h1>
+            </div>
           </div>
         </header>
         <div className="loading-container">
@@ -850,6 +1015,7 @@ export const FileView = ({ projectNo, navigateHome }) => {
     );
   }
 
+  // Main file view
   return (
     <div className="file-view-container">
       <header className="page-header">
@@ -870,217 +1036,199 @@ export const FileView = ({ projectNo, navigateHome }) => {
         </div>
       </header>
       
-      {error && <div className="alert alert-danger">{error}</div>}
+      {error && !selectedFile && <div className="alert alert-danger">{error}</div>}
       
-      <div className="file-view-layout">
-        {/* PREVIEW PANEL */}
-        <div className="preview-panel">
-          <div className="preview-header">
-            <div className="preview-header-content">
-              <h4>{selectedFile ? `Previewing: ${selectedFile.file_name}` : 'Select a File to View'}</h4>
-              {selectedFile && (
-                <div className="file-actions">
-                  <a 
-                    className="download-btn"
-                    href={`${API_BASE}/projects/file/blob/${selectedFile.id}`}
-                    download={selectedFile.file_name}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    Download
-                  </a>
-                  <button 
-                    onClick={() => handleDeleteFile(selectedFile)}
-                    className="danger delete-btn"
-                    title={`Delete ${selectedFile.file_name}`}
-                  >
-                    Delete
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-          <div className="preview-area">
-            {renderFilePreview()}
-          </div>
+      <div className="files-grid-container">
+        <div className="files-grid-header">
+          <h2>All Files in {selectedCategoryLabel}</h2>
+          <div className="files-count">{files.length} files</div>
         </div>
         
-        {/* FILE LIST PANEL */}
-        <div className="file-list-panel">
-          <div className="file-list-header">
-            <h3>Available Files ({files.length})</h3>
-            {files.length > 0 && (
-              <button
-                className="secondary refresh-btn"
-                onClick={() => fetchFilesByCategory(selectedCategory)}
-                title="Refresh file list"
+        {!Array.isArray(files) ? (
+          <div className="no-files-message">
+            <div className="no-files-icon">❌</div>
+            <h3>Failed to load files</h3>
+            <p>There was an error loading the files. Please try again.</p>
+            <button 
+              className="secondary"
+              onClick={() => fetchFilesByCategory(selectedCategory)}
+            >
+              ↻ Retry
+            </button>
+          </div>
+        ) : files.length === 0 ? (
+          <div className="no-files-message">
+            <div className="no-files-icon">📁</div>
+            <h3>No files yet</h3>
+            <p>Upload your first file to get started with {selectedCategoryLabel}.</p>
+            <button 
+              className="primary"
+              onClick={handleOpenModal}
+            >
+              + Upload First File
+            </button>
+          </div>
+        ) : (
+          <div className="files-grid">
+            {files.map(file => (
+              <div 
+                key={file.id} 
+                className={`file-grid-card ${selectedFile?.id === file.id ? 'selected' : ''}`}
+                onClick={() => handleFileSelectForPreview(file)}
               >
-                ↻ Refresh
-              </button>
+            <div className="file-grid-thumbnail">
+            {loadingThumbnails[file.id] ? (
+              <div className="thumbnail-loading">
+                <div className="thumbnail-spinner"></div>
+              </div>
+            ) : (thumbnails[file.id] || file.file_data) && file.mime_type?.startsWith('image/') ? (
+              /* ✅ ONLY try to render <img> if the file is actually an image */
+              <img 
+                src={
+                  thumbnails[file.id] || 
+                  (file.file_data?.type === 'Buffer' 
+                    ? `data:${file.mime_type};base64,${btoa(String.fromCharCode(...new Uint8Array(file.file_data.data)))}`
+                    : `data:${file.mime_type};base64,${file.file_data}`) 
+                } 
+                alt={`Thumbnail of ${file.file_name}`}
+                className="thumbnail-image"
+                onError={(e) => {
+                  // Emergency fallback if the image data itself is corrupted
+                  const container = e.target.parentNode;
+                  if (!container.querySelector('.thumbnail-fallback')) {
+                    const fallbackDiv = document.createElement('div');
+                    fallbackDiv.className = 'thumbnail-fallback';
+                    fallbackDiv.innerHTML = `<span class="file-type-icon">${getFileIcon(file.mime_type)}</span>`;
+                    container.appendChild(fallbackDiv);
+                  }
+                  e.target.style.display = 'none';
+                }}
+              />
+            ) : (
+              /* ✅ Immediate fallback for PDF, CAD, ZIP, etc. */
+              <div className="thumbnail-fallback">
+                <span className="file-type-icon">{getFileIcon(file.mime_type)}</span>
+              </div>
             )}
           </div>
-          
-          {!Array.isArray(files) ? (
-            <div className="no-files-message">
-              <div className="no-files-icon">❌</div>
-              <p>Failed to load files. Data format error.</p>
-              <button 
-                className="secondary"
-                onClick={() => fetchFilesByCategory(selectedCategory)}
-              >
-                ↻ Retry
-              </button>
-            </div>
-          ) : files.length === 0 ? (
-            <div className="no-files-message">
-              <div className="no-files-icon">📁</div>
-              <p>No files uploaded for {selectedCategoryLabel}.</p>
-              <button 
-                className="primary"
-                onClick={handleOpenModal}
-              >
-                + Upload First File
-              </button>
-            </div>
-          ) : (
-            <div className="file-list-container">
-              <div className="file-list">
-                {files.map(file => (
-                  <div 
-                    key={file.id} 
-                    className={`file-item ${selectedFile?.id === file.id ? 'selected' : ''}`}
-                    onClick={() => handleFileSelectForPreview(file)}
-                  >
-                    <span className="file-icon">
-                      {file.mime_type && file.mime_type.startsWith('image/') ? '🖼️' : 
-                       file.mime_type && file.mime_type.endsWith('/pdf') ? '📕' : '📄'}
+                <div className="file-grid-info">
+                  <h4 className="file-grid-name" title={file.file_name}>
+                    {file.file_name}
+                  </h4>
+                  <div className="file-grid-actions">
+                    <span className="file-grid-size">
+                      {formatSize(file.file_size || 0)}
                     </span>
-                    <div className="file-info">
-                      <span className="file-name" title={file.file_name}>{file.file_name}</span>
-                      <span className="file-meta">
-                        {file.file_size ? `${(file.file_size / 1024 / 1024).toFixed(2)} MB` : 'Unknown size'} • 
-                        {file.mime_type ? file.mime_type.split('/')[1] || file.mime_type : 'Unknown type'}
-                      </span>
-                    </div>
                     <button 
-                      className="delete-file-btn"
+                      className="file-grid-delete-btn"
                       onClick={(e) => handleDeleteFile(file, e)}
                       title={`Delete ${file.file_name}`}
                     >
                       🗑️
                     </button>
                   </div>
-                ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Full Screen Preview Modal */}
+      {selectedFile && (
+        <div className="preview-modal-overlay" onClick={() => setSelectedFile(null)}>
+          <div className="preview-modal-content" onClick={e => e.stopPropagation()}>
+            <div className="preview-modal-header">
+              <h3>
+                <span className="file-type-icon">{getFileIcon(selectedFile.mime_type)}</span>
+                {selectedFile.file_name}
+              </h3>
+              <div className="preview-modal-actions">
+                <a 
+                  className="modal-download-btn"
+                  href={`${API_BASE}/projects/file/blob/${selectedFile.id}`}
+                  download={selectedFile.file_name}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  📥 View
+                </a>
+                <button 
+                  onClick={(e) => { e.stopPropagation(); handleDeleteFile(selectedFile); }}
+                  className="modal-delete-btn"
+                  title={`Delete ${selectedFile.file_name}`}
+                >
+                  🗑️ Delete
+                </button>
+                <button 
+                  className="modal-close-btn"
+                  onClick={() => setSelectedFile(null)}
+                  title="Close preview"
+                >
+                  ✕
+                </button>
               </div>
             </div>
-          )}
+            <div className="preview-modal-body">
+              {isFetchingBlob ? (
+                <div className="preview-loading">
+                  <div className="spinner-large"></div>
+                  <h3>Loading {selectedFile.file_name}...</h3>
+                </div>
+              ) : previewUrl ? (
+                selectedFile.mime_type && selectedFile.mime_type.startsWith('image/') ? (
+                  <img 
+                    src={previewUrl} 
+                    alt={`Preview of ${selectedFile.file_name}`} 
+                    className="preview-full-content preview-full-image" 
+                  />
+                ) : (selectedFile.mime_type && (selectedFile.mime_type === 'application/pdf' || selectedFile.mime_type.endsWith('/pdf'))) ? (
+                  <iframe 
+                    src={previewUrl} 
+                    title={`Preview of ${selectedFile.file_name}`} 
+                    className="preview-full-content preview-full-iframe" 
+                  />
+                ) : (
+                  <div className="preview-full-placeholder">
+                    <h4>Cannot Display Preview</h4>
+                    <p>
+                      The file <strong>{selectedFile.file_name}</strong> cannot be previewed directly.
+                    </p>
+                    <a 
+                      className="modal-download-btn"
+                      href={`${API_BASE}/projects/file/blob/${selectedFile.id}`}
+                      download={selectedFile.file_name}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      📥 Download File
+                    </a>
+                  </div>
+                )
+              ) : (
+                <div className="preview-full-placeholder">
+                  <h4>Preview Unavailable</h4>
+                  <p>
+                    Unable to load preview for <strong>{selectedFile.file_name}</strong>.
+                  </p>
+                  <a 
+                    className="modal-download-btn"
+                    href={`${API_BASE}/projects/file/blob/${selectedFile.id}`}
+                    download={selectedFile.file_name}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    📥 Download File
+                  </a>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Upload Modal */}
       <UploadModal />
-    </div>
-  );
-};
-
-// =========================================================
-// File Upload Component (for use in App.js)
-// =========================================================
-
-export const FileUploadSection = ({ 
-  filesToUpload, 
-  setFilesToUpload, 
-  isDragActive, 
-  setIsDragActive, 
-  fileInputRef 
-}) => {
-  
-  const handleDrag = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (e.type === "dragenter" || e.type === "dragover") {
-      setIsDragActive(true);
-    } else if (e.type === "dragleave" || e.type === "drop") {
-      setIsDragActive(false);
-    }
-  };
-  
-  const handleDrop = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragActive(false);
-
-    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      setFilesToUpload(prevFiles => [
-        ...prevFiles, 
-        ...Array.from(e.dataTransfer.files)
-      ]);
-      e.dataTransfer.clearData();
-    }
-  };
-
-  const handleFileChange = (e) => {
-    if (e.target.files) {
-       setFilesToUpload(prevFiles => [
-        ...prevFiles, 
-        ...Array.from(e.target.files)
-      ]);
-    }
-  };
-
-  const handleRemoveFile = (fileName) => {
-    setFilesToUpload(prevFiles => prevFiles.filter(file => file.name !== fileName));
-  };
-
-  const formatSize = (bytes) => {
-    if (bytes < 1024) return bytes + ' B';
-    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
-    return (bytes / 1024 / 1024).toFixed(2) + ' MB';
-  };
-
-  return (
-    <div 
-      className={`drag-drop-area ${isDragActive ? 'drag-active' : ''}`}
-      onDragEnter={handleDrag}
-      onDragLeave={handleDrag}
-      onDragOver={handleDrag}
-      onDrop={handleDrop}
-      onClick={() => fileInputRef.current.click()} 
-    >
-      <input 
-        type="file" 
-        name="files" 
-        multiple 
-        onChange={handleFileChange} 
-        ref={fileInputRef} 
-        style={{ display: 'none' }} 
-      />
-      {isDragActive ? (
-        <p className="drag-text">Release to drop files here!</p>
-      ) : (
-        <p className="drag-text">Drag & drop files here, or click to browse</p>
-      )}
-      
-      {filesToUpload.length > 0 && (
-        <div className="file-list-preview" onClick={e => e.stopPropagation()}>
-          <p><strong>{filesToUpload.length} file(s) selected:</strong></p>
-          <ul>
-            {filesToUpload.map((file, index) => (
-              <li key={index} className="file-preview-item">
-                <span className="file-preview-name">{file.name}</span>
-                <span className="file-preview-size">{formatSize(file.size)}</span>
-                <span 
-                  className="remove-file" 
-                  onClick={() => handleRemoveFile(file.name)}
-                  title="Remove file"
-                >
-                  &times;
-                </span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
     </div>
   );
 };
