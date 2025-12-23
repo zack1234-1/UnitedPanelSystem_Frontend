@@ -299,10 +299,6 @@ const StatusUpdateModal = ({ isOpen, onClose, project, onUpdateStatus }) => {
 // 4. Enhanced Category Selection Component (Updated with Quotation)
 // =========================================================
 
-// =========================================================
-// 4. Enhanced Category Selection Component (Updated with Quotation)
-// =========================================================
-
 const EnhancedCategorySelection = ({ 
     selectedCategories, 
     onCategoryChange, 
@@ -640,7 +636,7 @@ const useSimpleRouter = () => {
     const matchNotifications = path === '/notifications';
     const matchAdmin = path === '/admin';
     const matchExcelExtractor = path === '/excel-extractor';
-    const matchReportGenerator = path === '/report-generator';  // ADD THIS LINE
+    const matchReportGenerator = path === '/report-generator';
 
     let currentRoute = 'JobList';
     let params = {};
@@ -666,12 +662,92 @@ const useSimpleRouter = () => {
         currentRoute = 'AdminPage';
     } else if (matchExcelExtractor) {
         currentRoute = 'ExcelExtractor';
-    } else if (matchReportGenerator) {  // ADD THIS CONDITION
+    } else if (matchReportGenerator) {
         currentRoute = 'ReportGenerator';
     }
 
     return { navigate, currentRoute, params };
 };
+
+// =========================================================
+// Search Component
+// =========================================================
+
+const SearchBar = ({ 
+    searchTerm, 
+    onSearchChange, 
+    searchType, 
+    onSearchTypeChange, 
+    onClearSearch,
+    totalProjects,
+    filteredCount 
+}) => {
+    return (
+        <div className="search-container">
+            <div className="search-header">
+                <div className="search-title">
+                    <h3>Search Projects</h3>
+                    <div className="search-stats">
+                        Showing {filteredCount} of {totalProjects} projects
+                    </div>
+                </div>
+            </div>
+            
+            <div className="search-controls">
+                <div className="search-input-group">
+                    <div className="search-icon">
+                        🔍
+                    </div>
+                    <input
+                        type="text"
+                        placeholder="Search projects..."
+                        value={searchTerm}
+                        onChange={onSearchChange}
+                        className="search-input"
+                    />
+                    {searchTerm && (
+                        <button 
+                            onClick={onClearSearch}
+                            className="clear-search-btn"
+                            title="Clear search"
+                        >
+                            ✕
+                        </button>
+                    )}
+                </div>
+                
+                <div className="search-filters">
+                    <div className="filter-group">
+                        <label htmlFor="searchType" className="filter-label">Search by:</label>
+                        <select
+                            id="searchType"
+                            value={searchType}
+                            onChange={onSearchTypeChange}
+                            className="search-type-select"
+                        >
+                            <option value="all">All Fields</option>
+                            <option value="projectNo">Project No</option>
+                            <option value="customer">Customer Name</option>
+                            <option value="projectName">Project Name</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            
+            {searchTerm && (
+                <div className="search-results-info">
+                    <span className="search-term">
+                        Searching for: "<strong>{searchTerm}</strong>"
+                    </span>
+                    <span className="search-filter">
+                        in <strong>{searchType === 'all' ? 'all fields' : searchType}</strong>
+                    </span>
+                </div>
+            )}
+        </div>
+    );
+};
+
 // =========================================================
 // 6. Progress Component for Task Count Display
 // =========================================================
@@ -829,6 +905,11 @@ function App() {
         project: null
     });
 
+    // --- Search State ---
+    const [searchTerm, setSearchTerm] = useState('');
+    const [searchType, setSearchType] = useState('all'); // 'all', 'projectNo', 'customer', 'projectName'
+    const [filteredProjects, setFilteredProjects] = useState([]);
+
     // --- API State Variables ---
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -926,6 +1007,23 @@ function App() {
     }, [selectedCategories, initializeCategoryFiles]);
 
     // =========================================================
+    // Search Handlers
+    // =========================================================
+
+    const handleSearch = (e) => {
+        setSearchTerm(e.target.value);
+    };
+
+    const handleSearchTypeChange = (e) => {
+        setSearchType(e.target.value);
+    };
+
+    const clearSearch = () => {
+        setSearchTerm('');
+        setSearchType('all');
+    };
+
+    // =========================================================
     // API Data Fetching Logic
     // =========================================================
     const fetchProjects = useCallback(async (status = 'active') => {
@@ -976,6 +1074,7 @@ function App() {
             });
             
             setProjects(projectsWithCompletion);
+            setFilteredProjects(projectsWithCompletion);
         } catch (err) {
             console.error("Failed to fetch projects:", err);
             setError(`Failed to load projects: ${err.message}. Check your backend server.`);
@@ -989,6 +1088,37 @@ function App() {
             fetchProjects(activeTab === 'active' ? 'active' : activeTab);
         }
     }, [fetchProjects, currentRoute, activeTab]);
+
+    // Filter projects based on search term
+    useEffect(() => {
+        if (!searchTerm.trim()) {
+            setFilteredProjects(projects);
+            return;
+        }
+
+        const term = searchTerm.toLowerCase().trim();
+        let filtered = projects.filter(project => {
+            // Always search all fields regardless of searchType
+            if (searchType === 'all') {
+                return (
+                    (project.projectNo && project.projectNo.toLowerCase().includes(term)) ||
+                    (project.customer && project.customer.toLowerCase().includes(term)) ||
+                    (project.projectName && project.projectName.toLowerCase().includes(term)) ||
+                    (project.salesman && project.salesman.toLowerCase().includes(term)) ||
+                    (project.remarks && project.remarks.toLowerCase().includes(term))
+                );
+            } else if (searchType === 'projectNo') {
+                return project.projectNo && project.projectNo.toLowerCase().includes(term);
+            } else if (searchType === 'customer') {
+                return project.customer && project.customer.toLowerCase().includes(term);
+            } else if (searchType === 'projectName') {
+                return project.projectName && project.projectName.toLowerCase().includes(term);
+            }
+            return true;
+        });
+
+        setFilteredProjects(filtered);
+    }, [projects, searchTerm, searchType]);
 
     // =========================================================
     // Status Management Functions
@@ -1942,24 +2072,52 @@ function App() {
                                 </div>
                             )}
                             
+                            {/* Search Bar */}
+                            <SearchBar
+                                searchTerm={searchTerm}
+                                onSearchChange={handleSearch}
+                                searchType={searchType}
+                                onSearchTypeChange={handleSearchTypeChange}
+                                onClearSearch={clearSearch}
+                                totalProjects={projects.length}
+                                filteredCount={filteredProjects.length}
+                            />
+                            
                             <div className="job-list-header">
                                 <h3>
                                     {activeTab === 'Production' ? 'Active Projects' : 
                                      activeTab === 'done' ? 'Done Projects' : 
                                      'Approved Projects'} 
-                                    ({projects.length})
+                                    ({filteredProjects.length})
                                 </h3>
                             </div>
                             
                             <div className="job-list">
-                                {projects.length === 0 ? (
-                                    <p className="no-jobs-message">
-                                        {activeTab === 'active' ? 'No active projects found. Create your first project to get started!' :
-                                         activeTab === 'done' ? 'No done projects found.' :
-                                         'No approved projects found.'}
-                                    </p>
+                                {filteredProjects.length === 0 ? (
+                                    <div className="no-jobs-message">
+                                        {searchTerm ? (
+                                            <div className="search-no-results">
+                                                <div className="no-results-icon">🔍</div>
+                                                <h4>No projects found</h4>
+                                                <p>No projects match your search for "<strong>{searchTerm}</strong>" in {searchType === 'all' ? 'all fields' : searchType}.</p>
+                                                <button 
+                                                    onClick={clearSearch}
+                                                    className="secondary"
+                                                    style={{ marginTop: '1rem' }}
+                                                >
+                                                    Clear Search
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            <p>
+                                                {activeTab === 'active' ? 'No active projects found. Create your first project to get started!' :
+                                                 activeTab === 'done' ? 'No done projects found.' :
+                                                 'No approved projects found.'}
+                                            </p>
+                                        )}
+                                    </div>
                                 ) : (
-                                    projects.map(project => (
+                                    filteredProjects.map(project => (
                                         <div key={project.id}>{renderProjectCard(project)}</div>
                                     ))
                                 )}
