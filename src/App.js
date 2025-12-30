@@ -16,7 +16,7 @@ import ReportGenerator from './ReportGenerator';
 // 1. REAL API Service Implementation
 // =========================================================
 
-const API_BASE = 'http://localhost:5000/api';
+const API_BASE = 'https://unitedpanelsystem-backend-1.onrender.com/api';
 
 // Helper function for API calls
 const apiCall = async (endpoint, options = {}) => {
@@ -1847,14 +1847,14 @@ function App() {
                     </a>
 
                     {/* Excel Extractor Navigation */}
-                    <a 
+                    {/* <a 
                         href="#/excel-extractor" 
                         className={`nav-item ${currentRoute === 'ExcelExtractor' ? 'active' : ''}`}
                         onClick={() => navigate('/excel-extractor')}
                     > 
                         <span role="img" aria-label="excel">📊</span>
                         {isSidebarOpen && <span>Excel Extractor</span>}
-                    </a>
+                    </a> */}
 
                     {/* Admin Page Navigation */}
                     <a 
@@ -1866,17 +1866,17 @@ function App() {
                         {isSidebarOpen && <span>Sales</span>}
                     </a>
                     {/* Report Generator Navigation */}
-                    <a 
+                    {/* <a 
                         href="#/report-generator" 
                         className={`nav-item ${currentRoute === 'ReportGenerator' ? 'active' : ''}`}
                         onClick={() => navigate('/report-generator')}
                     > 
                         <span role="img" aria-label="generator">📑</span>
                         {isSidebarOpen && <span>Report Generator</span>}
-                    </a>
+                    </a> */}
 
                     {/* Notification Page Navigation */}
-                    <a 
+                    {/* <a 
                         href="#/notifications" 
                         className={`nav-item ${currentRoute === 'NotificationPage' ? 'active' : ''}`}
                         onClick={() => navigate('/notifications')}
@@ -1886,7 +1886,7 @@ function App() {
                         {notifications.length > 0 && (
                             <span className="notification-badge">{notifications.length}</span>
                         )}
-                    </a>
+                    </a> */}
                 </nav>
             </div>
             

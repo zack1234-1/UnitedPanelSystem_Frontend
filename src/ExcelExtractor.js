@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import * as XLSX from 'xlsx';
 import { useDropzone } from 'react-dropzone';
 import './ExcelExtractor.css';
@@ -6,8 +6,10 @@ import {
   Upload, FileSpreadsheet, Table, Download, 
   Filter, Search, Edit, Trash2, Save, 
   X, Check, Eye, EyeOff, BarChart3,
-  ChevronDown, ChevronRight, Maximize2, Minimize2
+  ChevronDown, ChevronRight, Maximize2, Minimize2,
+  Database
 } from 'lucide-react';
+import { excelDataAPI } from './apiService';
 
 const ExcelExtractor = () => {
   const [excelData, setExcelData] = useState(null);
@@ -23,6 +25,9 @@ const ExcelExtractor = () => {
   const [filters, setFilters] = useState({});
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [viewMode, setViewMode] = useState('table'); // 'table' or 'chart'
+  const [tableName, setTableName] = useState('');
+  const [storedTables, setStoredTables] = useState([]);
+  const [isSaving, setIsSaving] = useState(false);
 
   // Process uploaded Excel file
   const onDrop = useCallback((acceptedFiles) => {
@@ -72,7 +77,20 @@ const ExcelExtractor = () => {
       return;
     }
 
-    const headers = data[0];
+    // Clean column names for database compatibility
+    const headers = data[0].map((header, index) => {
+      if (!header || header.toString().trim() === '') {
+        return `column_${index + 1}`;
+      }
+      // Clean the header for SQL compatibility
+      return header.toString()
+        .trim()
+        .replace(/[^\w\s]/gi, '_')
+        .replace(/\s+/g, '_')
+        .replace(/__+/g, '_')
+        .replace(/^_+|_+$/g, '');
+    });
+
     const rows = data.slice(1).map((row, index) => {
       const rowData = {};
       headers.forEach((header, colIndex) => {
@@ -216,6 +234,7 @@ const ExcelExtractor = () => {
     setSelectedSheet('');
     setSearchTerm('');
     setFilters({});
+    setTableName('');
   };
 
   // Calculate statistics
@@ -239,6 +258,55 @@ const ExcelExtractor = () => {
     
     return stats;
   }, [tableData, columns]);
+
+  // Database functions
+  const handleSaveToDatabase = async () => {
+    if (!tableData.length) {
+      alert('No data to save');
+      return;
+    }
+
+    if (!tableName.trim()) {
+      alert('Please enter a table name');
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const saveData = {
+        tableName: `excel_table_${tableName.toLowerCase().replace(/\s+/g, '_')}_${Date.now()}`,
+        data: processedData,
+        columns: visibleColumns
+      };
+
+      const response = await excelDataAPI.storeExcelData(saveData);
+      alert(`Data saved successfully!\nTable: ${saveData.tableName}\nRows: ${response.rowCount}`);
+      
+      // Refresh stored tables list
+      await fetchStoredTables();
+      setTableName(''); // Clear the input after saving
+    } catch (error) {
+      console.error('Error saving data:', error);
+      alert('Failed to save data to database');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Function to fetch stored tables
+  const fetchStoredTables = async () => {
+    try {
+      const tables = await excelDataAPI.getExcelTables();
+      setStoredTables(tables);
+    } catch (error) {
+      console.error('Error fetching stored tables:', error);
+    }
+  };
+
+  // Call fetchStoredTables on component mount
+  useEffect(() => {
+    fetchStoredTables();
+  }, []);
 
   return (
     <div className={`excel-extractor ${isFullscreen ? 'fullscreen' : ''}`}>
@@ -346,6 +414,80 @@ const ExcelExtractor = () => {
               </div>
             </div>
           )}
+
+          {/* Database Save Section */}
+          {columns.length > 0 && (
+            <div className="database-actions">
+              <h3>
+                <Save size={18} />
+                Save to Database
+              </h3>
+              
+              <div className="save-form">
+                <div className="form-group">
+                  <label>Table Name:</label>
+                  <input
+                    type="text"
+                    value={tableName}
+                    onChange={(e) => setTableName(e.target.value)}
+                    placeholder="Enter table name"
+                    className="table-name-input"
+                  />
+                </div>
+                
+                <div className="stats-preview">
+                  <div className="stat-item">
+                    <span className="stat-label">Rows:</span>
+                    <span className="stat-value">{processedData.length}</span>
+                  </div>
+                  <div className="stat-item">
+                    <span className="stat-label">Columns:</span>
+                    <span className="stat-value">{visibleColumns.length}</span>
+                  </div>
+                  <div className="stat-item">
+                    <span className="stat-label">Total Cells:</span>
+                    <span className="stat-value">{processedData.length * visibleColumns.length}</span>
+                  </div>
+                </div>
+                
+                <button
+                  onClick={handleSaveToDatabase}
+                  disabled={isSaving || !tableData.length}
+                  className={`btn btn-save ${isSaving ? 'saving' : ''}`}
+                >
+                  {isSaving ? (
+                    <>
+                      <div className="spinner"></div>
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <Save size={16} />
+                      Save to Database
+                    </>
+                  )}
+                </button>
+              </div>
+
+              {/* Stored Tables List */}
+              {storedTables.length > 0 && (
+                <div className="stored-tables">
+                  <h4>
+                    <Database size={16} />
+                    Stored Tables
+                  </h4>
+                  <div className="tables-list">
+                    {storedTables.map((table, index) => (
+                      <div key={index} className="table-item">
+                        <FileSpreadsheet size={14} />
+                        <span className="table-name">{table.table_name}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Main Content - Table */}
@@ -353,6 +495,17 @@ const ExcelExtractor = () => {
           {/* Toolbar */}
           {tableData.length > 0 && (
             <div className="table-toolbar">
+              <div className="toolbar-left">
+                <div className="search-box">
+                  <Search size={18} />
+                  <input
+                    type="text"
+                    placeholder="Search across all columns..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+                </div>
+              </div>
               <div className="toolbar-right">
                 <div className="record-count">
                   Showing {processedData.length} of {tableData.length} records
@@ -417,7 +570,7 @@ const ExcelExtractor = () => {
                           </div>
                         </th>
                       ))}
-                    <th>Actions</th>
+                    <th className="actions-header">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -426,7 +579,7 @@ const ExcelExtractor = () => {
                       {columns
                         .filter(col => visibleColumns.includes(col))
                         .map((column) => (
-                          <td key={column}>
+                          <td key={column} className="data-cell">
                             {editingCell?.rowIndex === rowIndex && 
                              editingCell?.column === column ? (
                               <div className="edit-cell">
@@ -499,6 +652,7 @@ const ExcelExtractor = () => {
                   <li>View and interact with the table data</li>
                   <li>Filter, sort, and edit as needed</li>
                   <li>Export the processed data</li>
+                  <li>Save to database for later use</li>
                 </ol>
               </div>
               
@@ -522,6 +676,16 @@ const ExcelExtractor = () => {
                   <Eye size={24} />
                   <h4>Column Control</h4>
                   <p>Show/hide columns as needed</p>
+                </div>
+                <div className="feature">
+                  <Database size={24} />
+                  <h4>Database Storage</h4>
+                  <p>Save data to PostgreSQL</p>
+                </div>
+                <div className="feature">
+                  <BarChart3 size={24} />
+                  <h4>Data Statistics</h4>
+                  <p>View min, max, and average values</p>
                 </div>
               </div>
             </div>
