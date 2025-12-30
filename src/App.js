@@ -1759,14 +1759,6 @@ function App() {
         </div>;
     }
 
-    if (error) {
-        return <div className="App" style={{ textAlign: 'center', padding: '50px', color: '#B91C1C' }}>
-            <h2>Error Connecting to API</h2>
-            <p className="error-detail">Details: {error}</p>
-            <button onClick={() => fetchProjects(activeTab)} className="primary" style={{ marginTop: '20px' }}>Try Reloading Data</button>
-        </div>;
-    }
-
     // --- Main Renderer ---
     return (
         <div className="App sidebar-layout">
