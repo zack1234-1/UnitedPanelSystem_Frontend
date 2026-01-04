@@ -1,4 +1,4 @@
-const BASE_URL = 'https://unitedpanelsystem-backend-1.onrender.com/api';
+const BASE_URL = 'http://localhost:5000/api'; // Changed from 5000 to 10000 to match your server
 
 // Helper to handle standard API responses
 const handleResponse = async (response) => {
@@ -296,10 +296,17 @@ export const viewPanelAPI = {
     }),
 
     // PUT: Update panel
-    update: (panelId, panelData) => apiRequest(`/panels/${panelId}`, {
-        method: 'PUT',
-        body: panelData,
-    }),
+      update: async (id, data) => {
+        // Format dates before sending
+        const formattedData = { ...data };
+        
+        if (formattedData.estimated_delivery) {
+            const date = new Date(formattedData.estimated_delivery);
+            if (!isNaN(date.getTime())) {
+                formattedData.estimated_delivery = date.toISOString().split('T')[0];
+            }
+        }
+    },
 
     // DELETE: Delete panel
     delete: (panelId) => apiRequest(`/panels/${panelId}`, {
@@ -328,70 +335,6 @@ export const productionAPI = {
     delete: (panelId, recordId) => apiRequest(`/panels/${panelId}/production-records/${recordId}`, {
         method: 'DELETE',
     }),
-};
-
-export const subtasksAPI = {
-    // POST /api/subtasks - Create a new sub-task
-    create: (subtaskData) => apiRequest('/subtasks', {
-        method: 'POST',
-        body: JSON.stringify(subtaskData),
-    }),
-
-    getAll: () => apiRequest('/subtasks'),
-    
-    // DELETE /api/subtasks/:id - Delete a sub-task
-    delete: (id) => apiRequest(`/subtasks/${id}`, {
-        method: 'DELETE',
-    }),
-    getByTask: (taskId) => apiRequest(`/subtasks/task/${taskId}`),
-    markAsDone: (id) => apiRequest(`/subtasks/${id}/done`, {
-        method: 'PATCH',
-    }),
-};
-
-// Add this to your existing apiService.js
-export const ordersAPI = {
-    // POST /api/orders - Create a new order
-    create: (orderData) => apiRequest('/orders', {
-        method: 'POST',
-        body: JSON.stringify(orderData),
-    }),
-
-    // GET /api/orders - Get all orders
-    getAll: () => apiRequest('/orders'),
-    
-    // GET /api/orders/task/:taskId - Get orders by task ID
-    getByTask: (taskId) => apiRequest(`/orders/task/${taskId}`),
-    
-    // DELETE /api/orders/:id - Delete an order
-    delete: (id) => apiRequest(`/orders/${id}`, {
-        method: 'DELETE',
-    }),
-
-    update: (id, status) => apiRequest(`/orders/${id}`, {
-        method: 'PUT',
-        body: JSON.stringify({ status }),
-    }),
-};
-
-export const excelDataAPI = {
-  // Store Excel data
-  storeExcelData: (tableData) => apiRequest('/excel-data', {
-    method: 'POST',
-    body: JSON.stringify(tableData),
-  }),
-
-  // Get all stored Excel tables
-  getExcelTables: () => apiRequest('/excel-tables'),
-
-  // Get data from specific table
-  getTableData: (tableName, page = 1, limit = 100) => 
-    apiRequest(`/excel-data/${tableName}?page=${page}&limit=${limit}`),
-
-  // Delete Excel table
-  deleteExcelTable: (tableName) => apiRequest(`/excel-data/${tableName}`, {
-    method: 'DELETE',
-  }),
 };
 
 // =========================================================
@@ -471,11 +414,3 @@ export const deletePanel = viewPanelAPI.delete;
 export const searchPanels = viewPanelAPI.search;
 export const updatePanelStatus = viewPanelAPI.updateStatus;
 export const updatePanelPriority = viewPanelAPI.updatePriority;
-export const createSubtask = subtasksAPI.create;
-export const deleteSubtask = subtasksAPI.delete;
-
-export const storeExcelData = excelDataAPI.storeExcelData;
-export const getExcelTables = excelDataAPI.getExcelTables;
-export const getTableData = excelDataAPI.getTableData;
-export const deleteExcelTable = excelDataAPI.deleteExcelTable;
-
