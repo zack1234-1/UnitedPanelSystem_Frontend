@@ -313,7 +313,7 @@ const EnhancedCategorySelection = ({
         { id: 'door', label: 'Door', icon: '🚪' },
         { id: 'strip_curtain', label: 'Strip Curtain', icon: '🎪' },
         { id: 'accessories', label: 'Accessories', icon: '🔧' },
-        { id: 'system', label: 'System', icon: '⚙️' },
+        { id: 'system', label: 'Refrigeration System', icon: '⚙️' },
         { id: 'quotation', label: 'Quotation', icon: '📋' }
     ];
 
@@ -1314,7 +1314,7 @@ function App() {
                 door: 'Door',
                 strip_curtain: 'Strip Curtain',
                 accessories: 'Accessories',
-                system: 'System',
+                system: 'Refrigeration System',
                 quotation: 'Quotation'
             };
             
@@ -1400,7 +1400,7 @@ function App() {
         { key: 'door', label: 'Door' },
         { key: 'stripCurtain', label: 'Strip Curtain' },
         { key: 'accessories', label: 'Accessories' },
-        { key: 'system', label: 'System' },
+        { key: 'system', label: 'Refrigeration System' },
         { key: 'quotation', label: 'Quotation' }
     ];
 
@@ -1843,7 +1843,7 @@ function App() {
                         onClick={() => navigate('/system')}
                     > 
                         <span role="img" aria-label="system">⚙️</span>
-                        {isSidebarOpen && <span>System</span>}
+                        {isSidebarOpen && <span>Refrigeration System</span>}
                     </a>
 
                     {/* Excel Extractor Navigation */}
@@ -1876,7 +1876,7 @@ function App() {
                     </a>
 
                     {/* Notification Page Navigation */}
-                    <a 
+                    {/* <a 
                         href="#/notifications" 
                         className={`nav-item ${currentRoute === 'NotificationPage' ? 'active' : ''}`}
                         onClick={() => navigate('/notifications')}
@@ -1886,7 +1886,7 @@ function App() {
                         {notifications.length > 0 && (
                             <span className="notification-badge">{notifications.length}</span>
                         )}
-                    </a>
+                    </a> */}
                 </nav>
             </div>
             

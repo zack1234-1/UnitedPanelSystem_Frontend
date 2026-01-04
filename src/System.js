@@ -18,7 +18,7 @@ const CreateTaskModal = ({
         <div className="modal-overlay" onClick={onClose}>
             <div className="modal-content" onClick={e => e.stopPropagation()}>
                 <div className="modal-header">
-                    <h2>➕ Create New System Task</h2>
+                    <h2>➕ Create New Refrigeration System Task</h2>
                     <button type="button" className="close-button" onClick={onClose}>
                         &times;
                     </button>
@@ -578,7 +578,7 @@ const System = ({ navigate }) => {
                     <button className="back-btn" onClick={() => navigate('/')}>
                         ← Back to Projects
                     </button>
-                    <h1>⚙️ System Tasks Management</h1>
+                    <h1>⚙️ Refrigeration System Tasks Management</h1>
                 </div>
             </header>
 
