@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { panelTasksAPI, projectsAPI, excelDataAPI } from './apiService'; 
 import './PanelSlab.css';
+import ViewPanelPage from './ViewPanelPage';
 
 // Excel Data Modal Component
 const ExcelDataModal = ({ 
@@ -277,9 +278,144 @@ const EditTaskModal = ({
     );
 };
 
-// Main PanelSlab Component
-const PanelSlab = ({ navigate }) => {
-    // State declarations
+// Create Task Modal Component
+const CreateTaskModal = ({ 
+    isOpen, 
+    onClose, 
+    newTask, 
+    onInputChange, 
+    onSubmit, 
+    error,
+    uniqueProjectNos 
+}) => {
+    if (!isOpen) return null;
+
+    return (
+        <div className="modal-overlay" onClick={onClose}>
+            <div className="modal-content" onClick={e => e.stopPropagation()}>
+                <div className="modal-header">
+                    <h2>➕ Create New Task</h2>
+                    <button type="button" className="close-button" onClick={onClose}>
+                        &times;
+                    </button>
+                </div>
+
+                <div className="modal-body">
+                    <form onSubmit={onSubmit} className="task-form">
+                        <div className="form-group">
+                            <label htmlFor="createProjectNo">Project No *</label>
+                            <select 
+                                id="createProjectNo" 
+                                name="project_no" 
+                                value={newTask.project_no || ''} 
+                                onChange={onInputChange} 
+                                required 
+                                className="form-select"
+                            >
+                                <option value="">Select a project</option>
+                                {uniqueProjectNos.map(projectNo => (
+                                    <option key={projectNo} value={projectNo}>
+                                        {projectNo}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+
+                        <div className="form-group">
+                            <label htmlFor="createTitle">Task Title *</label>
+                            <input 
+                                type="text" 
+                                id="createTitle" 
+                                name="title" 
+                                value={newTask.title} 
+                                onChange={onInputChange} 
+                                required 
+                                autoComplete="off" 
+                                className="form-input" 
+                                placeholder="Enter task title"
+                            />
+                        </div>
+
+                        <div className="form-group">
+                            <label htmlFor="createDescription">Description</label>
+                            <textarea 
+                                id="createDescription" 
+                                name="description" 
+                                value={newTask.description || ''} 
+                                onChange={onInputChange} 
+                                rows="3" 
+                                autoComplete="off" 
+                                className="form-textarea" 
+                                placeholder="Enter task description (optional)"
+                            />
+                        </div>
+
+                        <div className="form-row">
+                            <div className="form-group">
+                                <label htmlFor="createPriority">Priority</label>
+                                <select 
+                                    id="createPriority" 
+                                    name="priority" 
+                                    value={newTask.priority} 
+                                    onChange={onInputChange} 
+                                    className="form-select"
+                                >
+                                    <option value="empty">Empty</option>
+                                    <option value="low">Low</option>
+                                    <option value="medium">Medium</option>
+                                    <option value="high">High</option>
+                                </select>
+                            </div>
+
+                            <div className="form-group">
+                                <label htmlFor="createStatus">Status</label>
+                                <select 
+                                    id="createStatus" 
+                                    name="status" 
+                                    value={newTask.status} 
+                                    onChange={onInputChange} 
+                                    className="form-select"
+                                >
+                                    <option value="pending">Pending</option>
+                                    <option value="on-hold">On Hold</option>
+                                    <option value="in-progress">In Progress</option>
+                                    <option value="completed">Completed</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div className="form-group">
+                            <label htmlFor="createDueDate">Due Date</label>
+                            <input 
+                                type="date" 
+                                id="createDueDate" 
+                                name="due_date" 
+                                value={newTask.due_date || ''} 
+                                onChange={onInputChange} 
+                                className="form-input" 
+                            />
+                        </div>
+
+                        {error && <div className="alert alert-danger">{error}</div>}
+
+                        <div className="modal-actions">
+                            <button type="button" className="secondary" onClick={onClose}>
+                                Cancel
+                            </button>
+                            <button type="submit" className="primary">
+                                Create Task
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+const PanelSlab = ({ onBackToProjects }) => {
+    const [showViewPanel, setShowViewPanel] = useState(false); // State to control which component to show
+    
     const [tasks, setTasks] = useState([]);
     const [projects, setProjects] = useState([]);
     const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
@@ -351,9 +487,97 @@ const PanelSlab = ({ navigate }) => {
         }
     };
 
-    // Excel Data Functions
-    const handleFetchExcelTables = async () => {
-        setIsExcelLoading(true);
+    const uniqueProjectNos = useMemo(() => {
+        const projectNumbers = projects.map(project => project.projectNo).filter(p => p);
+        return [...new Set(projectNumbers)].sort();
+    }, [projects]);
+
+    const filteredTasks = useMemo(() => {
+        let filtered = tasks.filter(task => {
+            if (filters.priority !== 'all' && task.priority !== filters.priority) return false;
+            if (filters.status !== 'all' && task.status !== filters.status) return false;
+            if (filters.projectNo !== 'all' && task.projectNo !== filters.projectNo) return false;
+            if (filters.search) {
+                const searchLower = filters.search.toLowerCase();
+                return (
+                    (task.title?.toLowerCase().includes(searchLower)) ||
+                    (task.description?.toLowerCase().includes(searchLower)) ||
+                    (task.projectNo?.toLowerCase().includes(searchLower))
+                );
+            }
+            return true;
+        });
+
+        // Tiered Sorting
+        filtered.sort((a, b) => {
+            // TIER 1: Completion Status (Always forces completed to bottom)
+            const isACompleted = a.status?.toLowerCase() === 'completed';
+            const isBCompleted = b.status?.toLowerCase() === 'completed';
+
+            if (isACompleted !== isBCompleted) {
+                return isACompleted ? 1 : -1; 
+            }
+
+            // TIER 2: User-selected Sort (only if the status tier is the same)
+            if (sortConfig.key) {
+                let aValue = a[sortConfig.key];
+                let bValue = b[sortConfig.key];
+
+                // Special handling for Priority levels if sorting by Priority
+                if (sortConfig.key === 'priority') {
+                    const priorityWeight = { high: 1, medium: 2, low: 3 };
+                    aValue = priorityWeight[a.priority?.toLowerCase()] || 4;
+                    bValue = priorityWeight[b.priority?.toLowerCase()] || 4;
+                }
+
+                // Special handling for Dates
+                if (sortConfig.key.includes('Date') || sortConfig.key === 'createdAt') {
+                    aValue = new Date(aValue || 0).getTime();
+                    bValue = new Date(bValue || 0).getTime();
+                }
+
+                if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
+                if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
+            }
+
+            return 0;
+        });
+
+        return filtered;
+    }, [tasks, filters, sortConfig]);
+    
+
+    const closeCreateModal = () => {
+        setIsTaskModalOpen(false);
+        setError(null);
+        // Reset new task form
+        setNewTask({
+            title: '',
+            description: '',
+            priority: 'medium',
+            status: 'pending',
+            project_no: '',
+            due_date: '',
+        });
+    };
+
+    const openCreateModal = () => {
+        setIsTaskModalOpen(true);
+        setError(null);
+    };
+
+    const openEditModal = (task) => {
+        const { id, title, description, priority, status, projectNo } = task;
+
+        setEditingTask({ 
+            id, 
+            title, 
+            description, 
+            priority, 
+            status,
+            project_no: projectNo || (uniqueProjectNos.length > 0 ? uniqueProjectNos[0] : ''),
+            due_date: task.dueDate ? task.dueDate.substring(0, 10) : ''
+        });
         setError(null);
         try {
             const response = await excelDataAPI.getExcelTables();
@@ -638,15 +862,40 @@ const PanelSlab = ({ navigate }) => {
         return sortConfig.direction === 'asc' ? '⬆️' : '⬇️';
     };
 
+    // Function to show the ViewPanelPage component
+    const goToViewPanelPage = () => {
+        setShowViewPanel(true);
+    };
+
+    // Function to go back to PanelSlab
+    const goBackToPanelSlab = () => {
+        setShowViewPanel(false);
+    };
+
+    // If showViewPanel is true, render the ViewPanelPage component
+    if (showViewPanel) {
+        return <ViewPanelPage onBack={goBackToPanelSlab} />;
+    }
+
+    // Otherwise, render the normal PanelSlab UI
     return (
         <div className="panel-slab-container">
             {/* Header Section */}
             <header className="page-header">
                 <div className="header-left">
-                    <button className="back-btn" onClick={() => navigate('/')}>
+                    <button className="back-btn" onClick={onBackToProjects}>
                         ← Back to Projects
                     </button>
                     <h1>Panel / Slab Tasks Management</h1>
+                </div>
+                <div className="header-right">
+                    <button 
+                        className="header-btn create-btn"
+                        onClick={goToViewPanelPage}
+                        title="Go to View/Create Panel page"
+                    >
+                        👁️ View Panel Page
+                    </button>
                 </div>
             </header>
 
@@ -755,10 +1004,16 @@ const PanelSlab = ({ navigate }) => {
                     <div className="empty-state">
                         <h3>No tasks match your current filters.</h3>
                         <p>Try clearing or adjusting your search/filters.</p>
+                        <button className="create-first-task-btn" onClick={goToViewPanelPage}>
+                            👁️ Go to View Panel Page
+                        </button>
                     </div>
                 ) : filteredTasks.length === 0 && tasks.length === 0 ? (
                     <div className="empty-state">
                         <h3>No tasks yet</h3>
+                        <button className="create-first-task-btn" onClick={goToViewPanelPage}>
+                            👁️ Go to View Panel Page to Create Tasks
+                        </button>
                     </div>
                 ) : (
                     <div className="table-wrapper">
@@ -877,6 +1132,16 @@ const PanelSlab = ({ navigate }) => {
                 editingTask={editingTask}
                 onInputChange={handleEditInputChange}
                 onSubmit={handleUpdateTask}
+                error={error}
+                uniqueProjectNos={uniqueProjectNos}
+            />
+            
+            <CreateTaskModal 
+                isOpen={isTaskModalOpen}
+                onClose={closeCreateModal}
+                newTask={newTask}
+                onInputChange={handleInputChange}
+                onSubmit={handleCreateTask}
                 error={error}
                 uniqueProjectNos={uniqueProjectNos}
             />

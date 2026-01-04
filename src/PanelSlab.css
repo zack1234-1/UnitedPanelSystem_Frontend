@@ -733,6 +733,136 @@
   background: #555;
 }
 
+/* Add these styles to your existing PanelSlab.css */
+
+/* Project No header with fill button */
+.project-no-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.fill-options {
+    display: flex;
+    align-items: center;
+}
+
+.fill-select {
+    padding: 4px 8px;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    background-color: #f8f9fa;
+    font-size: 0.85rem;
+    cursor: pointer;
+    color: #495057;
+    min-width: 120px;
+}
+
+.fill-select:hover {
+    background-color: #e9ecef;
+    border-color: #adb5bd;
+}
+
+.fill-select:focus {
+    outline: none;
+    border-color: #80bdff;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+/* Project number suggestions */
+.project-no-suggestions {
+    margin-top: 8px;
+    padding: 8px;
+    background-color: #f8f9fa;
+    border-radius: 4px;
+    border: 1px solid #e9ecef;
+}
+
+.project-no-suggestions small {
+    display: block;
+    margin-bottom: 4px;
+    color: #6c757d;
+    font-size: 0.8rem;
+}
+
+.suggestions-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 4px;
+}
+
+.suggestion-btn {
+    padding: 2px 6px;
+    background-color: #e9ecef;
+    border: 1px solid #dee2e6;
+    border-radius: 3px;
+    font-size: 0.75rem;
+    cursor: pointer;
+    color: #495057;
+    transition: all 0.2s;
+}
+
+.suggestion-btn:hover {
+    background-color: #dee2e6;
+    border-color: #ced4da;
+}
+
+.suggestion-btn:active {
+    background-color: #ced4da;
+}
+
+/* Modal form adjustments */
+.modal-content .form-group {
+    position: relative;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .project-no-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+    
+    .fill-select {
+        width: 100%;
+    }
+    
+    .suggestions-list {
+        justify-content: flex-start;
+    }
+}
+
+/* Dark mode support (if needed) */
+@media (prefers-color-scheme: dark) {
+    .fill-select {
+        background-color: #343a40;
+        color: #f8f9fa;
+        border-color: #495057;
+    }
+    
+    .fill-select:hover {
+        background-color: #495057;
+        border-color: #6c757d;
+    }
+    
+    .project-no-suggestions {
+        background-color: #343a40;
+        border-color: #495057;
+    }
+    
+    .suggestion-btn {
+        background-color: #495057;
+        border-color: #6c757d;
+        color: #f8f9fa;
+    }
+    
+    .suggestion-btn:hover {
+        background-color: #6c757d;
+        border-color: #7c8289;
+    }
 /* Existing Sub-tasks Styles */
 .existing-subtasks-section {
     margin: 1.5rem 0;

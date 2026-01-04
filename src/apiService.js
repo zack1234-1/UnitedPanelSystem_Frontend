@@ -2,30 +2,34 @@ const BASE_URL = 'https://unitedpanelsystem-backend-1.onrender.com/api';
 
 // Helper to handle standard API responses
 const handleResponse = async (response) => {
-    if (!response.ok) {
-        const errorBody = await response.json().catch(() => ({}));
-        const errorMessage = errorBody.error || response.statusText;
-        throw new Error(`API Request Failed (${response.status}): ${errorMessage}`);
-    }
-    if (response.status === 204) {
-        return null;
-    }
-    return response.json();
+    if (!response.ok) {
+        const errorBody = await response.json().catch(() => ({}));
+        const errorMessage = errorBody.error || response.statusText;
+        throw new Error(`API Request Failed (${response.status}): ${errorMessage}`);
+    }
+    if (response.status === 204) {
+        return null;
+    }
+    return response.json();
 };
 
 // Generic API request function
 const apiRequest = async (endpoint, options = {}) => {
-    const url = `${BASE_URL}${endpoint}`;
-    const config = {
-        headers: {
-            'Content-Type': 'application/json',
-            ...options.headers,
-        },
-        ...options,
-    };
+    const url = `${BASE_URL}${endpoint}`;
+    const config = {
+        headers: {
+            'Content-Type': 'application/json',
+            ...options.headers,
+        },
+        ...options,
+        // Stringify body if it exists and is an object
+        body: options.body && typeof options.body === 'object' 
+            ? JSON.stringify(options.body) 
+            : options.body,
+    };
 
-    const response = await fetch(url, config);
-    return handleResponse(response);
+    const response = await fetch(url, config);
+    return handleResponse(response);
 };
 
 // =========================================================
@@ -33,69 +37,69 @@ const apiRequest = async (endpoint, options = {}) => {
 // =========================================================
 
 export const projectsAPI = {
-    // CRUD Operations
-    getAll: () => apiRequest('/projects'),
+    // CRUD Operations
+    getAll: () => apiRequest('/projects'),
     getByStatus: (status) => apiRequest(`/projects/status/${status}`), 
-    create: (projectData) => apiRequest('/projects', {
-        method: 'POST',
-        body: JSON.stringify(projectData),
-    }),
-    update: (projectId, projectData) => apiRequest(`/projects/${projectId}`, {
-        method: 'PUT',
-        body: JSON.stringify(projectData),
-    }),
-    delete: (projectId) => apiRequest(`/projects/${projectId}`, {
-        method: 'DELETE',
-    }),
+    create: (projectData) => apiRequest('/projects', {
+        method: 'POST',
+        body: projectData,
+    }),
+    update: (projectId, projectData) => apiRequest(`/projects/${projectId}`, {
+        method: 'PUT',
+        body: projectData,
+    }),
+    delete: (projectId) => apiRequest(`/projects/${projectId}`, {
+        method: 'DELETE',
+    }),
 
-       updateStatus: (projectId, statusData) => apiRequest(`/projects/${projectId}/status`, {
+    updateStatus: (projectId, statusData) => apiRequest(`/projects/${projectId}/status`, {
         method: 'PATCH',
-        body: JSON.stringify(statusData),
+        body: statusData,
     }),
 
     // Get status counts - New
     getStatusCounts: () => apiRequest('/projects/status/counts'),
 
-    // File Operations
-    uploadFiles: async (projectNo, filesToUpload) => {
-        const formData = new FormData();
-        formData.append('projectNo', projectNo);
-        filesToUpload.forEach(file => formData.append('files', file));
+    // File Operations
+    uploadFiles: async (projectNo, filesToUpload) => {
+        const formData = new FormData();
+        formData.append('projectNo', projectNo);
+        filesToUpload.forEach(file => formData.append('files', file));
 
-        const response = await fetch(`${BASE_URL}/projects/upload`, {
-            method: 'POST',
-            body: formData,
-        });
+        const response = await fetch(`${BASE_URL}/projects/upload`, {
+            method: 'POST',
+            body: formData,
+        });
 
-        if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(`Upload failed: ${errorText || response.statusText}`);
-        }
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`Upload failed: ${errorText || response.statusText}`);
+        }
 
-        return response.json();
-    },
+        return response.json();
+    },
 
-    deleteFile: (fileId) => apiRequest(`/projects/file/${fileId}`, {
-        method: 'DELETE',
-    }),
+    deleteFile: (fileId) => apiRequest(`/projects/file/${fileId}`, {
+        method: 'DELETE',
+    }),
 
-    getFilesMetadata: (projectNo) => apiRequest(`/projects/files/${projectNo}`),
+    getFilesMetadata: (projectNo) => apiRequest(`/projects/files/${projectNo}`),
 
-    downloadFileBlob: async (fileId) => {
-        const response = await fetch(`${BASE_URL}/projects/file/blob/${fileId}`);
-        
-        if (!response.ok) {
-            let errorMsg = `HTTP error! status: ${response.status}`;
-            try {
-                const errorData = await response.json();
-                errorMsg = errorData.error || errorMsg;
-            } catch (e) {
-                // Ignore JSON parse error for non-JSON responses
-            }
-            throw new Error(errorMsg);
-        }
-        return response;
-    },
+    downloadFileBlob: async (fileId) => {
+        const response = await fetch(`${BASE_URL}/projects/file/blob/${fileId}`);
+        
+        if (!response.ok) {
+            let errorMsg = `HTTP error! status: ${response.status}`;
+            try {
+                const errorData = await response.json();
+                errorMsg = errorData.error || errorMsg;
+            } catch (e) {
+                // Ignore JSON parse error for non-JSON responses
+            }
+            throw new Error(errorMsg);
+        }
+        return response;
+    },
 };
 
 // =========================================================
@@ -103,123 +107,123 @@ export const projectsAPI = {
 // =========================================================
 
 export const panelTasksAPI = {
-    getAll: () => apiRequest('/panel-tasks'),
-    create: (taskData) => apiRequest('/panel-tasks', { 
-        method: 'POST',
-        body: JSON.stringify(taskData),
-    }),
-    update: (taskId, taskData) => apiRequest(`/panel-tasks/${taskId}`, {
-        method: 'PATCH',
-        body: JSON.stringify(taskData),
-    }),
-    delete: (taskId) => apiRequest(`/panel-tasks/${taskId}`, {
-        method: 'DELETE',
-    }),
+    getAll: () => apiRequest('/panel-tasks'),
+    create: (taskData) => apiRequest('/panel-tasks', { 
+        method: 'POST',
+        body: taskData,
+    }),
+    update: (taskId, taskData) => apiRequest(`/panel-tasks/${taskId}`, {
+        method: 'PATCH',
+        body: taskData,
+    }),
+    delete: (taskId) => apiRequest(`/panel-tasks/${taskId}`, {
+        method: 'DELETE',
+    }),
 };
 
 // --- Door Tasks API ---
 export const doorTasksAPI = {
-    getAll: () => apiRequest('/door-tasks'),
-    create: (taskData) => apiRequest('/door-tasks', { 
-        method: 'POST',
-        body: JSON.stringify(taskData),
-    }),
-    update: (taskId, taskData) => apiRequest(`/door-tasks/${taskId}`, {
-        method: 'PATCH',
-        body: JSON.stringify(taskData),
-    }),
-    delete: (taskId) => apiRequest(`/door-tasks/${taskId}`, {
-        method: 'DELETE',
-    }),
+    getAll: () => apiRequest('/door-tasks'),
+    create: (taskData) => apiRequest('/door-tasks', { 
+        method: 'POST',
+        body: taskData,
+    }),
+    update: (taskId, taskData) => apiRequest(`/door-tasks/${taskId}`, {
+        method: 'PATCH',
+        body: taskData,
+    }),
+    delete: (taskId) => apiRequest(`/door-tasks/${taskId}`, {
+        method: 'DELETE',
+    }),
 };
 
 // --- Accessories Tasks API ---
 export const accessoriesTasksAPI = {
-    getAll: () => apiRequest('/accessories-tasks'),
-    create: (taskData) => apiRequest('/accessories-tasks', { 
-        method: 'POST',
-        body: JSON.stringify(taskData),
-    }),
-    update: (taskId, taskData) => apiRequest(`/accessories-tasks/${taskId}`, {
-        method: 'PATCH',
-        body: JSON.stringify(taskData),
-    }),
-    delete: (taskId) => apiRequest(`/accessories-tasks/${taskId}`, {
-        method: 'DELETE',
-    }),
+    getAll: () => apiRequest('/accessories-tasks'),
+    create: (taskData) => apiRequest('/accessories-tasks', { 
+        method: 'POST',
+        body: taskData,
+    }),
+    update: (taskId, taskData) => apiRequest(`/accessories-tasks/${taskId}`, {
+        method: 'PATCH',
+        body: taskData,
+    }),
+    delete: (taskId) => apiRequest(`/accessories-tasks/${taskId}`, {
+        method: 'DELETE',
+    }),
 };
 
 // --- Cutting Tasks API ---
 export const cuttingTasksAPI = {
-    getAll: () => apiRequest('/cutting-tasks'),
-    create: (taskData) => apiRequest('/cutting-tasks', { 
-        method: 'POST',
-        body: JSON.stringify(taskData),
-    }),
-    update: (taskId, taskData) => apiRequest(`/cutting-tasks/${taskId}`, {
-        method: 'PATCH',
-        body: JSON.stringify(taskData),
-    }),
-    delete: (taskId) => apiRequest(`/cutting-tasks/${taskId}`, {
-        method: 'DELETE',
-    }),
+    getAll: () => apiRequest('/cutting-tasks'),
+    create: (taskData) => apiRequest('/cutting-tasks', { 
+        method: 'POST',
+        body: taskData,
+    }),
+    update: (taskId, taskData) => apiRequest(`/cutting-tasks/${taskId}`, {
+        method: 'PATCH',
+        body: taskData,
+    }),
+    delete: (taskId) => apiRequest(`/cutting-tasks/${taskId}`, {
+        method: 'DELETE',
+    }),
 };
 
 export const stripCurtainTasksAPI = {
-    // Corrected path to reflect the 'strip curtain' category
-    getAll: () => apiRequest('/strip-curtain-tasks'),
-    create: (taskData) => apiRequest('/strip-curtain-tasks', { 
-        method: 'POST',
-        body: JSON.stringify(taskData),
-    }),
-    update: (taskId, taskData) => apiRequest(`/strip-curtain-tasks/${taskId}`, {
-        method: 'PATCH',
-        body: JSON.stringify(taskData),
-    }),
-    delete: (taskId) => apiRequest(`/strip-curtain-tasks/${taskId}`, {
-        method: 'DELETE',
-    }),
+    // Corrected path to reflect the 'strip curtain' category
+    getAll: () => apiRequest('/strip-curtain-tasks'),
+    create: (taskData) => apiRequest('/strip-curtain-tasks', { 
+        method: 'POST',
+        body: taskData,
+    }),
+    update: (taskId, taskData) => apiRequest(`/strip-curtain-tasks/${taskId}`, {
+        method: 'PATCH',
+        body: taskData,
+    }),
+    delete: (taskId) => apiRequest(`/strip-curtain-tasks/${taskId}`, {
+        method: 'DELETE',
+    }),
 };
 
 export const systemTasksAPI = {
-    // Corrected path to reflect the 'system' category
-    getAll: () => apiRequest('/system-tasks'),
-    create: (taskData) => apiRequest('/system-tasks', { 
-        method: 'POST',
-        body: JSON.stringify(taskData),
-    }),
-    update: (taskId, taskData) => apiRequest(`/system-tasks/${taskId}`, {
-        method: 'PATCH',
-        body: JSON.stringify(taskData),
-    }),
-    delete: (taskId) => apiRequest(`/system-tasks/${taskId}`, {
-        method: 'DELETE',
-    }),
+    // Corrected path to reflect the 'system' category
+    getAll: () => apiRequest('/system-tasks'),
+    create: (taskData) => apiRequest('/system-tasks', { 
+        method: 'POST',
+        body: taskData,
+    }),
+    update: (taskId, taskData) => apiRequest(`/system-tasks/${taskId}`, {
+        method: 'PATCH',
+        body: taskData,
+    }),
+    delete: (taskId) => apiRequest(`/system-tasks/${taskId}`, {
+        method: 'DELETE',
+    }),
 };
 
 export const projectAdminAPI = {
-    // GET /api/admin/projects
-    getAllProjects: () => apiRequest('/admin/projects'),
+    // GET /api/admin/projects
+    getAllProjects: () => apiRequest('/admin/projects'),
 
-    // POST /api/admin/projects
-    createProject: (projectData) => apiRequest('/admin/projects', {
-        method: 'POST',
-        body: JSON.stringify(projectData),
-    }),
+    // POST /api/admin/projects
+    createProject: (projectData) => apiRequest('/admin/projects', {
+        method: 'POST',
+        body: projectData,
+    }),
 
-    // GET /api/admin/projects/:jobNo
-    getProjectByJobNo: (jobNo) => apiRequest(`/admin/projects/${jobNo}`),
+    // GET /api/admin/projects/:jobNo
+    getProjectByJobNo: (jobNo) => apiRequest(`/admin/projects/${jobNo}`),
 
-    // PUT /api/admin/projects/:jobNo
-    updateProject: (jobNo, projectData) => apiRequest(`/admin/projects/${jobNo}`, {
-        method: 'PUT',
-        body: JSON.stringify(projectData),
-    }),
+    // PUT /api/admin/projects/:jobNo
+    updateProject: (jobNo, projectData) => apiRequest(`/admin/projects/${jobNo}`, {
+        method: 'PUT',
+        body: projectData,
+    }),
 
-    // DELETE /api/admin/projects/:jobNo
-    deleteProject: (jobNo) => apiRequest(`/admin/projects/${jobNo}`, {
-        method: 'DELETE',
-    }),
+    // DELETE /api/admin/projects/:jobNo
+    deleteProject: (jobNo) => apiRequest(`/admin/projects/${jobNo}`, {
+        method: 'DELETE',
+    }),
 };
 
 // =========================================================
@@ -233,7 +237,7 @@ export const jobAdminAPI = { // 💥 RENAMED from projectAdminAPI to jobAdminAPI
     // POST /api/admin/projects
     createJob: (jobData) => apiRequest('/admin/projects', { // Function renamed to createJob
         method: 'POST',
-        body: JSON.stringify(jobData),
+        body: jobData,
     }),
 
     // GET /api/admin/projects/:jobNo
@@ -242,7 +246,7 @@ export const jobAdminAPI = { // 💥 RENAMED from projectAdminAPI to jobAdminAPI
     // PUT /api/admin/projects/:jobNo
     updateJob: (jobNo, jobData) => apiRequest(`/admin/projects/${jobNo}`, { // Function renamed
         method: 'PUT',
-        body: JSON.stringify(jobData),
+        body: jobData,
     }),
 
     // DELETE /api/admin/projects/:jobNo
@@ -263,18 +267,67 @@ export const activityLogsAPI = {
 };
 
 export const transportationTasksAPI = {
-  getAll: () => apiRequest('/transportation-tasks'),
-  create: (taskData) => apiRequest('/transportation-tasks', {
-    method: 'POST',
-    body: JSON.stringify(taskData),
-  }),
-  update: (taskId, taskData) => apiRequest(`/transportation-tasks/${taskId}`, {
-    method: 'PATCH',
-    body: JSON.stringify(taskData),
-  }),
-  delete: (taskId) => apiRequest(`/transportation-tasks/${taskId}`, {
-    method: 'DELETE',
-  }),
+    getAll: () => apiRequest('/transportation-tasks'),
+    create: (taskData) => apiRequest('/transportation-tasks', {
+        method: 'POST',
+        body: taskData,
+    }),
+    update: (taskId, taskData) => apiRequest(`/transportation-tasks/${taskId}`, {
+        method: 'PATCH',
+        body: taskData,
+    }),
+    delete: (taskId) => apiRequest(`/transportation-tasks/${taskId}`, {
+        method: 'DELETE',
+    }),
+};
+
+// apiService.js (update this file)
+export const viewPanelAPI = {
+    // GET: Get all panels
+    getAll: () => apiRequest('/panels'), // Removed explicit method: 'GET' as it's default
+
+    // GET: Get single panel by ID
+    getById: (panelId) => apiRequest(`/panels/${panelId}`),
+
+    // POST: Create new panel
+    create: (panelData) => apiRequest('/panels', { 
+        method: 'POST',
+        body: panelData,
+    }),
+
+    // PUT: Update panel
+    update: (panelId, panelData) => apiRequest(`/panels/${panelId}`, {
+        method: 'PUT',
+        body: panelData,
+    }),
+
+    // DELETE: Delete panel
+    delete: (panelId) => apiRequest(`/panels/${panelId}`, {
+        method: 'DELETE',
+    }),
+};
+
+// New API for production records
+export const productionAPI = {
+    // GET: Get production records for a panel
+    getByPanelId: (panelId) => apiRequest(`/panels/${panelId}/production-records`),
+
+    // POST: Create production record
+    create: (panelId, productionData) => apiRequest(`/panels/${panelId}/production-records`, {
+        method: 'POST',
+        body: productionData,
+    }),
+
+    // PUT: Update production record
+    update: (panelId, recordId, productionData) => apiRequest(`/panels/${panelId}/production-records/${recordId}`, {
+        method: 'PUT',
+        body: productionData,
+    }),
+
+    // DELETE: Delete production record
+    delete: (panelId, recordId) => apiRequest(`/panels/${panelId}/production-records/${recordId}`, {
+        method: 'DELETE',
+    }),
 };
 
 export const subtasksAPI = {
@@ -409,6 +462,15 @@ export const createTransportationTask = transportationTasksAPI.create;
 export const updateTransportationTask = transportationTasksAPI.update;
 export const deleteTransportationTask = transportationTasksAPI.delete;
 
+// Panels API (NEW - Added)
+export const getAllPanels = viewPanelAPI.getAll;
+export const getPanelById = viewPanelAPI.getById;
+export const createPanel = viewPanelAPI.create;
+export const updatePanel = viewPanelAPI.update;
+export const deletePanel = viewPanelAPI.delete;
+export const searchPanels = viewPanelAPI.search;
+export const updatePanelStatus = viewPanelAPI.updateStatus;
+export const updatePanelPriority = viewPanelAPI.updatePriority;
 export const createSubtask = subtasksAPI.create;
 export const deleteSubtask = subtasksAPI.delete;
 
