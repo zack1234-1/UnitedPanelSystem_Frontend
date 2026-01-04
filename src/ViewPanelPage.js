@@ -372,14 +372,6 @@ const PanelCard = ({ panel, onEdit, onDelete, onToggleProduction, formatNumber, 
                                 <span className="card-label">Estimated Delivery:</span>
                                 <span className="card-value">{panel.estimated_delivery ? formatDate(panel.estimated_delivery) : 'N/A'}</span>
                             </div>
-                            <div className="card-row">
-                                <span className="card-label">Status:</span>
-                                <span className="card-value">
-                                    {panel.status === 'completed' ? 'Completed' : 
-                                     panel.status === 'in_progress' ? 'In Progress' : 
-                                     panel.status === 'pending' ? 'Pending' : 'N/A'}
-                                </span>
-                            </div>
                         </div>
                     </>
                 )}
@@ -412,6 +404,23 @@ const ViewPanelPage = () => {
     const [error, setError] = useState(null);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [editingPanel, setEditingPanel] = useState(null);
+    const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+    const [newPanel, setNewPanel] = useState({
+        job_no: '',
+        type: '',
+        panel_tik: '',
+        joint: '',
+        surface_front: '',
+        surface_back: '',
+        surface_front_tik: '',
+        surface_back_tik: '',
+        surface_type: '',
+        width: '',
+        length: '',
+        qty: '',
+        cutting: '',
+        status: 'pending'
+    });
     
     // Updated Filters - Only Job No, Reference Number, Type, Brand
     const [filters, setFilters] = useState({
@@ -514,6 +523,14 @@ const ViewPanelPage = () => {
         }));
     };
 
+    const handleNewPanelInputChange = (e) => {
+        const { name, value } = e.target;
+        setNewPanel(prev => ({ 
+            ...prev, 
+            [name]: value 
+        }));
+    };
+
     const handleFilterChange = (e) => {
         const { name, value } = e.target;
         setFilters(prev => ({
@@ -571,6 +588,68 @@ const ViewPanelPage = () => {
         }
     };
 
+    const handleCreatePanel = async (e) => {
+        e.preventDefault();
+        
+        if (!newPanel.job_no?.trim()) {
+            setError('Job No is required');
+            return;
+        }
+        
+        if (!newPanel.width || !newPanel.length) {
+            setError('Width and Length are required');
+            return;
+        }
+        
+        try {
+            const existingRefs = panels.map(p => p.reference_number);
+            const referenceNumber = generateReferenceNumber(existingRefs);
+            
+            const panelData = {
+                ...newPanel,
+                reference_number: referenceNumber,
+                width: newPanel.width ? parseFloat(newPanel.width) : 0,
+                length: newPanel.length ? parseFloat(newPanel.length) : 0,
+                surface_front_tik: newPanel.surface_front_tik ? parseFloat(newPanel.surface_front_tik) : null,
+                surface_back_tik: newPanel.surface_back_tik ? parseFloat(newPanel.surface_back_tik) : null,
+                panel_tik: newPanel.panel_tik ? parseFloat(newPanel.panel_tik) : null,
+                qty: newPanel.qty ? parseInt(newPanel.qty) : null,
+                brand: null, // Brand is not included in create modal
+                estimated_delivery: null // Estimated delivery is not included in create modal
+            };
+            
+            Object.keys(panelData).forEach(key => {
+                if (panelData[key] === '') {
+                    panelData[key] = null;
+                }
+            });
+            
+            const createdPanel = await viewPanelAPI.create(panelData);
+            setPanels(prev => [createdPanel, ...prev]);
+            setIsCreateModalOpen(false);
+            setNewPanel({
+                job_no: '',
+                type: '',
+                panel_tik: '',
+                joint: '',
+                surface_front: '',
+                surface_back: '',
+                surface_front_tik: '',
+                surface_back_tik: '',
+                surface_type: '',
+                width: '',
+                length: '',
+                qty: '',
+                cutting: '',
+                status: 'pending'
+            });
+            setError(null);
+        } catch (err) {
+            console.error('Failed to create panel:', err);
+            setError('Failed to create panel: ' + err.message);
+        }
+    };
+
     const handleDeletePanel = async (id) => {
         if (!window.confirm('Are you sure you want to delete this panel?')) return;
 
@@ -611,9 +690,35 @@ const ViewPanelPage = () => {
         setError(null);
     };
 
+    const openCreateModal = () => {
+        setIsCreateModalOpen(true);
+        setError(null);
+    };
+
     const closeEditModal = () => {
         setIsEditModalOpen(false);
         setEditingPanel(null);
+        setError(null);
+    };
+
+    const closeCreateModal = () => {
+        setIsCreateModalOpen(false);
+        setNewPanel({
+            job_no: '',
+            type: '',
+            panel_tik: '',
+            joint: '',
+            surface_front: '',
+            surface_back: '',
+            surface_front_tik: '',
+            surface_back_tik: '',
+            surface_type: '',
+            width: '',
+            length: '',
+            qty: '',
+            cutting: '',
+            status: 'pending'
+        });
         setError(null);
     };
 
@@ -695,6 +800,11 @@ const ViewPanelPage = () => {
                         ← Back to Panel / Slab
                     </button>
                     <h1 className="header-title">Panel Management System</h1>
+                </div>
+                <div className="header-right">
+                    <button className="create-panel-btn" onClick={openCreateModal}>
+                        + Create New Panel
+                    </button>
                 </div>
             </header>
 
@@ -780,20 +890,6 @@ const ViewPanelPage = () => {
                         <p className="stat-value">{formatNumber(stats.totalQty)}</p>
                     </div>
                 </div>
-                <div className="stat-card">
-                    <div className="stat-icon">🏷️</div>
-                    <div className="stat-content">
-                        <h3>Unique Types</h3>
-                        <p className="stat-value">{uniqueTypes.length}</p>
-                    </div>
-                </div>
-                <div className="stat-card">
-                    <div className="stat-icon">🏢</div>
-                    <div className="stat-content">
-                        <h3>Unique Brands</h3>
-                        <p className="stat-value">{uniqueBrands.length}</p>
-                    </div>
-                </div>
             </div>
 
             {/* Panels Display */}
@@ -871,6 +967,241 @@ const ViewPanelPage = () => {
                     </div>
                 )}
             </div>
+
+            {/* Create Panel Modal */}
+            {isCreateModalOpen && (
+                <div className="modal-overlay" onClick={closeCreateModal}>
+                    <div className="modal-content" onClick={e => e.stopPropagation()}>
+                        <div className="modal-header">
+                            <h2>Create New Panel</h2>
+                            <button type="button" className="close-button" onClick={closeCreateModal}>
+                                ×
+                            </button>
+                        </div>
+                        <div className="modal-body">
+                            <form onSubmit={handleCreatePanel} className="panel-form">
+                                <div className="form-row">
+                                    <div className="form-group required">
+                                        <label htmlFor="create_job_no">Job No</label>
+                                        <input 
+                                            type="text" 
+                                            id="create_job_no" 
+                                            name="job_no" 
+                                            value={newPanel.job_no || ''} 
+                                            onChange={handleNewPanelInputChange} 
+                                            required 
+                                            className="form-input" 
+                                            placeholder="Enter job number"
+                                        />
+                                    </div>
+                                    
+                                    <div className="form-group">
+                                        <label htmlFor="create_type">Type</label>
+                                        <input 
+                                            type="text" 
+                                            id="create_type" 
+                                            name="type" 
+                                            value={newPanel.type || ''} 
+                                            onChange={handleNewPanelInputChange} 
+                                            className="form-input" 
+                                            placeholder="Panel type"
+                                        />
+                                    </div>
+                                    
+                                    <div className="form-group">
+                                        <label htmlFor="create_panel_tik">Panel Thickness (mm)</label>
+                                        <input 
+                                            type="number" 
+                                            id="create_panel_tik" 
+                                            name="panel_tik" 
+                                            value={newPanel.panel_tik || ''} 
+                                            onChange={handleNewPanelInputChange} 
+                                            className="form-input" 
+                                            placeholder="Panel thickness"
+                                            min="0"
+                                            step="0.01"
+                                        />
+                                    </div>
+                                    
+                                    <div className="form-group">
+                                        <label htmlFor="create_joint">Joint</label>
+                                        <input 
+                                            type="text" 
+                                            id="create_joint" 
+                                            name="joint" 
+                                            value={newPanel.joint || ''} 
+                                            onChange={handleNewPanelInputChange} 
+                                            className="form-input" 
+                                            placeholder="Joint type"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="form-row">
+                                    <div className="form-group">
+                                        <label htmlFor="create_surface_front">Surface Front</label>
+                                        <input 
+                                            type="text" 
+                                            id="create_surface_front" 
+                                            name="surface_front" 
+                                            value={newPanel.surface_front || ''} 
+                                            onChange={handleNewPanelInputChange} 
+                                            className="form-input" 
+                                            placeholder="Front surface"
+                                        />
+                                    </div>
+                                    
+                                    <div className="form-group">
+                                        <label htmlFor="create_surface_back">Surface Back</label>
+                                        <input 
+                                            type="text" 
+                                            id="create_surface_back" 
+                                            name="surface_back" 
+                                            value={newPanel.surface_back || ''} 
+                                            onChange={handleNewPanelInputChange} 
+                                            className="form-input" 
+                                            placeholder="Back surface"
+                                        />
+                                    </div>
+                                    
+                                    <div className="form-group">
+                                        <label htmlFor="create_surface_front_tik">Surface Front Thk (mm)</label>
+                                        <input 
+                                            type="number" 
+                                            id="create_surface_front_tik" 
+                                            name="surface_front_tik" 
+                                            value={newPanel.surface_front_tik || ''} 
+                                            onChange={handleNewPanelInputChange} 
+                                            className="form-input" 
+                                            placeholder="Front thickness"
+                                            min="0"
+                                            step="0.01"
+                                        />
+                                    </div>
+                                    
+                                    <div className="form-group">
+                                        <label htmlFor="create_surface_back_tik">Surface Back Thk (mm)</label>
+                                        <input 
+                                            type="number" 
+                                            id="create_surface_back_tik" 
+                                            name="surface_back_tik" 
+                                            value={newPanel.surface_back_tik || ''} 
+                                            onChange={handleNewPanelInputChange} 
+                                            className="form-input" 
+                                            placeholder="Back thickness"
+                                            min="0"
+                                            step="0.01"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="form-row">
+                                    <div className="form-group">
+                                        <label htmlFor="create_surface_type">Surface Type</label>
+                                        <input 
+                                            type="text" 
+                                            id="create_surface_type" 
+                                            name="surface_type" 
+                                            value={newPanel.surface_type || ''} 
+                                            onChange={handleNewPanelInputChange} 
+                                            className="form-input" 
+                                            placeholder="Surface type"
+                                        />
+                                    </div>
+                                    
+                                    <div className="form-group required">
+                                        <label htmlFor="create_width">Width (mm)</label>
+                                        <input 
+                                            type="number" 
+                                            id="create_width" 
+                                            name="width" 
+                                            value={newPanel.width || ''} 
+                                            onChange={handleNewPanelInputChange} 
+                                            required 
+                                            className="form-input" 
+                                            placeholder="Width in mm"
+                                            min="0"
+                                            step="0.01"
+                                        />
+                                    </div>
+                                    
+                                    <div className="form-group required">
+                                        <label htmlFor="create_length">Length (mm)</label>
+                                        <input 
+                                            type="number" 
+                                            id="create_length" 
+                                            name="length" 
+                                            value={newPanel.length || ''} 
+                                            onChange={handleNewPanelInputChange} 
+                                            required 
+                                            className="form-input" 
+                                            placeholder="Length in mm"
+                                            min="0"
+                                            step="0.01"
+                                        />
+                                    </div>
+                                    
+                                    <div className="form-group">
+                                        <label htmlFor="create_qty">Quantity</label>
+                                        <input 
+                                            type="number" 
+                                            id="create_qty" 
+                                            name="qty" 
+                                            value={newPanel.qty || ''} 
+                                            onChange={handleNewPanelInputChange} 
+                                            className="form-input" 
+                                            placeholder="Quantity"
+                                            min="0"
+                                            step="1"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="form-row">
+                                    <div className="form-group">
+                                        <label htmlFor="create_cutting">Cutting</label>
+                                        <input 
+                                            type="text" 
+                                            id="create_cutting" 
+                                            name="cutting" 
+                                            value={newPanel.cutting || ''} 
+                                            onChange={handleNewPanelInputChange} 
+                                            className="form-input" 
+                                            placeholder="Cutting type"
+                                        />
+                                    </div>
+                                    
+                                    <div className="form-group">
+                                        <label htmlFor="create_status">Status</label>
+                                        <select 
+                                            id="create_status" 
+                                            name="status" 
+                                            value={newPanel.status || 'pending'} 
+                                            onChange={handleNewPanelInputChange} 
+                                            className="form-input"
+                                        >
+                                            <option value="pending">Pending</option>
+                                            <option value="in_progress">In Progress</option>
+                                            <option value="completed">Completed</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                {error && <div className="alert alert-danger">{error}</div>}
+
+                                <div className="form-actions">
+                                    <button type="button" className="secondary-btn" onClick={closeCreateModal}>
+                                        Cancel
+                                    </button>
+                                    <button type="submit" className="primary-btn">
+                                        Create Panel
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Edit Panel Modal */}
             {isEditModalOpen && editingPanel && (
