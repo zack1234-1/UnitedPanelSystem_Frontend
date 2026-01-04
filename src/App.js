@@ -16,7 +16,7 @@ import ReportGenerator from './ReportGenerator';
 // 1. REAL API Service Implementation
 // =========================================================
 
-const API_BASE = 'http://localhost:5000/api';
+const API_BASE = 'https://unitedpanelsystem-backend-1.onrender.com/api';
 
 // Helper function for API calls
 const apiCall = async (endpoint, options = {}) => {
@@ -1759,14 +1759,6 @@ function App() {
         </div>;
     }
 
-    if (error) {
-        return <div className="App" style={{ textAlign: 'center', padding: '50px', color: '#B91C1C' }}>
-            <h2>Error Connecting to API</h2>
-            <p className="error-detail">Details: {error}</p>
-            <button onClick={() => fetchProjects(activeTab)} className="primary" style={{ marginTop: '20px' }}>Try Reloading Data</button>
-        </div>;
-    }
-
     // --- Main Renderer ---
     return (
         <div className="App sidebar-layout">
@@ -1847,14 +1839,14 @@ function App() {
                     </a>
 
                     {/* Excel Extractor Navigation */}
-                    <a 
+                    {/* <a 
                         href="#/excel-extractor" 
                         className={`nav-item ${currentRoute === 'ExcelExtractor' ? 'active' : ''}`}
                         onClick={() => navigate('/excel-extractor')}
                     > 
                         <span role="img" aria-label="excel">📊</span>
                         {isSidebarOpen && <span>Excel Extractor</span>}
-                    </a>
+                    </a> */}
 
                     {/* Admin Page Navigation */}
                     <a 
@@ -1866,14 +1858,14 @@ function App() {
                         {isSidebarOpen && <span>Sales</span>}
                     </a>
                     {/* Report Generator Navigation */}
-                    <a 
+                    {/* <a 
                         href="#/report-generator" 
                         className={`nav-item ${currentRoute === 'ReportGenerator' ? 'active' : ''}`}
                         onClick={() => navigate('/report-generator')}
                     > 
                         <span role="img" aria-label="generator">📑</span>
                         {isSidebarOpen && <span>Report Generator</span>}
-                    </a>
+                    </a> */}
 
                     {/* Notification Page Navigation */}
                     {/* <a 

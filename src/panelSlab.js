@@ -1,8 +1,163 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { panelTasksAPI, projectsAPI } from './apiService'; 
+import { panelTasksAPI, projectsAPI, excelDataAPI } from './apiService'; 
 import './PanelSlab.css';
 import ViewPanelPage from './ViewPanelPage';
 
+// Excel Data Modal Component
+const ExcelDataModal = ({ 
+    isOpen, 
+    onClose, 
+    excelData,
+    isLoading,
+    error
+}) => {
+    if (!isOpen) return null;
+
+    // Function to get column headers from the first data row
+    const getColumnHeaders = () => {
+        if (!excelData || excelData.length === 0) return [];
+        return Object.keys(excelData[0]);
+    };
+
+    // Function to format cell value for display
+    const formatCellValue = (value) => {
+        if (value === null || value === undefined) return '';
+        if (typeof value === 'boolean') return value ? 'Yes' : 'No';
+        if (typeof value === 'number') {
+            // Check if it's a date (Excel serial number)
+            if (value > 40000 && value < 50000) {
+                try {
+                    // Convert Excel serial date to JavaScript date
+                    const excelEpoch = new Date(1899, 11, 30);
+                    const date = new Date(excelEpoch.getTime() + (value - 1) * 24 * 60 * 60 * 1000);
+                    return date.toLocaleDateString();
+                } catch {
+                    return value;
+                }
+            }
+            return value.toLocaleString();
+        }
+        return String(value);
+    };
+
+    // Function to download Excel data as CSV
+    const downloadCSV = () => {
+        if (!excelData || excelData.length === 0) return;
+        
+        const headers = getColumnHeaders();
+        const csvContent = [
+            headers.join(','), // Header row
+            ...excelData.map(row => 
+                headers.map(header => {
+                    const value = row[header];
+                    // Escape quotes and wrap in quotes if contains comma
+                    const strValue = formatCellValue(value);
+                    return strValue.includes(',') ? `"${strValue}"` : strValue;
+                }).join(',')
+            )
+        ].join('\n');
+        
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', 'excel_data.csv');
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
+    return (
+        <div className="modal-overlay" onClick={onClose}>
+            <div className="modal-content excel-modal" onClick={e => e.stopPropagation()}>
+                <div className="modal-header">
+                    <h2>📊 Excel Data Viewer</h2>
+                    <button type="button" className="close-button" onClick={onClose}>
+                        &times;
+                    </button>
+                </div>
+
+                <div className="modal-body">
+                    {error && <div className="alert alert-danger">{error}</div>}
+                    
+                    {isLoading ? (
+                        <div className="loading-state">
+                            <p>Loading Excel data... 🔄</p>
+                            <div className="loading-spinner"></div>
+                        </div>
+                    ) : excelData && excelData.length > 0 ? (
+                        <>
+                            <div className="excel-info-bar">
+                                <div className="excel-stats">
+                                    <span className="stat-item">
+                                        <strong>Rows:</strong> {excelData.length}
+                                    </span>
+                                    <span className="stat-item">
+                                        <strong>Columns:</strong> {getColumnHeaders().length}
+                                    </span>
+                                    <span className="stat-item">
+                                        <strong>Last Updated:</strong> {new Date().toLocaleString()}
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div className="excel-table-container">
+                                <table className="excel-table">
+                                    <thead>
+                                        <tr>
+                                            {getColumnHeaders().map((header, index) => (
+                                                <th key={index} title={header}>
+                                                    <div className="header-content">
+                                                        <span className="header-text">{header}</span>
+                                                        <span className="column-index">#{index + 1}</span>
+                                                    </div>
+                                                </th>
+                                            ))}
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {excelData.slice(0, 100).map((row, rowIndex) => (
+                                            <tr key={rowIndex}>
+                                                {getColumnHeaders().map((header, colIndex) => (
+                                                    <td key={colIndex} className={colIndex === 0 ? 'first-column' : ''}>
+                                                        <div className="cell-content">
+                                                            {formatCellValue(row[header])}
+                                                        </div>
+                                                    </td>
+                                                ))}
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                                
+                                {excelData.length > 100 && (
+                                    <div className="excel-footer-note">
+                                        Showing 100 of {excelData.length} rows. 
+                                        Use download button to get complete data.
+                                    </div>
+                                )}
+                            </div>
+                        </>
+                    ) : (
+                        <div className="empty-state">
+                            <h3>No Excel data available</h3>
+                            <p>There's no Excel data to display at the moment.</p>
+                        </div>
+                    )}
+                    
+                    <div className="modal-actions">
+                        <button type="button" className="secondary" onClick={onClose}>
+                            Close
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+// Edit Task Modal Component
 const EditTaskModal = ({ 
     isOpen, 
     onClose, 
@@ -270,6 +425,13 @@ const PanelSlab = ({ onBackToProjects }) => {
     const [isProjectsLoading, setIsProjectsLoading] = useState(true);
     const [error, setError] = useState(null);
     
+    // Excel Modal States
+    const [isExcelModalOpen, setIsExcelModalOpen] = useState(false);
+    const [excelData, setExcelData] = useState([]);
+    const [isExcelLoading, setIsExcelLoading] = useState(false);
+    const [excelTablesList, setExcelTablesList] = useState([]);
+    const [selectedTableName, setSelectedTableName] = useState('');
+    
     const [filters, setFilters] = useState({
         priority: 'all', 
         status: 'all', 
@@ -291,11 +453,13 @@ const PanelSlab = ({ onBackToProjects }) => {
         due_date: '',
     });
 
+    // Fetch tasks and projects on component mount
     useEffect(() => {
         fetchTasks();
         fetchProjects();
     }, []);
 
+    // API Functions
     const fetchTasks = async () => {
         setIsLoading(true);
         setError(null);
@@ -415,15 +579,41 @@ const PanelSlab = ({ onBackToProjects }) => {
             due_date: task.dueDate ? task.dueDate.substring(0, 10) : ''
         });
         setError(null);
-        setIsEditModalOpen(true);
+        try {
+            const response = await excelDataAPI.getExcelTables();
+            
+            console.log('Frontend received Excel data:', response);
+            
+            // Handle different response structures
+            let excelDataArray = [];
+            if (Array.isArray(response)) {
+                excelDataArray = response;
+            } else if (response && response.data) {
+                excelDataArray = response.data;
+            } else if (response && Array.isArray(response.rows)) {
+                excelDataArray = response.rows;
+            }
+            
+            setExcelData(excelDataArray);
+            setExcelTablesList([{ name: 'excel_table' }]);
+            setSelectedTableName('excel_table');
+            setIsExcelModalOpen(true);
+            
+        } catch (err) {
+            console.error('Failed to fetch Excel tables:', err);
+            setError('Failed to load Excel data. Please ensure the Excel file is available.');
+        } finally {
+            setIsExcelLoading(false);
+        }
     };
 
-    const closeEditModal = () => {
-        setIsEditModalOpen(false);
-        setEditingTask(null);
+    const closeExcelModal = () => {
+        setIsExcelModalOpen(false);
+        setExcelData([]);
         setError(null);
     };
 
+    // Task Management Functions
     const handleCreateTask = async (e) => {
         e.preventDefault();
         if (!newTask.title.trim()) {
@@ -502,6 +692,48 @@ const PanelSlab = ({ onBackToProjects }) => {
         }
     };
 
+    // Modal Functions
+    const openCreateModal = () => {
+        setIsTaskModalOpen(true);
+        setError(null);
+    };
+
+    const closeCreateModal = () => {
+        setIsTaskModalOpen(false);
+        setNewTask({
+            title: '',
+            description: '',
+            priority: 'medium',
+            status: 'pending',
+            project_no: '',
+            due_date: '',
+        });
+        setError(null);
+    };
+
+    const openEditModal = (task) => {
+        const { id, title, description, priority, status, projectNo } = task;
+
+        setEditingTask({ 
+            id, 
+            title, 
+            description, 
+            priority, 
+            status,
+            project_no: projectNo || (uniqueProjectNos.length > 0 ? uniqueProjectNos[0] : ''),
+            due_date: task.dueDate ? task.dueDate.substring(0, 10) : ''
+        });
+        setError(null);
+        setIsEditModalOpen(true);
+    };
+
+    const closeEditModal = () => {
+        setIsEditModalOpen(false);
+        setEditingTask(null);
+        setError(null);
+    };
+
+    // Input Handlers
     const handleInputChange = (e) => {
         const { name, value } = e.target;
         setNewTask(prev => ({ ...prev, [name]: value }));
@@ -537,6 +769,66 @@ const PanelSlab = ({ onBackToProjects }) => {
         }));
     };
 
+    // Utility Functions
+    const uniqueProjectNos = useMemo(() => {
+        const projectNumbers = projects.map(project => project.projectNo).filter(p => p);
+        return [...new Set(projectNumbers)].sort();
+    }, [projects]);
+
+    const filteredTasks = useMemo(() => {
+        let filtered = tasks.filter(task => {
+            if (filters.priority !== 'all' && task.priority !== filters.priority) return false;
+            if (filters.status !== 'all' && task.status !== filters.status) return false;
+            if (filters.projectNo !== 'all' && task.projectNo !== filters.projectNo) return false;
+            if (filters.search) {
+                const searchLower = filters.search.toLowerCase();
+                return (
+                    (task.title?.toLowerCase().includes(searchLower)) ||
+                    (task.description?.toLowerCase().includes(searchLower)) ||
+                    (task.projectNo?.toLowerCase().includes(searchLower))
+                );
+            }
+            return true;
+        });
+
+        // Tiered Sorting
+        filtered.sort((a, b) => {
+            // TIER 1: Completion Status (Always forces completed to bottom)
+            const isACompleted = a.status?.toLowerCase() === 'completed';
+            const isBCompleted = b.status?.toLowerCase() === 'completed';
+
+            if (isACompleted !== isBCompleted) {
+                return isACompleted ? 1 : -1; 
+            }
+
+            // TIER 2: User-selected Sort (only if the status tier is the same)
+            if (sortConfig.key) {
+                let aValue = a[sortConfig.key];
+                let bValue = b[sortConfig.key];
+
+                // Special handling for Priority levels if sorting by Priority
+                if (sortConfig.key === 'priority') {
+                    const priorityWeight = { high: 1, medium: 2, low: 3 };
+                    aValue = priorityWeight[a.priority?.toLowerCase()] || 4;
+                    bValue = priorityWeight[b.priority?.toLowerCase()] || 4;
+                }
+
+                // Special handling for Dates
+                if (sortConfig.key.includes('Date') || sortConfig.key === 'createdAt') {
+                    aValue = new Date(aValue || 0).getTime();
+                    bValue = new Date(bValue || 0).getTime();
+                }
+
+                if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
+                if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
+            }
+
+            return 0;
+        });
+
+        return filtered;
+    }, [tasks, filters, sortConfig]);
+
     const getPriorityColor = (priority) => {
         switch (priority) {
             case 'high': return '#dc3545';
@@ -552,15 +844,6 @@ const PanelSlab = ({ onBackToProjects }) => {
             case 'in-progress': return '#17a2b8';
             case 'pending': return '#ffc107';
             default: return '#6c757d';
-        }
-    };
-
-    const getStatusIcon = (status) => {
-        switch (status) {
-            case 'completed': return '✅';
-            case 'in-progress': return '🔄';
-            case 'pending': return '⏳';
-            default: return '📝';
         }
     };
 
@@ -597,6 +880,7 @@ const PanelSlab = ({ onBackToProjects }) => {
     // Otherwise, render the normal PanelSlab UI
     return (
         <div className="panel-slab-container">
+            {/* Header Section */}
             <header className="page-header">
                 <div className="header-left">
                     <button className="back-btn" onClick={onBackToProjects}>
@@ -615,6 +899,7 @@ const PanelSlab = ({ onBackToProjects }) => {
                 </div>
             </header>
 
+            {/* Dashboard Cards */}
             <div className="dashboard-cards">
                 <div className="dashboard-card">
                     <div className="card-icon">📋</div>
@@ -653,6 +938,7 @@ const PanelSlab = ({ onBackToProjects }) => {
                 </div>
             </div>
 
+            {/* Filters Section */}
             <div className="filters-section">
                 <div className="filter-row">
                     <div className="search-box">
@@ -706,6 +992,7 @@ const PanelSlab = ({ onBackToProjects }) => {
                 </div>
             </div>
 
+            {/* Tasks Table */}
             <div className="tasks-table-container">
                 {error && <div className="alert alert-danger">{error}</div>}
 
@@ -785,7 +1072,7 @@ const PanelSlab = ({ onBackToProjects }) => {
                                                     }}
                                                 >
                                                     <option value="pending">⏳ Pending</option>
-                                                    <option value="on-hold">⏳ On Hold</option>
+                                                    <option value="on-hold">⏸️ On Hold</option>
                                                     <option value="in-progress">🔄 In Progress</option>
                                                     <option value="completed">✅ Completed</option>
                                                 </select>
@@ -829,7 +1116,16 @@ const PanelSlab = ({ onBackToProjects }) => {
                     </div>
                 )}
             </div>
-            
+
+            {/* Modals */}
+            <ExcelDataModal 
+                isOpen={isExcelModalOpen}
+                onClose={closeExcelModal}
+                excelData={excelData}
+                isLoading={isExcelLoading}
+                error={error}
+            />
+
             <EditTaskModal 
                 isOpen={isEditModalOpen}
                 onClose={closeEditModal}
