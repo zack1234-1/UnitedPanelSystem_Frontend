@@ -1781,3 +1781,34 @@ body {
   white-space: pre-wrap; /* Preserve whitespace but wrap */
   text-align: left; /* Explicitly align left */
 }
+
+.card-btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  font-size: 14px;
+  transition: all 0.2s ease;
+  margin-right: 10px;
+}
+
+.edit-btn {
+  background-color: #3b82f6; /* Blue */
+  color: white;
+}
+
+.edit-btn:hover {
+  background-color: #2563eb; /* Darker blue */
+  transform: translateY(-1px);
+}
+
+.delete-btn {
+  background-color: #ef4444; /* Red */
+  color: white;
+}
+
+.delete-btn:hover {
+  background-color: #dc2626; /* Darker red */
+  transform: translateY(-1px);
+}
