@@ -296,7 +296,7 @@ export const viewPanelAPI = {
     }),
 
     // PUT: Update panel
-      update: async (id, data) => {
+    update: (id, data) => {
         // Format dates before sending
         const formattedData = { ...data };
         
@@ -306,8 +306,13 @@ export const viewPanelAPI = {
                 formattedData.estimated_delivery = date.toISOString().split('T')[0];
             }
         }
+        
+        return apiRequest(`/panels/${id}`, {
+            method: 'PUT',
+            body: formattedData,
+        });
     },
-
+    
     // DELETE: Delete panel
     delete: (panelId) => apiRequest(`/panels/${panelId}`, {
         method: 'DELETE',
