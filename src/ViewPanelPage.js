@@ -511,9 +511,6 @@ const PanelCard = ({ panel, onEdit, onDelete, onToggleProduction, formatNumber, 
                                                         <div className="record-reference">
                                                             <small>Ref: {record.reference_number}</small>
                                                         </div>
-                                                        <div className="record-balance">
-                                                            <small>Balance after: {record.balance_after || 'N/A'}</small>
-                                                        </div>
                                                     </div>
                                                 </div>
                                                 <div className="record-actions">
