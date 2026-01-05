@@ -603,7 +603,7 @@ body {
 /* Card Footer */
 .card-footer {
   padding: 16px 20px;
-  background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+  background: #e9ecef;
   border-top: 1px solid var(--border-color);
   display: flex;
   gap: 12px;
