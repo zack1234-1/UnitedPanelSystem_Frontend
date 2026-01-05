@@ -1774,10 +1774,10 @@ body {
 }
 
 .notes-content {
+  direction: ltr; /* Force left-to-right direction */
+  unicode-bidi: plaintext; /* Treat text as plain text, not bidirectional */
   word-break: break-word; /* Break long words */
-  overflow-wrap: break-word; /* Alternative for better support */
-  white-space: normal; /* Allow text to wrap */
-  max-width: 100%; /* Prevent horizontal overflow */
-  display: block;
-  margin-top: 4px;
+  overflow-wrap: anywhere; /* Allow breaking anywhere */
+  white-space: pre-wrap; /* Preserve whitespace but wrap */
+  text-align: left; /* Explicitly align left */
 }
