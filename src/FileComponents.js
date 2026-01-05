@@ -3,7 +3,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import imageCompression from 'browser-image-compression';
 import './FileView.css';
 
-const API_BASE = 'http://localhost:5000/api';
+const API_BASE = 'https://unitedpanelsystem-backend-1.onrender.com/api';
 
 // =========================================================
 // CONFIGURATION

@@ -296,10 +296,17 @@ export const viewPanelAPI = {
     }),
 
     // PUT: Update panel
-    update: (panelId, panelData) => apiRequest(`/panels/${panelId}`, {
-        method: 'PUT',
-        body: panelData,
-    }),
+      update: async (id, data) => {
+        // Format dates before sending
+        const formattedData = { ...data };
+        
+        if (formattedData.estimated_delivery) {
+            const date = new Date(formattedData.estimated_delivery);
+            if (!isNaN(date.getTime())) {
+                formattedData.estimated_delivery = date.toISOString().split('T')[0];
+            }
+        }
+    },
 
     // DELETE: Delete panel
     delete: (panelId) => apiRequest(`/panels/${panelId}`, {
