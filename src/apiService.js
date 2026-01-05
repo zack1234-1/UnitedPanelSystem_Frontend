@@ -284,7 +284,7 @@ export const transportationTasksAPI = {
 // apiService.js (update this file)
 export const viewPanelAPI = {
     // GET: Get all panels
-    getAll: () => apiRequest('/panels'), // Removed explicit method: 'GET' as it's default
+    getAll: () => apiRequest('/panels'),
 
     // GET: Get single panel by ID
     getById: (panelId) => apiRequest(`/panels/${panelId}`),
@@ -296,25 +296,43 @@ export const viewPanelAPI = {
     }),
 
     // PUT: Update panel
-      update: async (id, data) => {
-        // Format dates before sending
-        const formattedData = { ...data };
-        
-        if (formattedData.estimated_delivery) {
-            const date = new Date(formattedData.estimated_delivery);
-            if (!isNaN(date.getTime())) {
-                formattedData.estimated_delivery = date.toISOString().split('T')[0];
-            }
-        }
-    },
+    update: (panelId, panelData) => apiRequest(`/panels/${panelId}`, {
+        method: 'PUT',
+        body: panelData,
+    }),
 
     // DELETE: Delete panel
     delete: (panelId) => apiRequest(`/panels/${panelId}`, {
         method: 'DELETE',
     }),
+
+    // GET: Get production summary for a panel (including current balance)
+    getProductionSummary: (panelId) => apiRequest(`/panels/${panelId}/production-summary`),
+
+    // POST: Create production record with balance update
+    createProductionWithBalance: (panelId, productionData) => apiRequest(`/panels/${panelId}/production-with-balance`, {
+        method: 'POST',
+        body: productionData,
+    }),
+
+    // DELETE: Delete production record with balance update
+    deleteProductionWithBalance: (panelId, recordId) => apiRequest(`/panels/${panelId}/production/${recordId}/with-balance`, {
+        method: 'DELETE',
+    }),
+
+    // GET: Get balance history
+    getBalanceHistory: (panelId) => apiRequest(`/panels/${panelId}/balance-history`),
+
+    // PUT: Update panel balance
+    updateBalance: (panelId, balanceData) => apiRequest(`/panels/${panelId}/balance`, {
+        method: 'PUT',
+        body: balanceData,
+    }),
+
+    // GET: Get overall statistics
+    getStatsSummary: () => apiRequest('/panels/stats/summary'),
 };
 
-// New API for production records
 export const productionAPI = {
     // GET: Get production records for a panel
     getByPanelId: (panelId) => apiRequest(`/panels/${panelId}/production-records`),
@@ -330,6 +348,11 @@ export const productionAPI = {
         method: 'PUT',
         body: productionData,
     }),
+
+    updateStatus: (recordId, statusData) => apiRequest(`/panels/production-records/${recordId}/status`, {
+        method: 'PATCH',
+        body: statusData,
+        }),
 
     // DELETE: Delete production record
     delete: (panelId, recordId) => apiRequest(`/panels/${panelId}/production-records/${recordId}`, {

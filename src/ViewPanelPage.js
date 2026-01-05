@@ -25,16 +25,24 @@ const generateReferenceNumber = (existingReferences = []) => {
     return `${todayPrefix}-${String(sequence).padStart(3, '0')}`;
 };
 
-// PanelCard Component
-const PanelCard = ({ panel, onEdit, onDelete, onToggleProduction, formatNumber, formatDecimal, formatDate }) => {
+// PanelCard Component with Database Balance Updates
+const PanelCard = ({ panel, onEdit, onDelete, onToggleProduction, formatNumber, formatDecimal, formatDate, refreshPanels }) => {
     const [showProductionDetails, setShowProductionDetails] = useState(false);
     const [productionDate, setProductionDate] = useState('');
     const [numberOfPanels, setNumberOfPanels] = useState(1);
+    const [productionStatus, setProductionStatus] = useState('pending');
     const [isSaving, setIsSaving] = useState(false);
     const [localError, setLocalError] = useState(null);
     const [localSuccess, setLocalSuccess] = useState(null);
     const [productionRecords, setProductionRecords] = useState([]);
     const [isLoadingRecords, setIsLoadingRecords] = useState(false);
+    const [currentBalance, setCurrentBalance] = useState(panel.balance || panel.qty || 0);
+    const [editingProductionRecord, setEditingProductionRecord] = useState(null);
+    const [isEditingProduction, setIsEditingProduction] = useState(false);
+
+    useEffect(() => {
+        setCurrentBalance(panel.balance !== undefined ? panel.balance : panel.qty || 0);
+    }, [panel.balance, panel.qty]);
 
     useEffect(() => {
         if (showProductionDetails) {
@@ -55,10 +63,27 @@ const PanelCard = ({ panel, onEdit, onDelete, onToggleProduction, formatNumber, 
         setIsLoadingRecords(true);
         try {
             const data = await productionAPI.getByPanelId(panel.id);
-            setProductionRecords(data || []);
+            // Ensure data is an array
+            if (Array.isArray(data)) {
+                setProductionRecords(data);
+            } else {
+                setProductionRecords([]);
+                console.warn('Production records data is not an array:', data);
+            }
+            
+            // Also fetch current balance from server
+            try {
+                const summary = await viewPanelAPI.getProductionSummary(panel.id);
+                if (summary && summary.current_balance !== undefined) {
+                    setCurrentBalance(summary.current_balance);
+                }
+            } catch (summaryErr) {
+                console.error('Failed to fetch production summary:', summaryErr);
+            }
         } catch (err) {
             console.error('Failed to fetch production records:', err);
             setLocalError('Failed to load production records');
+            setProductionRecords([]);
         } finally {
             setIsLoadingRecords(false);
         }
@@ -75,6 +100,12 @@ const PanelCard = ({ panel, onEdit, onDelete, onToggleProduction, formatNumber, 
             return;
         }
 
+        // Check if production quantity exceeds available balance
+        if (numberOfPanels > currentBalance) {
+            setLocalError(`Cannot produce ${numberOfPanels} panels. Only ${currentBalance} available.`);
+            return;
+        }
+
         setIsSaving(true);
         setLocalError(null);
         setLocalSuccess(null);
@@ -88,18 +119,31 @@ const PanelCard = ({ panel, onEdit, onDelete, onToggleProduction, formatNumber, 
                 panel_id: panel.id,
                 job_no: panel.job_no,
                 brand: panel.brand || '',
-                delivery: panel.delivery || '',
+                notes: `Production for job ${panel.job_no}`,
+                status: productionStatus || 'pending',
                 created_at: new Date().toISOString(),
                 updated_at: new Date().toISOString()
             };
 
-            const newRecord = await productionAPI.create(panel.id, productionRecordData);
+            // Use the API that updates balance in database
+            const result = await viewPanelAPI.createProductionWithBalance(panel.id, productionRecordData);
             
-            setProductionRecords(prev => [newRecord, ...prev]);
+            // Update local state
+            if (result && result.production_record) {
+                setProductionRecords(prev => [result.production_record, ...prev]);
+                setCurrentBalance(result.updated_balance);
+            }
+            
+            // Refresh parent panel list if needed
+            if (refreshPanels) {
+                refreshPanels();
+            }
+            
             setProductionDate('');
             setNumberOfPanels(1);
+            setProductionStatus('pending');
             
-            setLocalSuccess('Production record added successfully!');
+            setLocalSuccess('Production record added successfully! Balance updated.');
             
             setTimeout(() => {
                 setLocalSuccess(null);
@@ -107,14 +151,24 @@ const PanelCard = ({ panel, onEdit, onDelete, onToggleProduction, formatNumber, 
 
         } catch (err) {
             console.error('Failed to create production record:', err);
-            setLocalError('Failed to add production record: ' + err.message);
+            setLocalError('Failed to add production record: ' + (err.message || 'Unknown error'));
+            
+            // Re-fetch current balance in case of error
+            try {
+                const summary = await viewPanelAPI.getProductionSummary(panel.id);
+                if (summary && summary.current_balance !== undefined) {
+                    setCurrentBalance(summary.current_balance);
+                }
+            } catch (fetchErr) {
+                console.error('Failed to refresh balance:', fetchErr);
+            }
         } finally {
             setIsSaving(false);
         }
     };
 
     const handleDeleteProductionRecord = async (recordId) => {
-        if (!window.confirm('Are you sure you want to delete this production record?')) {
+        if (!window.confirm('Are you sure you want to delete this production record? This will restore the balance.')) {
             return;
         }
 
@@ -122,10 +176,22 @@ const PanelCard = ({ panel, onEdit, onDelete, onToggleProduction, formatNumber, 
         setLocalError(null);
 
         try {
-            await productionAPI.delete(panel.id, recordId);
+            // Use the API that updates balance in database
+            const result = await viewPanelAPI.deleteProductionWithBalance(panel.id, recordId);
             
+            // Update local state
             setProductionRecords(prev => prev.filter(record => record.id !== recordId));
-            setLocalSuccess('Production record deleted successfully!');
+            
+            if (result && result.updated_balance !== undefined) {
+                setCurrentBalance(result.updated_balance);
+            }
+            
+            // Refresh parent panel list if needed
+            if (refreshPanels) {
+                refreshPanels();
+            }
+            
+            setLocalSuccess('Production record deleted. Balance restored.');
             
             setTimeout(() => {
                 setLocalSuccess(null);
@@ -133,10 +199,106 @@ const PanelCard = ({ panel, onEdit, onDelete, onToggleProduction, formatNumber, 
             
         } catch (err) {
             console.error('Failed to delete production record:', err);
-            setLocalError('Failed to delete production record: ' + err.message);
+            setLocalError('Failed to delete production record: ' + (err.message || 'Unknown error'));
+            
+            // Re-fetch current balance in case of error
+            try {
+                const summary = await viewPanelAPI.getProductionSummary(panel.id);
+                if (summary && summary.current_balance !== undefined) {
+                    setCurrentBalance(summary.current_balance);
+                }
+            } catch (fetchErr) {
+                console.error('Failed to refresh balance:', fetchErr);
+            }
         } finally {
             setIsSaving(false);
         }
+    };
+
+    const handleUpdateProductionRecord = async (recordId, updatedData) => {
+        setIsSaving(true);
+        setLocalError(null);
+
+        try {
+            const updatedRecord = await productionAPI.update(panel.id, recordId, updatedData);
+            
+            // Update local state
+            setProductionRecords(prev => prev.map(record => 
+                record.id === recordId ? updatedRecord : record
+            ));
+            
+            setLocalSuccess('Production record updated successfully!');
+            setIsEditingProduction(false);
+            setEditingProductionRecord(null);
+            
+            setTimeout(() => {
+                setLocalSuccess(null);
+            }, 3000);
+            
+        } catch (err) {
+            console.error('Failed to update production record:', err);
+            setLocalError('Failed to update production record: ' + (err.message || 'Unknown error'));
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const handleUpdateProductionStatus = async (recordId, newStatus) => {
+        try {
+            const updatedRecord = await productionAPI.updateStatus(recordId, { status: newStatus });
+            
+            // Update local state
+            setProductionRecords(prev => prev.map(record => 
+                record.id === recordId ? updatedRecord : record
+            ));
+            
+            setLocalSuccess(`Status updated to ${getStatusDisplay(newStatus)}`);
+            setTimeout(() => {
+                setLocalSuccess(null);
+            }, 3000);
+        } catch (err) {
+            console.error('Failed to update production status:', err);
+            setLocalError('Failed to update status: ' + (err.message || 'Unknown error'));
+        }
+    };
+
+    const getStatusDisplay = (status) => {
+        switch(status) {
+            case 'pending': return '⏳ Pending';
+            case 'in_progress': return '⚙️ In Progress';
+            case 'completed': return '✅ Completed';
+            case 'cancelled': return '❌ Cancelled';
+            case 'on_hold': return '⏸️ On Hold';
+            default: return '⏳ Pending';
+        }
+    };
+
+    const getStatusClass = (status) => {
+        switch(status) {
+            case 'pending': return 'status-pending';
+            case 'in_progress': return 'status-in-progress';
+            case 'completed': return 'status-completed';
+            case 'cancelled': return 'status-cancelled';
+            case 'on_hold': return 'status-on-hold';
+            default: return 'status-pending';
+        }
+    };
+
+    const openEditProductionRecord = (record) => {
+        setEditingProductionRecord({
+            ...record,
+            date: record.date ? record.date.split('T')[0] : '',
+            number_of_panels: record.number_of_panels || 1,
+            status: record.status || 'pending'
+        });
+        setIsEditingProduction(true);
+        setLocalError(null);
+    };
+
+    const closeEditProductionRecord = () => {
+        setEditingProductionRecord(null);
+        setIsEditingProduction(false);
+        setLocalError(null);
     };
 
     const totalProducedPanels = useMemo(() => {
@@ -145,15 +307,20 @@ const PanelCard = ({ panel, onEdit, onDelete, onToggleProduction, formatNumber, 
         );
     }, [productionRecords]);
 
+    const panelQty = parseInt(panel.qty) || 0;
+    const balance = currentBalance;
+    const productionProgress = panelQty > 0 ? Math.min(((panelQty - balance) / panelQty) * 100, 100) : 0;
+    const productionMeter = panel.production_meter || 0;
+
     return (
         <div key={panel.id} className="panel-card">
             <div className="card-header">
                 <div className="card-title">
                     <h3>{panel.reference_number}</h3>
-                    <span className="panel-status">
-                        {panel.status === 'completed' ? '✓' : 
-                         panel.status === 'in_progress' ? '⟳' : 
-                         panel.status === 'pending' ? '⏳' : ''}
+                    <span className={`panel-status status-${panel.status || 'pending'}`}>
+                        {panel.status === 'completed' ? '✓ Completed' : 
+                         panel.status === 'in_progress' ? '⟳ In Progress' : 
+                         panel.status === 'pending' ? '⏳ Pending' : 'Pending'}
                     </span>
                 </div>
                 <div className="card-meta">
@@ -188,11 +355,58 @@ const PanelCard = ({ panel, onEdit, onDelete, onToggleProduction, formatNumber, 
                             </div>
                         )}
 
+                        {/* Balance & Progress Section */}
+                        <div className="card-section">
+                            <h4 className="card-section-title">Production Status</h4>
+                            <div className="balance-summary-grid">
+                                <div className="balance-item">
+                                    <span className="balance-label">Total Quantity:</span>
+                                    <span className="balance-value">{formatNumber(panelQty)}</span>
+                                </div>
+                                <div className="balance-item">
+                                    <span className="balance-label">Produced:</span>
+                                    <span className="balance-value">{formatNumber(totalProducedPanels)}</span>
+                                </div>
+                                <div className="balance-item highlight">
+                                    <span className="balance-label">Remaining Balance:</span>
+                                    <span className={`balance-value ${balance <= 0 ? 'zero-balance' : balance <= panelQty * 0.1 ? 'low-balance' : ''}`}>
+                                        {formatNumber(balance)}
+                                    </span>
+                                </div>
+                            </div>
+                            
+                            {/* Progress Bar */}
+                            {panelQty > 0 && (
+                                <div className="production-progress">
+                                    <div className="progress-bar-container">
+                                        <div 
+                                            className="progress-bar-fill"
+                                            style={{ width: `${productionProgress}%` }}
+                                        >
+                                        </div>
+                                    </div>
+                                    <div className="progress-stats">
+                                        <span>{totalProducedPanels} of {panelQty} panels</span>
+                                        <span>{balance} remaining</span>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
                         <div className="card-section">
                             <h4 className="card-section-title">Add Production Record</h4>
                             
                             <div className="card-row">
-                                <span className="card-label">Delivery Date:</span>
+                                <span className="card-label">Available Balance:</span>
+                                <span className={`card-value ${balance <= 0 ? 'zero-balance' : balance <= panelQty * 0.1 ? 'low-balance' : ''}`}>
+                                    {formatNumber(balance)} panels
+                                    {balance <= 0 && <span className="balance-warning"> (No panels available)</span>}
+                                    {balance > 0 && balance <= panelQty * 0.1 && <span className="balance-warning"> (Low balance)</span>}
+                                </span>
+                            </div>
+                            
+                            <div className="card-row">
+                                <span className="card-label">Production Date:</span>
                                 <div className="production-date-container">
                                     <input 
                                         type="date" 
@@ -202,7 +416,8 @@ const PanelCard = ({ panel, onEdit, onDelete, onToggleProduction, formatNumber, 
                                             setProductionDate(e.target.value);
                                             setLocalError(null);
                                         }}
-                                        disabled={isSaving}
+                                        disabled={isSaving || balance <= 0}
+                                        min={new Date().toISOString().split('T')[0]}
                                     />
                                 </div>
                             </div>
@@ -213,31 +428,39 @@ const PanelCard = ({ panel, onEdit, onDelete, onToggleProduction, formatNumber, 
                                     <input 
                                         type="number"
                                         min="1"
+                                        max={balance}
                                         step="1"
                                         className="card-value-input"
                                         value={numberOfPanels}
                                         onChange={(e) => {
                                             const value = parseInt(e.target.value) || 1;
-                                            setNumberOfPanels(value);
+                                            setNumberOfPanels(Math.min(value, balance));
                                             setLocalError(null);
                                         }}
-                                        disabled={isSaving}
-                                        placeholder="Enter number of panels"
+                                        disabled={isSaving || balance <= 0}
+                                        placeholder={`Max: ${balance}`}
                                     />
+                                    {balance > 0 && (
+                                        <div className="max-hint">
+                                            Max: {formatNumber(balance)} panels available
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                             
                             <div className="production-action-row">
                                 <button
-                                    className="create-record-btn"
+                                    className={`create-record-btn ${balance <= 0 ? 'disabled' : ''}`}
                                     onClick={handleCreateProductionRecord}
-                                    disabled={isSaving || !productionDate || !numberOfPanels}
+                                    disabled={isSaving || !productionDate || !numberOfPanels || numberOfPanels < 1 || numberOfPanels > balance || balance <= 0}
                                 >
                                     {isSaving ? (
                                         <>
                                             <span className="saving-spinner"></span>
                                             Saving...
                                         </>
+                                    ) : balance <= 0 ? (
+                                        'No Panels Available'
                                     ) : (
                                         'Add Production Record'
                                     )}
@@ -263,35 +486,63 @@ const PanelCard = ({ panel, onEdit, onDelete, onToggleProduction, formatNumber, 
                                 </div>
                             ) : (
                                 <div className="production-records-list">
-                                    {productionRecords.map((record) => (
-                                        <div key={record.id} className="production-record-item">
-                                            <div className="record-info">
-                                                <div className="record-main">
-                                                    <div className="record-date">
-                                                        <strong>{formatDate(record.date)}</strong>
+                                    {productionRecords.map((record) => {
+                                        const recordDate = new Date(record.date);
+                                        const today = new Date();
+                                        today.setHours(0, 0, 0, 0);
+                                        const isPastDue = recordDate < today;
+                                        
+                                        return (
+                                            <div key={record.id} className={`production-record-item ${isPastDue ? 'past-due' : ''}`}>
+                                                <div className="record-info">
+                                                    <div className="record-main">
+                                                        <div className="record-date">
+                                                            <strong>{formatDate(record.date)}</strong>
+                                                            {isPastDue && <span className="past-due-badge">Past Due</span>}
+                                                        </div>
+                                                        <div className="record-panels">
+                                                            {record.number_of_panels || 1} panels
+                                                        </div>
+                                                        <div className={`record-status ${getStatusClass(record.status)}`}>
+                                                            {getStatusDisplay(record.status)}
+                                                        </div>
                                                     </div>
-                                                    <div className="record-panels">
-                                                        {record.number_of_panels || 1} panels
+                                                    <div className="record-details">
+                                                        <div className="record-reference">
+                                                            <small>Ref: {record.reference_number}</small>
+                                                        </div>
+                                                        <div className="record-balance">
+                                                            <small>Balance after: {record.balance_after || 'N/A'}</small>
+                                                        </div>
                                                     </div>
                                                 </div>
-                                                <div className="record-details">
-                                                    <div className="record-reference">
-                                                        <small>Ref: {record.reference_number}</small>
+                                                <div className="record-actions">
+                                                    <div className="record-status-actions">
+                                                        <select
+                                                            className="status-change-dropdown"
+                                                            value={record.status || 'pending'}
+                                                            onChange={(e) => handleUpdateProductionStatus(record.id, e.target.value)}
+                                                            disabled={isSaving}
+                                                        >
+                                                            <option value="pending">⏳ Pending</option>
+                                                            <option value="in_progress">⚙️ In Progress</option>
+                                                            <option value="completed">✅ Completed</option>
+                                                            <option value="cancelled">❌ Cancelled</option>
+                                                            <option value="on_hold">⏸️ On Hold</option>
+                                                        </select>
                                                     </div>
+                                                    <button
+                                                        className="delete-record-btn"
+                                                        onClick={() => handleDeleteProductionRecord(record.id)}
+                                                        disabled={isSaving}
+                                                        title="Delete production record"
+                                                    >
+                                                        ✕
+                                                    </button>
                                                 </div>
                                             </div>
-                                            <div className="record-actions">
-                                                <button
-                                                    className="delete-record-btn"
-                                                    onClick={() => handleDeleteProductionRecord(record.id)}
-                                                    disabled={isSaving}
-                                                    title="Delete production record"
-                                                >
-                                                    ✕
-                                                </button>
-                                            </div>
-                                        </div>
-                                    ))}
+                                        );
+                                    })}
                                 </div>
                             )}
                         </div>
@@ -305,8 +556,36 @@ const PanelCard = ({ panel, onEdit, onDelete, onToggleProduction, formatNumber, 
                                         <span className="summary-value">{productionRecords.length}</span>
                                     </div>
                                     <div className="summary-item">
-                                        <span className="summary-label">Total Panels</span>
+                                        <span className="summary-label">Total Produced</span>
                                         <span className="summary-value">{formatNumber(totalProducedPanels)}</span>
+                                    </div>
+                                    <div className="summary-item">
+                                        <span className="summary-label">Original Quantity</span>
+                                        <span className="summary-value">{formatNumber(panelQty)}</span>
+                                    </div>
+                                    <div className="summary-item highlight">
+                                        <span className="summary-label">Current Balance</span>
+                                        <span className={`summary-value ${balance <= 0 ? 'zero-balance' : ''}`}>
+                                            {formatNumber(balance)}
+                                        </span>
+                                    </div>
+                                </div>
+                                
+                                {/* Production Status Summary */}
+                                <div className="production-status-summary">
+                                    <h5 className="summary-subtitle">Status Distribution</h5>
+                                    <div className="status-distribution">
+                                        {['pending', 'in_progress', 'completed', 'cancelled', 'on_hold'].map(status => {
+                                            const count = productionRecords.filter(r => r.status === status).length;
+                                            if (count === 0) return null;
+                                            
+                                            return (
+                                                <div key={status} className={`status-dist-item ${getStatusClass(status)}`}>
+                                                    <span className="status-label">{getStatusDisplay(status)}</span>
+                                                    <span className="status-count">{count}</span>
+                                                </div>
+                                            );
+                                        })}
                                     </div>
                                 </div>
                             </div>
@@ -314,6 +593,42 @@ const PanelCard = ({ panel, onEdit, onDelete, onToggleProduction, formatNumber, 
                     </div>
                 ) : (
                     <>
+                        {/* Balance Display in Panel Details View */}
+                        <div className="card-section">
+                            <h4 className="card-section-title">Production Status</h4>
+                            <div className="balance-display">
+                                <div className="balance-row">
+                                    <span className="balance-label">Total Quantity:</span>
+                                    <span className="balance-value">{formatNumber(panelQty)}</span>
+                                </div>
+                                <div className="balance-row highlight">
+                                    <span className="balance-label">Current Balance:</span>
+                                    <span className={`balance-value ${balance <= 0 ? 'zero-balance' : ''}`}>
+                                        {formatNumber(balance)}
+                                    </span>
+                                </div>
+                                <div className="balance-row">
+                                    <span className="balance-label">Production Meter:</span>
+                                    <span className="balance-value">{formatNumber(productionMeter)} m</span>
+                                </div>
+                            </div>
+                            
+                            {panelQty > 0 && (
+                                <div className="progress-container">
+                                    <div className="progress-label">
+                                        <span>Production Progress</span>
+                                        <span>{productionProgress.toFixed(1)}%</span>
+                                    </div>
+                                    <div className="progress-bar">
+                                        <div 
+                                            className="progress"
+                                            style={{ width: `${productionProgress}%` }}
+                                        ></div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
                         <div className="card-section">
                             <h4 className="card-section-title">Basic Information</h4>
                             <div className="card-row">
@@ -331,6 +646,14 @@ const PanelCard = ({ panel, onEdit, onDelete, onToggleProduction, formatNumber, 
                             <div className="card-row">
                                 <span className="card-label">Panel Thk:</span>
                                 <span className="card-value">{formatNumber(panel.panel_thk)} mm</span>
+                            </div>
+                            <div className="card-row">
+                                <span className="card-label">Status:</span>
+                                <span className={`card-value status-badge status-${panel.status || 'pending'}`}>
+                                    {panel.status === 'completed' ? 'Completed' : 
+                                     panel.status === 'in_progress' ? 'In Progress' : 
+                                     panel.status === 'pending' ? 'Pending' : 'N/A'}
+                                </span>
                             </div>
                         </div>
 
@@ -364,6 +687,10 @@ const PanelCard = ({ panel, onEdit, onDelete, onToggleProduction, formatNumber, 
                                 <span className="card-label">Quantity:</span>
                                 <span className="card-value">{formatNumber(panel.qty)}</span>
                             </div>
+                            <div className="card-row">
+                                <span className="card-label">Production Meter:</span>
+                                <span className="card-value">{formatNumber(productionMeter)} m</span>
+                            </div>
                         </div>
 
                         <div className="card-section">
@@ -393,6 +720,96 @@ const PanelCard = ({ panel, onEdit, onDelete, onToggleProduction, formatNumber, 
                     Delete
                 </button>
             </div>
+
+            {/* Edit Production Record Modal */}
+            {isEditingProduction && editingProductionRecord && (
+                <div className="modal-overlay production-edit-modal">
+                    <div className="modal-content small-modal" onClick={e => e.stopPropagation()}>
+                        <div className="modal-header">
+                            <h2>Edit Production Record</h2>
+                            <button type="button" className="close-button" onClick={closeEditProductionRecord}>
+                                ×
+                            </button>
+                        </div>
+                        <div className="modal-body">
+                            <form onSubmit={(e) => {
+                                e.preventDefault();
+                                handleUpdateProductionRecord(editingProductionRecord.id, {
+                                    ...editingProductionRecord,
+                                    date: editingProductionRecord.date,
+                                    number_of_panels: parseInt(editingProductionRecord.number_of_panels) || 1,
+                                    status: editingProductionRecord.status || 'pending'
+                                });
+                            }} className="production-edit-form">
+                                <div className="form-group">
+                                    <label htmlFor="edit_date">Date</label>
+                                    <input
+                                        type="date"
+                                        id="edit_date"
+                                        name="date"
+                                        value={editingProductionRecord.date}
+                                        onChange={(e) => setEditingProductionRecord(prev => ({ ...prev, date: e.target.value }))}
+                                        className="form-input"
+                                        required
+                                    />
+                                </div>
+
+                                <div className="form-group">
+                                    <label htmlFor="edit_number_of_panels">Number of Panels</label>
+                                    <input
+                                        type="number"
+                                        id="edit_number_of_panels"
+                                        name="number_of_panels"
+                                        min="1"
+                                        max={balance + (parseInt(editingProductionRecord.number_of_panels) || 0)}
+                                        value={editingProductionRecord.number_of_panels}
+                                        onChange={(e) => setEditingProductionRecord(prev => ({ 
+                                            ...prev, 
+                                            number_of_panels: e.target.value 
+                                        }))}
+                                        className="form-input"
+                                        required
+                                    />
+                                    <small className="form-hint">
+                                        Max: {balance + (parseInt(editingProductionRecord.number_of_panels) || 0)} panels
+                                    </small>
+                                </div>
+
+                                <div className="form-group">
+                                    <label htmlFor="edit_status">Status</label>
+                                    <select
+                                        id="edit_status"
+                                        name="status"
+                                        value={editingProductionRecord.status}
+                                        onChange={(e) => setEditingProductionRecord(prev => ({ 
+                                            ...prev, 
+                                            status: e.target.value 
+                                        }))}
+                                        className="form-input"
+                                    >
+                                        <option value="pending">⏳ Pending</option>
+                                        <option value="in_progress">⚙️ In Progress</option>
+                                        <option value="completed">✅ Completed</option>
+                                        <option value="cancelled">❌ Cancelled</option>
+                                        <option value="on_hold">⏸️ On Hold</option>
+                                    </select>
+                                </div>
+
+                                {localError && <div className="alert alert-danger">{localError}</div>}
+
+                                <div className="form-actions">
+                                    <button type="button" className="secondary-btn" onClick={closeEditProductionRecord}>
+                                        Cancel
+                                    </button>
+                                    <button type="submit" className="primary-btn" disabled={isSaving}>
+                                        {isSaving ? 'Saving...' : 'Update Record'}
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
@@ -408,26 +825,30 @@ const ViewPanelPage = () => {
     const [newPanel, setNewPanel] = useState({
         job_no: '',
         type: '',
-        panel_tik: '',
+        panel_thk: '',
         joint: '',
         surface_front: '',
         surface_back: '',
-        surface_front_tik: '',
-        surface_back_tik: '',
+        surface_front_thk: '',
+        surface_back_thk: '',
         surface_type: '',
         width: '',
         length: '',
         qty: '',
         cutting: '',
-        status: 'pending'
+        status: 'pending',
+        production_meter: '',
+        balance: ''
     });
     
-    // Updated Filters - Only Job No, Reference Number, Type, Brand
+    // Updated Filters
     const [filters, setFilters] = useState({
         reference_number: '',
         job_no: '',
         type: '',
         brand: '',
+        status: '',
+        balance_status: '',
         search: ''
     });
 
@@ -445,12 +866,47 @@ const ViewPanelPage = () => {
         setError(null);
         try {
             const data = await viewPanelAPI.getAll();
-            setPanels(data || []);
+            
+            // Check if data is an array before using map
+            if (Array.isArray(data)) {
+                // Ensure all panels have a balance field
+                const panelsWithBalance = data.map(panel => ({
+                    ...panel,
+                    balance: panel.balance !== undefined ? panel.balance : panel.qty
+                }));
+                setPanels(panelsWithBalance || []);
+            } else {
+                console.error('Expected array but got:', data);
+                setError('Failed to load panels. Invalid data received from server.');
+                setPanels([]);
+            }
         } catch (err) {
             console.error('Failed to fetch panels:', err);
-            setError('Failed to load panels. Please try again.');
+            setError('Failed to load panels. Please try again. Error: ' + (err.message || 'Unknown error'));
+            setPanels([]);
         } finally {
             setIsLoading(false);
+        }
+    };
+
+    const refreshPanels = async () => {
+        try {
+            const data = await viewPanelAPI.getAll();
+            
+            // Check if data is an array before using map
+            if (Array.isArray(data)) {
+                const panelsWithBalance = data.map(panel => ({
+                    ...panel,
+                    balance: panel.balance !== undefined ? panel.balance : panel.qty
+                }));
+                setPanels(panelsWithBalance || []);
+            } else {
+                console.error('Expected array in refresh but got:', data);
+                // Don't set error here, just log it
+            }
+        } catch (err) {
+            console.error('Failed to refresh panels:', err);
+            // Don't set error here to avoid disrupting user experience
         }
     };
 
@@ -460,6 +916,28 @@ const ViewPanelPage = () => {
             if (filters.job_no && !panel.job_no?.toString().toLowerCase().includes(filters.job_no.toLowerCase())) return false;
             if (filters.type && panel.type !== filters.type) return false;
             if (filters.brand && panel.brand !== filters.brand) return false;
+            if (filters.status && panel.status !== filters.status) return false;
+            
+            // Balance status filter
+            if (filters.balance_status) {
+                const balance = panel.balance !== undefined ? panel.balance : panel.qty;
+                switch (filters.balance_status) {
+                    case 'positive':
+                        if (balance <= 0) return false;
+                        break;
+                    case 'zero':
+                        if (balance !== 0) return false;
+                        break;
+                    case 'negative':
+                        if (balance >= 0) return false;
+                        break;
+                    case 'low':
+                        if (balance > panel.qty * 0.1) return false;
+                        break;
+                    default:
+                        break;
+                }
+            }
             
             if (filters.search) {
                 const searchLower = filters.search.toLowerCase();
@@ -477,6 +955,11 @@ const ViewPanelPage = () => {
             if (sortConfig.key) {
                 let aValue = a[sortConfig.key];
                 let bValue = b[sortConfig.key];
+
+                if (sortConfig.key === 'balance') {
+                    aValue = a.balance !== undefined ? a.balance : a.qty;
+                    bValue = b.balance !== undefined ? b.balance : b.qty;
+                }
 
                 if (sortConfig.key === 'reference_number') {
                     const aNum = parseInt(aValue?.split('-').pop() || '0');
@@ -496,7 +979,8 @@ const ViewPanelPage = () => {
 
                 if (sortConfig.key === 'width' || sortConfig.key === 'length' || 
                     sortConfig.key === 'surface_front_thk' || sortConfig.key === 'surface_back_thk' ||
-                    sortConfig.key === 'panel_thk' || sortConfig.key === 'qty') {
+                    sortConfig.key === 'panel_thk' || sortConfig.key === 'qty' || 
+                    sortConfig.key === 'production_meter') {
                     aValue = parseFloat(aValue) || 0;
                     bValue = parseFloat(bValue) || 0;
                 }
@@ -567,6 +1051,8 @@ const ViewPanelPage = () => {
                 surface_back_thk: editingPanel.surface_back_thk ? parseFloat(editingPanel.surface_back_thk) : null,
                 panel_thk: editingPanel.panel_thk ? parseFloat(editingPanel.panel_thk) : null,
                 qty: editingPanel.qty ? parseInt(editingPanel.qty) : null,
+                production_meter: editingPanel.production_meter ? parseFloat(editingPanel.production_meter) : null,
+                balance: editingPanel.qty // Reset balance to qty when updating panel
             };
             
             Object.keys(panelToUpdate).forEach(key => {
@@ -577,14 +1063,17 @@ const ViewPanelPage = () => {
             
             const updatedPanel = await viewPanelAPI.update(editingPanel.id, panelToUpdate);
             setPanels(prev => prev.map(panel => 
-                panel.id === updatedPanel.id ? updatedPanel : panel
+                panel.id === updatedPanel.id ? {
+                    ...updatedPanel,
+                    balance: updatedPanel.balance !== undefined ? updatedPanel.balance : updatedPanel.qty
+                } : panel
             ));
             setIsEditModalOpen(false);
             setEditingPanel(null);
             setError(null);
         } catch (err) {
             console.error('Failed to update panel:', err);
-            setError('Failed to update panel: ' + err.message);
+            setError('Failed to update panel: ' + (err.message || 'Unknown error'));
         }
     };
 
@@ -610,12 +1099,14 @@ const ViewPanelPage = () => {
                 reference_number: referenceNumber,
                 width: newPanel.width ? parseFloat(newPanel.width) : 0,
                 length: newPanel.length ? parseFloat(newPanel.length) : 0,
-                surface_front_tik: newPanel.surface_front_tik ? parseFloat(newPanel.surface_front_tik) : null,
-                surface_back_tik: newPanel.surface_back_tik ? parseFloat(newPanel.surface_back_tik) : null,
-                panel_tik: newPanel.panel_tik ? parseFloat(newPanel.panel_tik) : null,
+                surface_front_thk: newPanel.surface_front_thk ? parseFloat(newPanel.surface_front_thk) : null,
+                surface_back_thk: newPanel.surface_back_thk ? parseFloat(newPanel.surface_back_thk) : null,
+                panel_thk: newPanel.panel_thk ? parseFloat(newPanel.panel_thk) : null,
                 qty: newPanel.qty ? parseInt(newPanel.qty) : null,
-                brand: null, // Brand is not included in create modal
-                estimated_delivery: null // Estimated delivery is not included in create modal
+                balance: newPanel.qty, // Set initial balance equal to quantity
+                production_meter: newPanel.production_meter ? parseFloat(newPanel.production_meter) : null,
+                brand: null,
+                estimated_delivery: null
             };
             
             Object.keys(panelData).forEach(key => {
@@ -625,40 +1116,45 @@ const ViewPanelPage = () => {
             });
             
             const createdPanel = await viewPanelAPI.create(panelData);
-            setPanels(prev => [createdPanel, ...prev]);
+            setPanels(prev => [{
+                ...createdPanel,
+                balance: createdPanel.balance !== undefined ? createdPanel.balance : createdPanel.qty
+            }, ...prev]);
             setIsCreateModalOpen(false);
             setNewPanel({
                 job_no: '',
                 type: '',
-                panel_tik: '',
+                panel_thk: '',
                 joint: '',
                 surface_front: '',
                 surface_back: '',
-                surface_front_tik: '',
-                surface_back_tik: '',
+                surface_front_thk: '',
+                surface_back_thk: '',
                 surface_type: '',
                 width: '',
                 length: '',
                 qty: '',
                 cutting: '',
-                status: 'pending'
+                status: 'pending',
+                production_meter: '',
+                balance: ''
             });
             setError(null);
         } catch (err) {
             console.error('Failed to create panel:', err);
-            setError('Failed to create panel: ' + err.message);
+            setError('Failed to create panel: ' + (err.message || 'Unknown error'));
         }
     };
 
     const handleDeletePanel = async (id) => {
-        if (!window.confirm('Are you sure you want to delete this panel?')) return;
+        if (!window.confirm('Are you sure you want to delete this panel? All production records will also be deleted.')) return;
 
         try {
             await viewPanelAPI.delete(id);
             setPanels(prev => prev.filter(panel => panel.id !== id));
         } catch (err) {
             console.error('Failed to delete panel:', err);
-            setError('Failed to delete panel: ' + err.message);
+            setError('Failed to delete panel: ' + (err.message || 'Unknown error'));
         }
     };
 
@@ -682,9 +1178,10 @@ const ViewPanelPage = () => {
             length: panel.length || '',
             qty: panel.qty || '',
             cutting: panel.cutting || '',
+            status: panel.status || 'pending',
+            production_meter: panel.production_meter || '',
             brand: panel.brand || '',
-            estimated_delivery: panel.estimated_delivery || '',
-            status: panel.status || 'pending'
+            estimated_delivery: panel.estimated_delivery || ''
         });
         setIsEditModalOpen(true);
         setError(null);
@@ -706,18 +1203,20 @@ const ViewPanelPage = () => {
         setNewPanel({
             job_no: '',
             type: '',
-            panel_tik: '',
+            panel_thk: '',
             joint: '',
             surface_front: '',
             surface_back: '',
-            surface_front_tik: '',
-            surface_back_tik: '',
+            surface_front_thk: '',
+            surface_back_thk: '',
             surface_type: '',
             width: '',
             length: '',
             qty: '',
             cutting: '',
-            status: 'pending'
+            status: 'pending',
+            production_meter: '',
+            balance: ''
         });
         setError(null);
     };
@@ -773,22 +1272,64 @@ const ViewPanelPage = () => {
         return [...new Set(brands)].sort();
     }, [panels]);
 
+    const uniqueStatuses = useMemo(() => {
+        const statuses = panels.map(panel => panel.status).filter(p => p);
+        return [...new Set(statuses)].sort();
+    }, [panels]);
+
     const stats = useMemo(() => {
         const totalPanels = panels.length;
         const totalQty = panels.reduce((sum, panel) => sum + (parseInt(panel.qty) || 0), 0);
+        const totalProduced = panels.reduce((sum, panel) => {
+            const panelQty = parseInt(panel.qty) || 0;
+            const balance = panel.balance !== undefined ? panel.balance : panel.qty;
+            return sum + (panelQty - balance);
+        }, 0);
+        const totalBalance = panels.reduce((sum, panel) => {
+            const balance = panel.balance !== undefined ? panel.balance : panel.qty;
+            return sum + (parseInt(balance) || 0);
+        }, 0);
+        const totalProductionMeter = panels.reduce((sum, panel) => sum + (parseFloat(panel.production_meter) || 0), 0);
         
-        // Count by type
-        const typeCounts = {};
+        // Count by status
+        const statusCounts = {};
         panels.forEach(panel => {
-            if (panel.type) {
-                typeCounts[panel.type] = (typeCounts[panel.type] || 0) + 1;
+            const status = panel.status || 'pending';
+            statusCounts[status] = (statusCounts[status] || 0) + 1;
+        });
+        
+        // Count by balance status
+        const balanceStats = {
+            positive: 0,
+            zero: 0,
+            negative: 0,
+            low: 0
+        };
+        
+        panels.forEach(panel => {
+            const panelQty = parseInt(panel.qty) || 0;
+            const balance = panel.balance !== undefined ? panel.balance : panel.qty;
+            
+            if (balance > 0) {
+                balanceStats.positive++;
+                if (balance <= panelQty * 0.1) {
+                    balanceStats.low++;
+                }
+            } else if (balance === 0) {
+                balanceStats.zero++;
+            } else {
+                balanceStats.negative++;
             }
         });
 
         return {
             totalPanels,
             totalQty,
-            typeCounts
+            totalProduced,
+            totalBalance,
+            totalProductionMeter,
+            statusCounts,
+            balanceStats
         };
     }, [panels]);
 
@@ -796,8 +1337,8 @@ const ViewPanelPage = () => {
         <div className="view-panel-container">
             <header className="page-header">
                 <div className="header-left">
-                    <button className="back-btn" onClick={() => navigate(0)}>
-                        ← Back to Panel / Slab
+                    <button className="back-btn" onClick={() => navigate(-1)}>
+                        ← Back
                     </button>
                     <h1 className="header-title">Panel Management System</h1>
                 </div>
@@ -808,7 +1349,7 @@ const ViewPanelPage = () => {
                 </div>
             </header>
 
-            {/* Updated Filters Section */}
+            {/* Filters Section */}
             <div className="filters-section">
                 <div className="filter-row">
                     <div className="search-box">
@@ -858,17 +1399,28 @@ const ViewPanelPage = () => {
                         </select>
 
                         <select 
-                            name="reference_number" 
-                            value={filters.reference_number} 
+                            name="status" 
+                            value={filters.status} 
                             onChange={handleFilterChange} 
                             className="form-select"
                         >
-                            <option value="">All Reference Numbers</option>
-                            {panels.map(panel => (
-                                <option key={panel.reference_number} value={panel.reference_number}>
-                                    {panel.reference_number}
-                                </option>
-                            ))}
+                            <option value="">All Status</option>
+                            <option value="pending">Pending</option>
+                            <option value="in_progress">In Progress</option>
+                            <option value="completed">Completed</option>
+                        </select>
+
+                        <select 
+                            name="balance_status" 
+                            value={filters.balance_status} 
+                            onChange={handleFilterChange} 
+                            className="form-select"
+                        >
+                            <option value="">All Balance Status</option>
+                            <option value="positive">Positive Balance</option>
+                            <option value="zero">Zero Balance</option>
+                            <option value="negative">Negative Balance</option>
+                            <option value="low">Low Balance (&lt;10%)</option>
                         </select>
                     </div>
                 </div>
@@ -888,6 +1440,13 @@ const ViewPanelPage = () => {
                     <div className="stat-content">
                         <h3>Total Quantity</h3>
                         <p className="stat-value">{formatNumber(stats.totalQty)}</p>
+                    </div>
+                </div>
+                <div className="stat-card">
+                    <div className="stat-icon">⚙️</div>
+                    <div className="stat-content">
+                        <h3>Total Produced</h3>
+                        <p className="stat-value">{formatNumber(stats.totalProduced)}</p>
                     </div>
                 </div>
             </div>
@@ -929,6 +1488,9 @@ const ViewPanelPage = () => {
                                     <option value="type">Type</option>
                                     <option value="brand">Brand</option>
                                     <option value="qty">Quantity</option>
+                                    <option value="balance">Balance</option>
+                                    <option value="status">Status</option>
+                                    <option value="production_meter">Production Meter</option>
                                 </select>
                                 <button 
                                     className="sort-direction-btn"
@@ -952,6 +1514,7 @@ const ViewPanelPage = () => {
                                     formatNumber={formatNumber}
                                     formatDecimal={formatDecimal}
                                     formatDate={formatDate}
+                                    refreshPanels={refreshPanels}
                                 />
                             ))}
                         </div>
@@ -963,6 +1526,8 @@ const ViewPanelPage = () => {
                         <div className="display-summary">
                             Showing {filteredPanels.length} of {panels.length} panels
                             {filters.search && ` matching "${filters.search}"`}
+                            {filters.status && ` with status: ${filters.status}`}
+                            {filters.balance_status && ` with ${filters.balance_status} balance`}
                         </div>
                     </div>
                 )}
@@ -1009,12 +1574,12 @@ const ViewPanelPage = () => {
                                     </div>
                                     
                                     <div className="form-group">
-                                        <label htmlFor="create_panel_tik">Panel Thickness (mm)</label>
+                                        <label htmlFor="create_panel_thk">Panel Thickness (mm)</label>
                                         <input 
                                             type="number" 
-                                            id="create_panel_tik" 
-                                            name="panel_tik" 
-                                            value={newPanel.panel_tik || ''} 
+                                            id="create_panel_thk" 
+                                            name="panel_thk" 
+                                            value={newPanel.panel_thk || ''} 
                                             onChange={handleNewPanelInputChange} 
                                             className="form-input" 
                                             placeholder="Panel thickness"
@@ -1065,12 +1630,12 @@ const ViewPanelPage = () => {
                                     </div>
                                     
                                     <div className="form-group">
-                                        <label htmlFor="create_surface_front_tik">Surface Front Thk (mm)</label>
+                                        <label htmlFor="create_surface_front_thk">Surface Front Thk (mm)</label>
                                         <input 
                                             type="number" 
-                                            id="create_surface_front_tik" 
-                                            name="surface_front_tik" 
-                                            value={newPanel.surface_front_tik || ''} 
+                                            id="create_surface_front_thk" 
+                                            name="surface_front_thk" 
+                                            value={newPanel.surface_front_thk || ''} 
                                             onChange={handleNewPanelInputChange} 
                                             className="form-input" 
                                             placeholder="Front thickness"
@@ -1080,12 +1645,12 @@ const ViewPanelPage = () => {
                                     </div>
                                     
                                     <div className="form-group">
-                                        <label htmlFor="create_surface_back_tik">Surface Back Thk (mm)</label>
+                                        <label htmlFor="create_surface_back_thk">Surface Back Thk (mm)</label>
                                         <input 
                                             type="number" 
-                                            id="create_surface_back_tik" 
-                                            name="surface_back_tik" 
-                                            value={newPanel.surface_back_tik || ''} 
+                                            id="create_surface_back_thk" 
+                                            name="surface_back_thk" 
+                                            value={newPanel.surface_back_thk || ''} 
                                             onChange={handleNewPanelInputChange} 
                                             className="form-input" 
                                             placeholder="Back thickness"
@@ -1141,7 +1706,7 @@ const ViewPanelPage = () => {
                                         />
                                     </div>
                                     
-                                    <div className="form-group">
+                                    <div className="form-group required">
                                         <label htmlFor="create_qty">Quantity</label>
                                         <input 
                                             type="number" 
@@ -1149,6 +1714,7 @@ const ViewPanelPage = () => {
                                             name="qty" 
                                             value={newPanel.qty || ''} 
                                             onChange={handleNewPanelInputChange} 
+                                            required 
                                             className="form-input" 
                                             placeholder="Quantity"
                                             min="0"
@@ -1184,6 +1750,21 @@ const ViewPanelPage = () => {
                                             <option value="in_progress">In Progress</option>
                                             <option value="completed">Completed</option>
                                         </select>
+                                    </div>
+
+                                    <div className="form-group">
+                                        <label htmlFor="create_production_meter">Production Meter (m)</label>
+                                        <input 
+                                            type="number" 
+                                            id="create_production_meter" 
+                                            name="production_meter" 
+                                            value={newPanel.production_meter || ''} 
+                                            onChange={handleNewPanelInputChange} 
+                                            className="form-input" 
+                                            placeholder="Production in meters"
+                                            min="0"
+                                            step="0.01"
+                                        />
                                     </div>
                                 </div>
 
@@ -1345,20 +1926,38 @@ const ViewPanelPage = () => {
                                             min="0"
                                             step="1"
                                         />
+                                        <small className="form-hint">Note: Changing quantity will reset balance to this value</small>
                                     </div>
                                     
                                     <div className="form-group">
-                                        <label htmlFor="estimated_delivery">Estimated Delivery</label>
+                                        <label htmlFor="balance">Current Balance (Read-only)</label>
                                         <input 
-                                            type="date" 
-                                            id="estimated_delivery" 
-                                            name="estimated_delivery" 
-                                            value={editingPanel.estimated_delivery ? editingPanel.estimated_delivery.split('T')[0] : ''} 
-                                            onChange={handleEditInputChange} 
-                                            className="form-input" 
+                                            type="number" 
+                                            id="balance" 
+                                            name="balance" 
+                                            value={editingPanel.balance || editingPanel.qty || ''} 
+                                            readOnly
+                                            className="form-input readonly" 
+                                            disabled
                                         />
+                                        <small className="form-hint">Balance updates automatically with production records</small>
                                     </div>
                                     
+                                    <div className="form-group">
+                                        <label htmlFor="production_meter">Production Meter (m)</label>
+                                        <input 
+                                            type="number" 
+                                            id="production_meter" 
+                                            name="production_meter" 
+                                            value={editingPanel.production_meter || ''} 
+                                            onChange={handleEditInputChange} 
+                                            className="form-input" 
+                                            placeholder="Production in meters"
+                                            min="0"
+                                            step="0.01"
+                                        />
+                                    </div>
+
                                     <div className="form-group">
                                         <label htmlFor="status">Status</label>
                                         <select 
@@ -1372,6 +1971,33 @@ const ViewPanelPage = () => {
                                             <option value="in_progress">In Progress</option>
                                             <option value="completed">Completed</option>
                                         </select>
+                                    </div>
+                                </div>
+
+                                <div className="form-row">
+                                    <div className="form-group">
+                                        <label htmlFor="estimated_delivery">Estimated Delivery</label>
+                                        <input 
+                                            type="date" 
+                                            id="estimated_delivery" 
+                                            name="estimated_delivery" 
+                                            value={editingPanel.estimated_delivery ? editingPanel.estimated_delivery.split('T')[0] : ''} 
+                                            onChange={handleEditInputChange} 
+                                            className="form-input" 
+                                        />
+                                    </div>
+                                    
+                                    <div className="form-group">
+                                        <label htmlFor="cutting">Cutting</label>
+                                        <input 
+                                            type="text" 
+                                            id="cutting" 
+                                            name="cutting" 
+                                            value={editingPanel.cutting || ''} 
+                                            onChange={handleEditInputChange} 
+                                            className="form-input" 
+                                            placeholder="Cutting type"
+                                        />
                                     </div>
                                 </div>
 
