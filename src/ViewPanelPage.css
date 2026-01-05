@@ -1789,26 +1789,17 @@ body {
   cursor: pointer;
   font-weight: 500;
   font-size: 14px;
-  transition: all 0.2s ease;
   margin-right: 10px;
+  /* Remove hover color change */
+  transition: none;
 }
 
 .edit-btn {
-  background-color: #3b82f6; /* Blue */
+  background-color: #3b82f6; /* Always blue */
   color: white;
-}
-
-.edit-btn:hover {
-  background-color: #2563eb; /* Darker blue */
-  transform: translateY(-1px);
 }
 
 .delete-btn {
-  background-color: #ef4444; /* Red */
+  background-color: #ef4444; /* Always red */
   color: white;
-}
-
-.delete-btn:hover {
-  background-color: #dc2626; /* Darker red */
-  transform: translateY(-1px);
 }
