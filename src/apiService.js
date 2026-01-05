@@ -1,4 +1,4 @@
-const BASE_URL = 'https://unitedpanelsystem-backend-1.onrender.com/api'; // Changed from 5000 to 10000 to match your server
+const BASE_URL = 'https://unitedpanelsystem-backend-1.onrender.com/api';
 
 // Helper to handle standard API responses
 const handleResponse = async (response) => {

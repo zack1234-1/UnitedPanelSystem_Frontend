@@ -1146,68 +1146,6 @@ const ViewPanelPage = () => {
         }
     };
 
-    const handleCreatePanel = async (e) => {
-        e.preventDefault();
-        
-        if (!newPanel.job_no?.trim()) {
-            setError('Job No is required');
-            return;
-        }
-        
-        if (!newPanel.width || !newPanel.length) {
-            setError('Width and Length are required');
-            return;
-        }
-        
-        try {
-            const existingRefs = panels.map(p => p.reference_number);
-            const referenceNumber = generateReferenceNumber(existingRefs);
-            
-            const panelData = {
-                ...newPanel,
-                reference_number: referenceNumber,
-                width: newPanel.width ? parseFloat(newPanel.width) : 0,
-                length: newPanel.length ? parseFloat(newPanel.length) : 0,
-                surface_front_tik: newPanel.surface_front_tik ? parseFloat(newPanel.surface_front_tik) : null,
-                surface_back_tik: newPanel.surface_back_tik ? parseFloat(newPanel.surface_back_tik) : null,
-                panel_tik: newPanel.panel_tik ? parseFloat(newPanel.panel_tik) : null,
-                qty: newPanel.qty ? parseInt(newPanel.qty) : null,
-                brand: null, // Brand is not included in create modal
-                estimated_delivery: null // Estimated delivery is not included in create modal
-            };
-            
-            Object.keys(panelData).forEach(key => {
-                if (panelData[key] === '') {
-                    panelData[key] = null;
-                }
-            });
-            
-            const createdPanel = await viewPanelAPI.create(panelData);
-            setPanels(prev => [createdPanel, ...prev]);
-            setIsCreateModalOpen(false);
-            setNewPanel({
-                job_no: '',
-                type: '',
-                panel_tik: '',
-                joint: '',
-                surface_front: '',
-                surface_back: '',
-                surface_front_tik: '',
-                surface_back_tik: '',
-                surface_type: '',
-                width: '',
-                length: '',
-                qty: '',
-                cutting: '',
-                status: 'pending'
-            });
-            setError(null);
-        } catch (err) {
-            console.error('Failed to create panel:', err);
-            setError('Failed to create panel: ' + err.message);
-        }
-    };
-
     const handleDeletePanel = async (id) => {
         if (!window.confirm('Are you sure you want to delete this panel? All production records will also be deleted.')) return;
 
