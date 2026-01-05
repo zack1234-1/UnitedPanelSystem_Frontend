@@ -1036,3 +1036,656 @@ body {
     width: 100%;
   }
 }
+
+/* Balance Styles */
+.balance-display {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 15px;
+    border: 1px solid #dee2e6;
+}
+
+.balance-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.balance-row:last-child {
+    border-bottom: none;
+}
+
+.balance-row.highlight {
+    background-color: #e3f2fd;
+    margin: 0 -15px;
+    padding: 10px 15px;
+    border-radius: 4px;
+    font-weight: 600;
+    border: 1px solid #bbdefb;
+}
+
+.balance-label {
+    font-size: 14px;
+    color: #495057;
+}
+
+.balance-value {
+    font-size: 16px;
+    font-weight: 600;
+    color: #212529;
+}
+
+.balance-value.zero-balance {
+    color: #dc3545;
+    font-weight: 700;
+}
+
+.balance-value.low-balance {
+    color: #ffc107;
+    font-weight: 700;
+}
+
+.balance-warning {
+    color: #dc3545;
+    font-size: 12px;
+    margin-left: 8px;
+    font-weight: 500;
+}
+
+/* Progress Bar Styles */
+.progress-container {
+    margin-top: 15px;
+}
+
+.progress-label {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 5px;
+    font-size: 14px;
+    color: #495057;
+}
+
+.progress-bar {
+    height: 8px;
+    background-color: #e9ecef;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.progress {
+    height: 100%;
+    background: linear-gradient(90deg, #28a745 0%, #20c997 100%);
+    border-radius: 4px;
+    transition: width 0.3s ease;
+}
+
+/* Production Progress Styles */
+.production-progress {
+    margin-top: 15px;
+}
+
+.progress-bar-container {
+    height: 24px;
+    background-color: #e9ecef;
+    border-radius: 12px;
+    overflow: hidden;
+    position: relative;
+    margin-bottom: 8px;
+}
+
+.progress-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #007bff 0%, #0056b3 100%);
+    border-radius: 12px;
+    transition: width 0.3s ease;
+    position: relative;
+}
+
+.progress-text {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: white;
+    font-size: 12px;
+    font-weight: 600;
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+}
+
+.progress-stats {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: #6c757d;
+}
+
+/* Balance Summary Grid */
+.balance-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 15px;
+    margin-bottom: 15px;
+}
+
+.balance-item {
+    background: white;
+    border-radius: 8px;
+    padding: 12px;
+    border: 1px solid #dee2e6;
+    text-align: center;
+}
+
+.balance-item.highlight {
+    background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+    border-color: #90caf9;
+}
+
+.balance-item .balance-label {
+    display: block;
+    font-size: 12px;
+    color: #6c757d;
+    margin-bottom: 5px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.balance-item .balance-value {
+    display: block;
+    font-size: 18px;
+    font-weight: 700;
+}
+
+/* Production Summary Grid */
+.production-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 12px;
+    margin-top: 10px;
+}
+
+.summary-item {
+    background: #f8f9fa;
+    border-radius: 6px;
+    padding: 10px;
+    text-align: center;
+    border: 1px solid #dee2e6;
+}
+
+.summary-item.highlight {
+    background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
+    border-color: #ffc107;
+}
+
+.summary-label {
+    display: block;
+    font-size: 11px;
+    color: #6c757d;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 4px;
+}
+
+.summary-value {
+    display: block;
+    font-size: 16px;
+    font-weight: 700;
+    color: #212529;
+}
+
+/* Max Hint */
+.max-hint {
+    font-size: 12px;
+    color: #6c757d;
+    margin-top: 4px;
+    text-align: right;
+}
+
+/* Past Due Records */
+.past-due {
+    border-left: 4px solid #dc3545;
+    background-color: #fff5f5;
+}
+
+.past-due-badge {
+    background-color: #dc3545;
+    color: white;
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 3px;
+    margin-left: 8px;
+}
+
+/* Disabled State */
+.create-record-btn.disabled {
+    background-color: #6c757d;
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+.create-record-btn.disabled:hover {
+    background-color: #6c757d;
+    transform: none;
+}
+
+/* Balance Summary Stats */
+.balance-summary-stats {
+    display: flex;
+    gap: 20px;
+    margin: 20px 0;
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border: 1px solid #dee2e6;
+    flex-wrap: wrap;
+}
+
+.balance-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 100px;
+    padding: 10px;
+    background: white;
+    border-radius: 6px;
+    border: 1px solid #dee2e6;
+}
+
+.balance-stat-label {
+    font-size: 12px;
+    color: #6c757d;
+    margin-bottom: 5px;
+    text-align: center;
+}
+
+.balance-stat-value {
+    font-size: 20px;
+    font-weight: 700;
+}
+
+.balance-stat-value.positive {
+    color: #28a745;
+}
+
+.balance-stat-value.zero {
+    color: #ffc107;
+}
+
+.balance-stat-value.negative {
+    color: #dc3545;
+}
+
+.balance-stat-value.low {
+    color: #fd7e14;
+}
+
+/* Stat Card Highlight */
+.stat-card.highlight {
+    background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+    border-color: #90caf9;
+}
+
+/* Form Hints */
+.form-hint {
+    display: block;
+    margin-top: 4px;
+    font-size: 12px;
+    color: #6c757d;
+}
+
+.form-input.readonly {
+    background-color: #e9ecef;
+    cursor: not-allowed;
+}
+
+.record-balance {
+    margin-top: 4px;
+}
+
+.record-balance small {
+    color: #6c757d;
+    font-style: italic;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+    .balance-summary-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .production-summary-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .balance-summary-stats {
+        justify-content: center;
+    }
+    
+    .balance-stat {
+        min-width: 80px;
+    }
+}
+
+/* Status Styles */
+.panel-status {
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 600;
+    margin-left: 8px;
+}
+
+.status-pending {
+    background-color: #fff3cd;
+    color: #856404;
+    border: 1px solid #ffeaa7;
+}
+
+.status-in_progress {
+    background-color: #e3f2fd;
+    color: #0c63e4;
+    border: 1px solid #bbdefb;
+}
+
+.status-completed {
+    background-color: #d1e7dd;
+    color: #0a3622;
+    border: 1px solid #a3cfbb;
+}
+
+.status-badge {
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 600;
+    display: inline-block;
+}
+
+/* Status Summary */
+.status-summary {
+    display: flex;
+    gap: 20px;
+    margin: 15px 0;
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border: 1px solid #dee2e6;
+    flex-wrap: wrap;
+}
+
+.status-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 100px;
+    padding: 10px;
+    background: white;
+    border-radius: 6px;
+    border: 1px solid #dee2e6;
+}
+
+.status-item.status-pending {
+    border-left: 4px solid #ffc107;
+}
+
+.status-item.status-in_progress {
+    border-left: 4px solid #0d6efd;
+}
+
+.status-item.status-completed {
+    border-left: 4px solid #198754;
+}
+
+.status-label {
+    font-size: 12px;
+    color: #6c757d;
+    margin-bottom: 5px;
+    text-align: center;
+}
+
+.status-value {
+    font-size: 20px;
+    font-weight: 700;
+}
+
+/* Card Status Badge */
+.card-section .status-badge {
+    margin-left: 5px;
+}
+
+/* Production Meter Display */
+.production-meter-display {
+    background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+    padding: 10px;
+    border-radius: 6px;
+    margin: 10px 0;
+    border: 1px solid #90caf9;
+}
+
+.production-meter-label {
+    font-size: 14px;
+    font-weight: 600;
+    color: #1565c0;
+    margin-bottom: 5px;
+}
+
+.production-meter-value {
+    font-size: 18px;
+    font-weight: 700;
+    color: #0d47a1;
+}
+
+/* Form Improvements */
+.form-hint {
+    display: block;
+    margin-top: 4px;
+    font-size: 12px;
+    color: #6c757d;
+    font-style: italic;
+}
+
+.form-input.readonly {
+    background-color: #e9ecef;
+    cursor: not-allowed;
+    color: #6c757d;
+}
+
+/* Balance Warning */
+.balance-warning {
+    color: #dc3545;
+    font-size: 12px;
+    margin-left: 8px;
+    font-weight: 500;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+    .status-summary {
+        justify-content: center;
+    }
+    
+    .status-item {
+        min-width: 80px;
+    }
+    
+    .panel-status {
+        font-size: 10px;
+        padding: 2px 4px;
+    }
+}
+
+/* Card Header Improvements */
+.card-header .panel-status {
+    margin-left: 10px;
+    align-self: center;
+}
+
+.card-title {
+    display: flex;
+    align-items: center;
+}
+
+/* Filter Group Responsive */
+.filter-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.filter-group .form-select {
+    flex: 1;
+    min-width: 150px;
+}
+
+/* Production Status Styles */
+.production-status-container select,
+.status-change-dropdown {
+    padding: 6px 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background: white;
+    font-size: 14px;
+    cursor: pointer;
+    width: 100%;
+}
+
+.status-change-dropdown {
+    width: 140px;
+    padding: 4px 8px;
+    font-size: 12px;
+}
+
+.record-status {
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.status-pending {
+    background-color: #fff3cd;
+    color: #856404;
+    border: 1px solid #ffeaa7;
+}
+
+.status-in-progress {
+    background-color: #cce5ff;
+    color: #004085;
+    border: 1px solid #b8daff;
+}
+
+.status-completed {
+    background-color: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.status-cancelled {
+    background-color: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+
+.status-on-hold {
+    background-color: #e2e3e5;
+    color: #383d41;
+    border: 1px solid #d6d8db;
+}
+
+/* Production Record Item Updates */
+.record-main {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.record-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.edit-record-btn {
+    background: #17a2b8;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 4px 8px;
+    cursor: pointer;
+    font-size: 12px;
+}
+
+.edit-record-btn:hover {
+    background: #138496;
+}
+
+.record-status-actions {
+    display: flex;
+    align-items: center;
+}
+
+/* Production Status Summary */
+.production-status-summary {
+    margin-top: 20px;
+    padding-top: 15px;
+    border-top: 1px solid #eee;
+}
+
+.summary-subtitle {
+    margin-bottom: 10px;
+    color: #555;
+    font-size: 14px;
+}
+
+.status-distribution {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.status-dist-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.status-dist-item .status-count {
+    background: rgba(255, 255, 255, 0.3);
+    padding: 1px 6px;
+    border-radius: 10px;
+    font-weight: bold;
+}
+
+/* Production Edit Modal */
+.production-edit-modal .modal-content.small-modal {
+    max-width: 400px;
+    width: 90%;
+}
+
+.production-edit-form .form-group {
+    margin-bottom: 15px;
+}
+
+.production-edit-form label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: 500;
+    color: #333;
+}
+
+.production-edit-form .form-hint {
+    display: block;
+    margin-top: 4px;
+    color: #666;
+    font-size: 12px;
+}
