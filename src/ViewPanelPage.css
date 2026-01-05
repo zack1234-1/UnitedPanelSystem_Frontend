@@ -611,31 +611,23 @@ body {
 }
 
 .card-btn {
-  flex: 1;
-  padding: 10px 16px;
-  border: none;
-  border-radius: var(--border-radius-md);
-  font-weight: 500;
-  font-size: 0.9rem;
-  cursor: pointer;
-  transition: var(--transition);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  min-width: 120px;
+  /* Keep existing styles, but add: */
+  border: 2px solid transparent; /* Add border */
+  font-weight: 600; /* Make text bolder */
+  letter-spacing: 0.5px; /* Slight letter spacing */
+  text-transform: uppercase; /* Uppercase text */
+  font-size: 0.85rem; /* Slightly smaller */
 }
 
 .edit-btn {
-  background:#e67e22;
-  color: white;
+  background: #3498db; /* Blue */
+  border-color: #2980b9; /* Darker blue border */
 }
 
 .delete-btn {
-  background:#c0392b;
-  color: white;
+  background: #e74c3c; /* Red */
+  border-color: #c0392b; /* Darker red border */
 }
-
 
 /* Loading States */
 .loading-state, .loading-records {
