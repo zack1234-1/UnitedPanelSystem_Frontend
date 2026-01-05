@@ -645,6 +645,10 @@ const PanelCard = ({ panel, onEdit, onDelete, onToggleProduction, formatNumber, 
                                 <span className="card-value">{formatNumber(panel.panel_thk)} mm</span>
                             </div>
                             <div className="card-row">
+                                <span className="card-label">Salesman:</span>
+                                <span className="card-value">{panel.salesman || 'N/A'}</span>
+                            </div>
+                            <div className="card-row">
                                 <span className="card-label">Status:</span>
                                 <span className={`card-value status-badge status-${panel.status || 'pending'}`}>
                                     {panel.status === 'completed' ? 'Completed' : 
@@ -696,6 +700,12 @@ const PanelCard = ({ panel, onEdit, onDelete, onToggleProduction, formatNumber, 
                                 <span className="card-label">Estimated Delivery:</span>
                                 <span className="card-value">{panel.estimated_delivery ? formatDate(panel.estimated_delivery) : 'N/A'}</span>
                             </div>
+                            {panel.notes && (
+                                <div className="card-row notes-row">
+                                    <span className="card-label">Notes:</span>
+                                    <span className="card-value notes-content">{panel.notes}</span>
+                                </div>
+                            )}
                         </div>
                     </>
                 )}
@@ -835,7 +845,9 @@ const ViewPanelPage = () => {
         cutting: '',
         status: 'pending',
         production_meter: '',
-        balance: ''
+        balance: '',
+        salesman: '',      // New field
+        notes: ''          // New field
     });
     
     // Updated Filters
@@ -942,7 +954,8 @@ const ViewPanelPage = () => {
                     (panel.reference_number?.toLowerCase().includes(searchLower)) ||
                     (panel.job_no?.toString().toLowerCase().includes(searchLower)) ||
                     (panel.type?.toLowerCase().includes(searchLower)) ||
-                    (panel.brand?.toLowerCase().includes(searchLower))
+                    (panel.brand?.toLowerCase().includes(searchLower)) ||
+                    (panel.salesman?.toLowerCase().includes(searchLower)) // Added salesman to search
                 );
             }
             return true;
@@ -1049,6 +1062,8 @@ const ViewPanelPage = () => {
                 panel_thk: editingPanel.panel_thk ? parseFloat(editingPanel.panel_thk) : null,
                 qty: editingPanel.qty ? parseInt(editingPanel.qty) : null,
                 production_meter: editingPanel.production_meter ? parseFloat(editingPanel.production_meter) : null,
+                salesman: editingPanel.salesman || null,  // New field
+                notes: editingPanel.notes || null,        // New field
                 balance: editingPanel.qty // Reset balance to qty when updating panel
             };
             
@@ -1103,7 +1118,9 @@ const ViewPanelPage = () => {
                 balance: newPanel.qty, // Set initial balance equal to quantity
                 production_meter: newPanel.production_meter ? parseFloat(newPanel.production_meter) : null,
                 brand: null,
-                estimated_delivery: null
+                estimated_delivery: null,
+                salesman: newPanel.salesman || null,  // New field
+                notes: newPanel.notes || null         // New field
             };
             
             Object.keys(panelData).forEach(key => {
@@ -1134,7 +1151,9 @@ const ViewPanelPage = () => {
                 cutting: '',
                 status: 'pending',
                 production_meter: '',
-                balance: ''
+                balance: '',
+                salesman: '',      // New field
+                notes: ''          // New field
             });
             setError(null);
         } catch (err) {
@@ -1178,7 +1197,9 @@ const ViewPanelPage = () => {
             status: panel.status || 'pending',
             production_meter: panel.production_meter || '',
             brand: panel.brand || '',
-            estimated_delivery: panel.estimated_delivery || ''
+            estimated_delivery: panel.estimated_delivery || '',
+            salesman: panel.salesman || '',      // New field
+            notes: panel.notes || ''             // New field
         });
         setIsEditModalOpen(true);
         setError(null);
@@ -1213,7 +1234,9 @@ const ViewPanelPage = () => {
             cutting: '',
             status: 'pending',
             production_meter: '',
-            balance: ''
+            balance: '',
+            salesman: '',      // New field
+            notes: ''          // New field
         });
         setError(null);
     };
@@ -1274,6 +1297,11 @@ const ViewPanelPage = () => {
         return [...new Set(statuses)].sort();
     }, [panels]);
 
+    const uniqueSalesmen = useMemo(() => {
+        const salesmen = panels.map(panel => panel.salesman).filter(p => p);
+        return [...new Set(salesmen)].sort();
+    }, [panels]);
+
     const stats = useMemo(() => {
         const totalPanels = panels.length;
         const totalQty = panels.reduce((sum, panel) => sum + (parseInt(panel.qty) || 0), 0);
@@ -1293,6 +1321,13 @@ const ViewPanelPage = () => {
         panels.forEach(panel => {
             const status = panel.status || 'pending';
             statusCounts[status] = (statusCounts[status] || 0) + 1;
+        });
+        
+        // Count by salesman
+        const salesmanCounts = {};
+        panels.forEach(panel => {
+            const salesman = panel.salesman || 'Not Assigned';
+            salesmanCounts[salesman] = (salesmanCounts[salesman] || 0) + 1;
         });
         
         // Count by balance status
@@ -1326,6 +1361,7 @@ const ViewPanelPage = () => {
             totalBalance,
             totalProductionMeter,
             statusCounts,
+            salesmanCounts,
             balanceStats
         };
     }, [panels]);
@@ -1392,6 +1428,18 @@ const ViewPanelPage = () => {
                             <option value="">All Brands</option>
                             {uniqueBrands.map(brand => (
                                 <option key={brand} value={brand}>{brand}</option>
+                            ))}
+                        </select>
+
+                        <select 
+                            name="salesman" 
+                            value={filters.salesman} 
+                            onChange={handleFilterChange} 
+                            className="form-select"
+                        >
+                            <option value="">All Salesmen</option>
+                            {uniqueSalesmen.map(salesman => (
+                                <option key={salesman} value={salesman}>{salesman}</option>
                             ))}
                         </select>
 
@@ -1484,6 +1532,7 @@ const ViewPanelPage = () => {
                                     <option value="job_no">Job Number</option>
                                     <option value="type">Type</option>
                                     <option value="brand">Brand</option>
+                                    <option value="salesman">Salesman</option>
                                     <option value="qty">Quantity</option>
                                     <option value="balance">Balance</option>
                                     <option value="status">Status</option>
@@ -1765,6 +1814,37 @@ const ViewPanelPage = () => {
                                     </div>
                                 </div>
 
+                                {/* New Fields: Salesman and Notes */}
+                                <div className="form-row">
+                                    <div className="form-group">
+                                        <label htmlFor="create_salesman">Salesman</label>
+                                        <input 
+                                            type="text" 
+                                            id="create_salesman" 
+                                            name="salesman" 
+                                            value={newPanel.salesman || ''} 
+                                            onChange={handleNewPanelInputChange} 
+                                            className="form-input" 
+                                            placeholder="Enter salesman name"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="form-row">
+                                    <div className="form-group full-width">
+                                        <label htmlFor="create_notes">Notes</label>
+                                        <textarea 
+                                            id="create_notes" 
+                                            name="notes" 
+                                            value={newPanel.notes || ''} 
+                                            onChange={handleNewPanelInputChange} 
+                                            className="form-input form-textarea" 
+                                            placeholder="Enter additional notes or comments"
+                                            rows="4"
+                                        />
+                                    </div>
+                                </div>
+
                                 {error && <div className="alert alert-danger">{error}</div>}
 
                                 <div className="form-actions">
@@ -1973,6 +2053,19 @@ const ViewPanelPage = () => {
 
                                 <div className="form-row">
                                     <div className="form-group">
+                                        <label htmlFor="salesman">Salesman</label>
+                                        <input 
+                                            type="text" 
+                                            id="salesman" 
+                                            name="salesman" 
+                                            value={editingPanel.salesman || ''} 
+                                            onChange={handleEditInputChange} 
+                                            className="form-input" 
+                                            placeholder="Enter salesman name"
+                                        />
+                                    </div>
+                                    
+                                    <div className="form-group">
                                         <label htmlFor="estimated_delivery">Estimated Delivery</label>
                                         <input 
                                             type="date" 
@@ -1994,6 +2087,22 @@ const ViewPanelPage = () => {
                                             onChange={handleEditInputChange} 
                                             className="form-input" 
                                             placeholder="Cutting type"
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* New Field: Notes (Textarea with bigger space) */}
+                                <div className="form-row">
+                                    <div className="form-group full-width">
+                                        <label htmlFor="notes">Notes</label>
+                                        <textarea 
+                                            id="notes" 
+                                            name="notes" 
+                                            value={editingPanel.notes || ''} 
+                                            onChange={handleEditInputChange} 
+                                            className="form-input form-textarea" 
+                                            placeholder="Enter additional notes or comments"
+                                            rows="6"
                                         />
                                     </div>
                                 </div>
