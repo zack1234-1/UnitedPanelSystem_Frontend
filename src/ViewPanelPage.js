@@ -1569,13 +1569,6 @@ const ViewPanelPage = () => {
                         <p className="stat-value">{formatNumber(stats.totalQty)}</p>
                     </div>
                 </div>
-                <div className="stat-card">
-                    <div className="stat-icon">⚙️</div>
-                    <div className="stat-content">
-                        <h3>Total Produced</h3>
-                        <p className="stat-value">{formatNumber(stats.totalProduced)}</p>
-                    </div>
-                </div>
             </div>
 
             <div className="panels-display-container">

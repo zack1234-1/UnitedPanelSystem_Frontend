@@ -2700,3 +2700,35 @@ input[type="number"] {
     -moz-appearance: textfield;
 }
 
+
+/* Make sure status dropdown shows text */
+.status-change-dropdown.mini option {
+    color: #333;
+    background: white;
+    padding: 5px;
+}
+
+/* When dropdown is open, show text */
+.status-change-dropdown.mini:focus option {
+    color: #333;
+}
+
+/* Ensure dropdown has enough width to show text */
+.status-change-dropdown.mini {
+    min-width: 120px;
+    max-width: 150px;
+}
+
+/* For the compact select in production form */
+.compact-select option {
+    color: #333;
+    background: white;
+    padding: 5px;
+}
+
+/* For form inputs in modals */
+.form-input option {
+    color: #333;
+    background: white;
+    padding: 5px;
+}
