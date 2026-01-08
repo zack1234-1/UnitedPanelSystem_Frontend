@@ -1,4 +1,4 @@
-const BASE_URL = 'https://unitedpanelsystem-backend-1.onrender.com/api';
+const BASE_URL = 'http://localhost:5000/api';
 
 // Helper to handle standard API responses
 const handleResponse = async (response) => {
@@ -330,6 +330,11 @@ export const viewPanelAPI = {
     // DELETE: Delete production record with balance update
     deleteProductionWithBalance: (panelId, recordId) => apiRequest(`/panels/${panelId}/production/${recordId}/with-balance`, {
         method: 'DELETE',
+    }),
+
+    // POST: Duplicate panel
+    duplicate: (panelId) => apiRequest(`/panels/${panelId}/duplicate`, {
+        method: 'POST',
     }),
 
     // GET: Get balance history
