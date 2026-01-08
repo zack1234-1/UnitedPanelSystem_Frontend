@@ -1818,6 +1818,7 @@ body {
 .card-header-section .created-date {
     font-size: 0.8rem;
     opacity: 0.8;
+    color:black;
 }
 
 /* Fix for toggle button colors and overflow */
