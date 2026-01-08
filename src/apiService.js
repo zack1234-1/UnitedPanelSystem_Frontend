@@ -332,6 +332,11 @@ export const viewPanelAPI = {
         method: 'DELETE',
     }),
 
+    // POST: Duplicate panel
+    duplicate: (panelId) => apiRequest(`/panels/${panelId}/duplicate`, {
+        method: 'POST',
+    }),
+
     // GET: Get balance history
     getBalanceHistory: (panelId) => apiRequest(`/panels/${panelId}/balance-history`),
 
