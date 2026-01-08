@@ -1454,7 +1454,7 @@ const ViewPanelPage = () => {
         <div className="view-panel-container">
             <header className="page-header">
                 <div className="header-left">
-                    <button className="back-btn" onClick={() => navigate(-1)}>
+                    <button className="back-btn" onClick={() => navigate(0)}>
                         ← Back
                     </button>
                     <h1 className="header-title">Panel Management System</h1>
