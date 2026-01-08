@@ -411,24 +411,30 @@ const PanelCard = ({ panel, onEdit, onDuplicate, onDelete, onToggleProduction, f
                                                         </div>
                                                         <div className="record-details">
                                                             <div className="record-status-row">
-                                                                <select
-                                                                    className="status-change-dropdown mini"
-                                                                    value={record.status || 'pending'}
-                                                                    onChange={(e) => handleUpdateProductionStatus(record.id, e.target.value)}
-                                                                    disabled={isSaving}
-                                                                >
-                                                                    <option value="pending">pending</option>
-                                                                    <option value="in_progress">In Progress</option>
-                                                                    <option value="completed">Completed</option>
-                                                                </select>
-                                                                <button
-                                                                    className="delete-record-btn mini"
-                                                                    onClick={() => handleDeleteProductionRecord(record.id)}
-                                                                    disabled={isSaving}
-                                                                    title="Delete"
-                                                                >
-                                                                    ✕
-                                                                </button>
+                                                                <div className="status-display-with-controls">
+                                                                    <span className="current-status-badge">
+                                                                        {getStatusDisplay(record.status)}
+                                                                    </span>
+                                                                    <select
+                                                                        className="status-change-dropdown mini"
+                                                                        value={record.status || 'pending'}
+                                                                        onChange={(e) => handleUpdateProductionStatus(record.id, e.target.value)}
+                                                                        disabled={isSaving}
+                                                                        title="Change status"
+                                                                    >
+                                                                        <option value="pending">⏳ Pending</option>
+                                                                        <option value="in_progress">⚙️ In Progress</option>
+                                                                        <option value="completed">✅ Completed</option>
+                                                                    </select>
+                                                                    <button
+                                                                        className="delete-record-btn mini"
+                                                                        onClick={() => handleDeleteProductionRecord(record.id)}
+                                                                        disabled={isSaving}
+                                                                        title="Delete"
+                                                                    >
+                                                                        ✕
+                                                                    </button>
+                                                                </div>
                                                             </div>
                                                         </div>
                                                     </div>

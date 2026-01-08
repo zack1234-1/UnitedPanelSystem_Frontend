@@ -2444,6 +2444,7 @@ body {
     font-size: 0.8rem;
     background: white;
     cursor: pointer;
+    color:black;
 }
 
 .compact-record-item .delete-record-btn.mini {
@@ -2459,6 +2460,7 @@ body {
     cursor: pointer;
     font-size: 0.8rem;
     transition: all 0.3s ease;
+    color:black;
 }
 
 .compact-record-item .delete-record-btn.mini:hover {
@@ -2698,37 +2700,4 @@ input[type="number"]::-webkit-outer-spin-button {
 
 input[type="number"] {
     -moz-appearance: textfield;
-}
-
-
-/* Make sure status dropdown shows text */
-.status-change-dropdown.mini option {
-    color: #333;
-    background: white;
-    padding: 5px;
-}
-
-/* When dropdown is open, show text */
-.status-change-dropdown.mini:focus option {
-    color: #333;
-}
-
-/* Ensure dropdown has enough width to show text */
-.status-change-dropdown.mini {
-    min-width: 120px;
-    max-width: 150px;
-}
-
-/* For the compact select in production form */
-.compact-select option {
-    color: #333;
-    background: white;
-    padding: 5px;
-}
-
-/* For form inputs in modals */
-.form-input option {
-    color: #333;
-    background: white;
-    padding: 5px;
 }
