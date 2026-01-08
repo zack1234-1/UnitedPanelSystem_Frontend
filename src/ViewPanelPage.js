@@ -417,9 +417,9 @@ const PanelCard = ({ panel, onEdit, onDuplicate, onDelete, onToggleProduction, f
                                                                     onChange={(e) => handleUpdateProductionStatus(record.id, e.target.value)}
                                                                     disabled={isSaving}
                                                                 >
-                                                                    <option value="pending">⏳</option>
-                                                                    <option value="in_progress">⚙️</option>
-                                                                    <option value="completed">✅</option>
+                                                                    <option value="pending">pending</option>
+                                                                    <option value="in_progress">In Progress</option>
+                                                                    <option value="completed">Completed</option>
                                                                 </select>
                                                                 <button
                                                                     className="delete-record-btn mini"
