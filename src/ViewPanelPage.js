@@ -437,9 +437,6 @@ const PanelCard = ({ panel, onEdit, onDuplicate, onDelete, onToggleProduction, f
                                                         <div className="record-details">
                                                             <div className="record-status-row">
                                                                 <div className="status-display-with-controls">
-                                                                    <span className="current-status-badge">
-                                                                        {getStatusDisplay(record.status)}
-                                                                    </span>
                                                                     <select
                                                                         className="status-change-dropdown mini"
                                                                         value={record.status || 'pending'}
@@ -536,20 +533,6 @@ const PanelCard = ({ panel, onEdit, onDuplicate, onDelete, onToggleProduction, f
                                                 {balance > 0 ? `Max: ${balance}` : 'No panels available'}
                                             </div>
                                         </div>
-                                    </div>
-                                    
-                                    <div className="compact-form-group">
-                                        <label className="compact-label">Status:</label>
-                                        <select 
-                                            className="compact-select"
-                                            value={productionStatus}
-                                            onChange={(e) => setProductionStatus(e.target.value)}
-                                            disabled={isSaving || balance <= 0}
-                                        >
-                                            <option value="pending">⏳ Pending</option>
-                                            <option value="in_progress">⚙️ In Progress</option>
-                                            <option value="completed">✅ Completed</option>
-                                        </select>
                                     </div>
                                     
                                     <button
