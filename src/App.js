@@ -16,7 +16,7 @@ import ReportGenerator from './ReportGenerator';
 // 1. REAL API Service Implementation
 // =========================================================
 
-const API_BASE = 'https://unitedpanelsystem-backend-1.onrender.com/api';
+const API_BASE = 'http://localhost:5000/api';
 
 // Helper function for API calls
 const apiCall = async (endpoint, options = {}) => {
@@ -1579,7 +1579,6 @@ function App() {
                                     value={editingProject.sales} 
                                     onChange={handleEditInputChange} 
                                     placeholder="Sales Amount"
-                                    onWheel={(e) => e.target.blur()}
                                 />
                             </div>
                             
@@ -1593,7 +1592,6 @@ function App() {
                                     value={editingProject.sell} 
                                     onChange={handleEditInputChange} 
                                     placeholder="Sell Price"
-                                    onWheel={(e) => e.target.blur()}
                                 />
                             </div>
                             
@@ -1607,7 +1605,6 @@ function App() {
                                     value={editingProject.cost} 
                                     onChange={handleEditInputChange} 
                                     placeholder="Cost"
-                                    onWheel={(e) => e.target.blur()}
                                 />
                             </div>
                             
@@ -1623,7 +1620,6 @@ function App() {
                                     placeholder="Margin"
                                     readOnly
                                     className="readonly-field"
-                                    onWheel={(e) => e.target.blur()}
                                 />
                             </div>
                         </div>
@@ -1638,7 +1634,6 @@ function App() {
                             onChange={handleEditInputChange} 
                             placeholder="Additional notes or remarks"
                             rows="3"
-                            onWheel={(e) => e.target.blur()}
                         />
                     </div>
                     
