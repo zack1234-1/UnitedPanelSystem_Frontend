@@ -396,7 +396,15 @@ const ProjectModal = ({
         }
 
         if (type === 'number') {
-            return <input {...inputProps} type="number" step="0.01" />;
+            // Add onWheel handler to prevent scrolling from changing values
+            return (
+                <input 
+                    {...inputProps} 
+                    type="number" 
+                    step="0.01" 
+                    onWheel={(e) => e.target.blur()}
+                />
+            );
         }
 
         return <input {...inputProps} type={type} />;
