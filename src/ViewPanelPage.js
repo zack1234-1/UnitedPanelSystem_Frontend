@@ -389,7 +389,7 @@ const PanelCard = ({ panel, onEdit, onDuplicate, onDelete, onToggleProduction, f
                                         </div>
                                         <div className="balance-item highlight">
                                             <span className="balance-label">Balance:</span>
-                                            <span className={`balance-value ${balance <= 0 ? 'zero-balance' : balance <= panelQty * 0.1 ? 'low-balance' : ''}`}>
+                                            <span className={`balance-value ${balance <= 0 ? 'zero-balance' : ''}`}>
                                                 {formatNumber(balance)}
                                             </span>
                                         </div>
