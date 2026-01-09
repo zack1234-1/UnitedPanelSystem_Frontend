@@ -1388,15 +1388,31 @@ const ViewPanelPage = () => {
         return number.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
     };
 
-    const uniqueJobNos = useMemo(() => {
-        const jobNos = panels.map(panel => panel.job_no).filter(p => p);
-        return [...new Set(jobNos)].sort((a, b) => {
-            const aNum = parseInt(a);
-            const bNum = parseInt(b);
+   const uniqueJobNos = useMemo(() => {
+        // Convert all job numbers to strings and trim whitespace
+        const jobNos = panels
+            .map(panel => {
+                if (panel.job_no) {
+                    return String(panel.job_no).trim();
+                }
+                return null;
+            })
+            .filter(p => p);
+        
+        // Use Set to remove duplicates, then convert to array and sort
+        const unique = [...new Set(jobNos)];
+        
+        return unique.sort((a, b) => {
+            // Try to parse as numbers for numeric sorting
+            const aNum = parseFloat(a);
+            const bNum = parseFloat(b);
+            
             if (!isNaN(aNum) && !isNaN(bNum)) {
                 return aNum - bNum;
             }
-            return String(a).localeCompare(String(b));
+            
+            // If not both numbers, sort as strings
+            return a.localeCompare(b, undefined, { numeric: true });
         });
     }, [panels]);
 
@@ -1567,19 +1583,6 @@ const ViewPanelPage = () => {
                             <option value="pending">Pending</option>
                             <option value="in_progress">In Progress</option>
                             <option value="completed">Completed</option>
-                        </select>
-
-                        <select 
-                            name="balance_status" 
-                            value={filters.balance_status} 
-                            onChange={handleFilterChange} 
-                            className="form-select"
-                        >
-                            <option value="">Balance Status</option>
-                            <option value="positive">Positive Balance</option>
-                            <option value="zero">Zero Balance</option>
-                            <option value="negative">Negative Balance</option>
-                            <option value="low">Low Balance (&lt;10%)</option>
                         </select>
                     </div>
                 </div>
