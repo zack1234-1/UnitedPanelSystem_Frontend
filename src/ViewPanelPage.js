@@ -496,22 +496,39 @@ const PanelCard = ({ panel, onEdit, onDuplicate, onDelete, onToggleProduction, f
                                             <input 
                                                 type="number"
                                                 min="1"
-                                                max={balance > 0 ? balance : 1}
+                                                max={balance}
                                                 step="1"
                                                 className="compact-input"
-                                                value={balance > 0 ? numberOfPanels : 0}
+                                                value={numberOfPanels}
                                                 onChange={(e) => {
-                                                    const value = parseInt(e.target.value) || 1;
-                                                    if (balance > 0) {
-                                                        setNumberOfPanels(Math.min(value, balance));
+                                                    const value = e.target.value;
+                                                    if (value === '') {
+                                                        // Allow empty input for typing
+                                                        setNumberOfPanels('');
+                                                    } else {
+                                                        const numValue = parseInt(value);
+                                                        if (!isNaN(numValue) && numValue >= 1) {
+                                                            // Cap at balance if balance > 0
+                                                            if (balance > 0 && numValue > balance) {
+                                                                setNumberOfPanels(balance);
+                                                            } else {
+                                                                setNumberOfPanels(numValue);
+                                                            }
+                                                        }
                                                     }
                                                     setLocalError(null);
+                                                }}
+                                                onBlur={(e) => {
+                                                    // Auto-correct on blur if empty or invalid
+                                                    if (numberOfPanels === '' || parseInt(numberOfPanels) < 1 || isNaN(parseInt(numberOfPanels))) {
+                                                        setNumberOfPanels(1);
+                                                    }
                                                 }}
                                                 onWheel={handleWheel}
                                                 disabled={isSaving || balance <= 0}
                                             />
                                             <div className="input-hint">
-                                                Max: {balance > 0 ? balance : 0}
+                                                {balance > 0 ? `Max: ${balance}` : 'No panels available'}
                                             </div>
                                         </div>
                                     </div>
@@ -530,11 +547,11 @@ const PanelCard = ({ panel, onEdit, onDuplicate, onDelete, onToggleProduction, f
                                         </select>
                                     </div>
                                     
-                                    <button
-                                        className={`compact-button primary ${balance <= 0 ? 'disabled' : ''}`}
-                                        onClick={handleCreateProductionRecord}
-                                        disabled={isSaving || !productionDate || !numberOfPanels || numberOfPanels < 1 || numberOfPanels > balance || balance <= 0}
-                                    >
+                                       <button
+                                            className={`compact-button primary ${balance <= 0 ? 'disabled' : ''}`}
+                                            onClick={handleCreateProductionRecord}
+                                            disabled={isSaving || !productionDate || !numberOfPanels || parseInt(numberOfPanels) < 1 || parseInt(numberOfPanels) > balance || balance <= 0}
+                                        >
                                         {isSaving ? (
                                             <>
                                                 <span className="saving-spinner"></span>
