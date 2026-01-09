@@ -34,21 +34,18 @@ const PanelCard = ({ panel, onEdit, onDuplicate, onDelete, onToggleProduction, f
     const [localSuccess, setLocalSuccess] = useState(null);
     const [productionRecords, setProductionRecords] = useState([]);
     const [isLoadingRecords, setIsLoadingRecords] = useState(false);
-    const [currentBalance, setCurrentBalance] = useState(0);
     const [editingProductionRecord, setEditingProductionRecord] = useState(null);
     const [isEditingProduction, setIsEditingProduction] = useState(false);
+
+    // Use panel.balance directly from props (single source of truth)
+    const balance = panel.balance !== undefined ? panel.balance : panel.qty || 0;
+    const panelQty = parseInt(panel.qty) || 0;
 
     const totalProducedPanels = useMemo(() => {
         return productionRecords.reduce((sum, record) => 
             sum + (parseInt(record.number_of_panels) || 0), 0
         );
     }, [productionRecords]);
-
-    useEffect(() => {
-        if (panel && panel.id) {
-            setCurrentBalance(panel.balance !== undefined ? panel.balance : panel.qty || 0);
-        }
-    }, [panel]);
 
     useEffect(() => {
         if (showProductionDetails && panel && panel.id) {
@@ -80,15 +77,6 @@ const PanelCard = ({ panel, onEdit, onDuplicate, onDelete, onToggleProduction, f
         try {
             const data = await productionAPI.getByPanelId(panel.id);
             setProductionRecords(Array.isArray(data) ? data : []);
-            
-            try {
-                const summary = await viewPanelAPI.getProductionSummary(panel.id);
-                if (summary && summary.current_balance !== undefined) {
-                    setCurrentBalance(summary.current_balance);
-                }
-            } catch (summaryErr) {
-                console.error('Failed to fetch production summary:', summaryErr);
-            }
         } catch (err) {
             console.error('Failed to fetch production records:', err);
             setLocalError('Failed to load production records');
@@ -109,13 +97,13 @@ const PanelCard = ({ panel, onEdit, onDuplicate, onDelete, onToggleProduction, f
             return;
         }
 
-        if (currentBalance <= 0) {
+        if (balance <= 0) {
             setLocalError('No panels available for production');
             return;
         }
 
-        if (numberOfPanels > currentBalance) {
-            setLocalError(`Cannot produce ${numberOfPanels} panels. Only ${currentBalance} available.`);
+        if (numberOfPanels > balance) {
+            setLocalError(`Cannot produce ${numberOfPanels} panels. Only ${balance} available.`);
             return;
         }
 
@@ -136,44 +124,41 @@ const PanelCard = ({ panel, onEdit, onDuplicate, onDelete, onToggleProduction, f
             const result = await viewPanelAPI.createProductionWithBalance(panel.id, productionRecordData);
             
             if (result && result.production_record) {
+                // Add new record to the list
                 setProductionRecords(prev => [result.production_record, ...prev]);
-                setCurrentBalance(result.updated_balance);
                 
                 // Update the balance in parent component
-                if (updatePanelBalance) {
+                if (updatePanelBalance && result.updated_balance !== undefined) {
                     updatePanelBalance(panel.id, result.updated_balance);
                 }
-            }
-            
-            // Reset form with proper validation
-            setProductionDate('');
-            setProductionStatus('pending');
-            
-            // Reset numberOfPanels based on new balance
-            if (result && result.updated_balance > 0) {
-                setNumberOfPanels(1);
+                
+                // Reset form
+                setProductionDate('');
+                setProductionStatus('pending');
+                
+                // Set number of panels based on new balance
+                const newBalance = result.updated_balance;
+                if (newBalance > 0) {
+                    setNumberOfPanels(Math.min(1, newBalance));
+                } else {
+                    setNumberOfPanels(0);
+                }
+                
+                setLocalSuccess('Production record added successfully! Balance updated.');
+                
+                setTimeout(() => {
+                    setLocalSuccess(null);
+                }, 3000);
             } else {
-                setNumberOfPanels(0);
+                throw new Error('Invalid response from server');
             }
-            
-            setLocalSuccess('Production record added successfully! Balance updated.');
-            
-            setTimeout(() => {
-                setLocalSuccess(null);
-            }, 3000);
 
         } catch (err) {
             console.error('Failed to create production record:', err);
             setLocalError('Failed to add production record: ' + (err.message || 'Unknown error'));
             
-            try {
-                const summary = await viewPanelAPI.getProductionSummary(panel.id);
-                if (summary && summary.current_balance !== undefined) {
-                    setCurrentBalance(summary.current_balance);
-                }
-            } catch (fetchErr) {
-                console.error('Failed to refresh balance:', fetchErr);
-            }
+            // Refresh records to ensure consistency
+            fetchProductionRecords();
         } finally {
             setIsSaving(false);
         }
@@ -190,20 +175,18 @@ const PanelCard = ({ panel, onEdit, onDuplicate, onDelete, onToggleProduction, f
         try {
             const result = await viewPanelAPI.deleteProductionWithBalance(panel.id, recordId);
             
+            // Remove record from local list
             setProductionRecords(prev => prev.filter(record => record.id !== recordId));
             
-            if (result && result.updated_balance !== undefined) {
-                setCurrentBalance(result.updated_balance);
+            // Update the balance in parent component
+            if (updatePanelBalance && result.updated_balance !== undefined) {
+                updatePanelBalance(panel.id, result.updated_balance);
                 
-                // Update the balance in parent component
-                if (updatePanelBalance) {
-                    updatePanelBalance(panel.id, result.updated_balance);
+                // Set number of panels based on new balance
+                const newBalance = result.updated_balance;
+                if (newBalance > 0) {
+                    setNumberOfPanels(Math.min(1, newBalance));
                 }
-            }
-            
-            // Reset numberOfPanels based on new balance
-            if (result && result.updated_balance > 0) {
-                setNumberOfPanels(1);
             }
             
             setLocalSuccess('Production record deleted. Balance restored.');
@@ -216,14 +199,8 @@ const PanelCard = ({ panel, onEdit, onDuplicate, onDelete, onToggleProduction, f
             console.error('Failed to delete production record:', err);
             setLocalError('Failed to delete production record: ' + (err.message || 'Unknown error'));
             
-            try {
-                const summary = await viewPanelAPI.getProductionSummary(panel.id);
-                if (summary && summary.current_balance !== undefined) {
-                    setCurrentBalance(summary.current_balance);
-                }
-            } catch (fetchErr) {
-                console.error('Failed to refresh balance:', fetchErr);
-            }
+            // Refresh records to ensure consistency
+            fetchProductionRecords();
         } finally {
             setIsSaving(false);
         }
@@ -234,11 +211,42 @@ const PanelCard = ({ panel, onEdit, onDuplicate, onDelete, onToggleProduction, f
         setLocalError(null);
 
         try {
-            const updatedRecord = await productionAPI.update(panel.id, recordId, updatedData);
+            // Calculate balance adjustment if number of panels changed
+            const oldRecord = productionRecords.find(record => record.id === recordId);
+            const oldPanels = parseInt(oldRecord?.number_of_panels) || 0;
+            const newPanels = parseInt(updatedData.number_of_panels) || 0;
+            const panelDifference = newPanels - oldPanels;
             
-            setProductionRecords(prev => prev.map(record => 
-                record.id === recordId ? updatedRecord : record
-            ));
+            // Only call update if there are changes
+            if (panelDifference !== 0) {
+                // Check if we have enough balance to increase production
+                if (panelDifference > 0 && panelDifference > balance) {
+                    setLocalError(`Cannot increase by ${panelDifference} panels. Only ${balance} available.`);
+                    setIsSaving(false);
+                    return;
+                }
+                
+                // Update with balance adjustment
+                const result = await viewPanelAPI.updateProductionWithBalance(
+                    panel.id, 
+                    recordId, 
+                    updatedData,
+                    panelDifference
+                );
+                
+                if (result && result.updated_balance !== undefined) {
+                    // Update parent component balance
+                    if (updatePanelBalance) {
+                        updatePanelBalance(panel.id, result.updated_balance);
+                    }
+                }
+            } else {
+                // Just update the record without changing balance
+                await productionAPI.update(panel.id, recordId, updatedData);
+            }
+            
+            // Refresh production records
+            fetchProductionRecords();
             
             setLocalSuccess('Production record updated successfully!');
             setIsEditingProduction(false);
@@ -260,6 +268,7 @@ const PanelCard = ({ panel, onEdit, onDuplicate, onDelete, onToggleProduction, f
         try {
             const updatedRecord = await productionAPI.updateStatus(recordId, { status: newStatus });
             
+            // Update local record
             setProductionRecords(prev => prev.map(record => 
                 record.id === recordId ? updatedRecord : record
             ));
@@ -302,10 +311,7 @@ const PanelCard = ({ panel, onEdit, onDuplicate, onDelete, onToggleProduction, f
         setLocalError(null);
     };
 
-    const panelQty = parseInt(panel.qty) || 0;
-    const balance = currentBalance;
     const productionProgress = panelQty > 0 ? Math.min(((panelQty - balance) / panelQty) * 100, 100) : 0;
-    const productionMeter = panel.production_meter || 0;
 
     return (
         <div className="panel-card-horizontal">
@@ -503,7 +509,6 @@ const PanelCard = ({ panel, onEdit, onDuplicate, onDelete, onToggleProduction, f
                                                 onChange={(e) => {
                                                     const value = e.target.value;
                                                     if (value === '') {
-                                                        // Allow empty input for typing
                                                         setNumberOfPanels('');
                                                     } else {
                                                         const numValue = parseInt(value);
@@ -521,7 +526,7 @@ const PanelCard = ({ panel, onEdit, onDuplicate, onDelete, onToggleProduction, f
                                                 onBlur={(e) => {
                                                     // Auto-correct on blur if empty or invalid
                                                     if (numberOfPanels === '' || parseInt(numberOfPanels) < 1 || isNaN(parseInt(numberOfPanels))) {
-                                                        setNumberOfPanels(1);
+                                                        setNumberOfPanels(Math.min(1, balance));
                                                     }
                                                 }}
                                                 onWheel={handleWheel}
@@ -547,11 +552,11 @@ const PanelCard = ({ panel, onEdit, onDuplicate, onDelete, onToggleProduction, f
                                         </select>
                                     </div>
                                     
-                                       <button
-                                            className={`compact-button primary ${balance <= 0 ? 'disabled' : ''}`}
-                                            onClick={handleCreateProductionRecord}
-                                            disabled={isSaving || !productionDate || !numberOfPanels || parseInt(numberOfPanels) < 1 || parseInt(numberOfPanels) > balance || balance <= 0}
-                                        >
+                                    <button
+                                        className={`compact-button primary ${balance <= 0 ? 'disabled' : ''}`}
+                                        onClick={handleCreateProductionRecord}
+                                        disabled={isSaving || !productionDate || !numberOfPanels || parseInt(numberOfPanels) < 1 || parseInt(numberOfPanels) > balance || balance <= 0}
+                                    >
                                         {isSaving ? (
                                             <>
                                                 <span className="saving-spinner"></span>
@@ -780,6 +785,7 @@ const PanelCard = ({ panel, onEdit, onDuplicate, onDelete, onToggleProduction, f
                                         id="edit_number_of_panels"
                                         name="number_of_panels"
                                         min="1"
+                                        // Calculate max based on current balance + current record's panels
                                         max={balance + (parseInt(editingProductionRecord.number_of_panels) || 0)}
                                         value={editingProductionRecord.number_of_panels}
                                         onChange={(e) => setEditingProductionRecord(prev => ({ 
@@ -900,9 +906,10 @@ const ViewPanelPage = () => {
             
             if (Array.isArray(data)) {
                 const validPanels = data.filter(panel => panel && panel.id);
+                // Ensure each panel has a balance field
                 const panelsWithBalance = validPanels.map(panel => ({
                     ...panel,
-                    balance: panel.balance !== undefined ? panel.balance : panel.qty
+                    balance: panel.balance !== undefined ? panel.balance : (panel.qty || 0)
                 }));
                 setPanels(panelsWithBalance);
             } else {
@@ -921,7 +928,10 @@ const ViewPanelPage = () => {
 
     const updatePanelBalance = (panelId, newBalance) => {
         setPanels(prev => prev.map(panel => 
-            panel.id === panelId ? { ...panel, balance: newBalance } : panel
+            panel.id === panelId ? { 
+                ...panel, 
+                balance: Math.max(0, newBalance) // Ensure balance never goes negative
+            } : panel
         ));
     };
 
@@ -982,7 +992,7 @@ const ViewPanelPage = () => {
                     ? `${originalNotes}\n\n---\nDuplicate of ${panel.reference_number}`
                     : `Duplicate of ${panel.reference_number}`;
                 
-                // FIX: Format the estimated_delivery to YYYY-MM-DD
+                // Format the estimated_delivery to YYYY-MM-DD
                 let formattedEstimatedDelivery = null;
                 if (panel.estimated_delivery) {
                     try {
@@ -1020,7 +1030,6 @@ const ViewPanelPage = () => {
                     notes: newNotes,
                     reference_number: referenceNumbers[i],
                     brand: panel.brand || null,
-                    // Use the formatted date instead of the raw one
                     estimated_delivery: formattedEstimatedDelivery
                 };
                 
@@ -1205,7 +1214,8 @@ const ViewPanelPage = () => {
                 production_meter: editingPanel.production_meter ? parseFloat(editingPanel.production_meter) : null,
                 salesman: editingPanel.salesman || null,
                 notes: editingPanel.notes || null,
-                balance: editingPanel.qty
+                // When updating panel quantity, also update balance to match
+                balance: editingPanel.qty ? parseInt(editingPanel.qty) : null
             };
             
             Object.keys(panelToUpdate).forEach(key => {
@@ -1256,7 +1266,7 @@ const ViewPanelPage = () => {
                 surface_back_thk: newPanel.surface_back_thk ? parseFloat(newPanel.surface_back_thk) : null,
                 panel_thk: newPanel.panel_thk ? parseFloat(newPanel.panel_thk) : null,
                 qty: newPanel.qty ? parseInt(newPanel.qty) : null,
-                balance: newPanel.qty,
+                balance: newPanel.qty ? parseInt(newPanel.qty) : null, // Initial balance equals quantity
                 production_meter: newPanel.production_meter ? parseFloat(newPanel.production_meter) : null,
                 salesman: newPanel.salesman || null,
                 notes: newPanel.notes || null,
