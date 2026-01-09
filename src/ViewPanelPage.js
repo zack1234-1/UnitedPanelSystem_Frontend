@@ -109,6 +109,11 @@ const PanelCard = ({ panel, onEdit, onDuplicate, onDelete, onToggleProduction, f
             return;
         }
 
+        if (currentBalance <= 0) {
+            setLocalError('No panels available for production');
+            return;
+        }
+
         if (numberOfPanels > currentBalance) {
             setLocalError(`Cannot produce ${numberOfPanels} panels. Only ${currentBalance} available.`);
             return;
@@ -140,9 +145,16 @@ const PanelCard = ({ panel, onEdit, onDuplicate, onDelete, onToggleProduction, f
                 }
             }
             
+            // Reset form with proper validation
             setProductionDate('');
-            setNumberOfPanels(1);
             setProductionStatus('pending');
+            
+            // Reset numberOfPanels based on new balance
+            if (result && result.updated_balance > 0) {
+                setNumberOfPanels(1);
+            } else {
+                setNumberOfPanels(0);
+            }
             
             setLocalSuccess('Production record added successfully! Balance updated.');
             
@@ -187,6 +199,11 @@ const PanelCard = ({ panel, onEdit, onDuplicate, onDelete, onToggleProduction, f
                 if (updatePanelBalance) {
                     updatePanelBalance(panel.id, result.updated_balance);
                 }
+            }
+            
+            // Reset numberOfPanels based on new balance
+            if (result && result.updated_balance > 0) {
+                setNumberOfPanels(1);
             }
             
             setLocalSuccess('Production record deleted. Balance restored.');
@@ -479,20 +496,22 @@ const PanelCard = ({ panel, onEdit, onDuplicate, onDelete, onToggleProduction, f
                                             <input 
                                                 type="number"
                                                 min="1"
-                                                max={balance}
+                                                max={balance > 0 ? balance : 1}
                                                 step="1"
                                                 className="compact-input"
-                                                value={numberOfPanels}
+                                                value={balance > 0 ? numberOfPanels : 0}
                                                 onChange={(e) => {
                                                     const value = parseInt(e.target.value) || 1;
-                                                    setNumberOfPanels(Math.min(value, balance));
+                                                    if (balance > 0) {
+                                                        setNumberOfPanels(Math.min(value, balance));
+                                                    }
                                                     setLocalError(null);
                                                 }}
                                                 onWheel={handleWheel}
                                                 disabled={isSaving || balance <= 0}
                                             />
                                             <div className="input-hint">
-                                                Max: {balance}
+                                                Max: {balance > 0 ? balance : 0}
                                             </div>
                                         </div>
                                     </div>
@@ -503,7 +522,7 @@ const PanelCard = ({ panel, onEdit, onDuplicate, onDelete, onToggleProduction, f
                                             className="compact-select"
                                             value={productionStatus}
                                             onChange={(e) => setProductionStatus(e.target.value)}
-                                            disabled={isSaving}
+                                            disabled={isSaving || balance <= 0}
                                         >
                                             <option value="pending">⏳ Pending</option>
                                             <option value="in_progress">⚙️ In Progress</option>
