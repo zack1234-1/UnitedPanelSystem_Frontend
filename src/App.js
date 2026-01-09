@@ -1579,6 +1579,7 @@ function App() {
                                     value={editingProject.sales} 
                                     onChange={handleEditInputChange} 
                                     placeholder="Sales Amount"
+                                    onWheel={(e) => e.target.blur()}
                                 />
                             </div>
                             
@@ -1592,6 +1593,7 @@ function App() {
                                     value={editingProject.sell} 
                                     onChange={handleEditInputChange} 
                                     placeholder="Sell Price"
+                                    onWheel={(e) => e.target.blur()}
                                 />
                             </div>
                             
@@ -1605,6 +1607,7 @@ function App() {
                                     value={editingProject.cost} 
                                     onChange={handleEditInputChange} 
                                     placeholder="Cost"
+                                    onWheel={(e) => e.target.blur()}
                                 />
                             </div>
                             
@@ -1620,6 +1623,7 @@ function App() {
                                     placeholder="Margin"
                                     readOnly
                                     className="readonly-field"
+                                    onWheel={(e) => e.target.blur()}
                                 />
                             </div>
                         </div>
@@ -1634,6 +1638,7 @@ function App() {
                             onChange={handleEditInputChange} 
                             placeholder="Additional notes or remarks"
                             rows="3"
+                            onWheel={(e) => e.target.blur()}
                         />
                     </div>
                     
@@ -1987,6 +1992,7 @@ function App() {
                                                         value={newProject.sales} 
                                                         onChange={handleInputChange} 
                                                         placeholder="Sales Amount"
+                                                        onWheel={(e) => e.target.blur()}
                                                     />
                                                 </div>
                                                 
@@ -2000,6 +2006,7 @@ function App() {
                                                         value={newProject.sell} 
                                                         onChange={handleInputChange} 
                                                         placeholder="Sell Price"
+                                                        onWheel={(e) => e.target.blur()}
                                                     />
                                                 </div>
                                                 
