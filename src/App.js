@@ -1568,61 +1568,66 @@ function App() {
                     {/* Financial Details Section */}
                     <div className="financial-section">
                         <h4>Financial Details (Optional)</h4>
-                        <div className="financial-grid">
-                            <div className="form-group">
-                                <label htmlFor="edit-sales">Sales (RM)</label>
-                                <input 
-                                    id="edit-sales"
-                                    name="sales" 
-                                    type="number"
-                                    step="0.01"
-                                    value={editingProject.sales} 
-                                    onChange={handleEditInputChange} 
-                                    placeholder="Sales Amount"
-                                />
-                            </div>
-                            
-                            <div className="form-group">
-                                <label htmlFor="edit-sell">Sell (RM)</label>
-                                <input 
-                                    id="edit-sell"
-                                    name="sell" 
-                                    type="number"
-                                    step="0.01"
-                                    value={editingProject.sell} 
-                                    onChange={handleEditInputChange} 
-                                    placeholder="Sell Price"
-                                />
-                            </div>
-                            
-                            <div className="form-group">
-                                <label htmlFor="edit-cost">Cost (RM)</label>
-                                <input 
-                                    id="edit-cost"
-                                    name="cost" 
-                                    type="number"
-                                    step="0.01"
-                                    value={editingProject.cost} 
-                                    onChange={handleEditInputChange} 
-                                    placeholder="Cost"
-                                />
-                            </div>
-                            
-                            <div className="form-group">
-                                <label htmlFor="edit-margin">Margin (RM)</label>
-                                <input 
-                                    id="edit-margin"
-                                    name="margin" 
-                                    type="number"
-                                    step="0.01"
-                                    value={editingProject.margin} 
-                                    onChange={handleEditInputChange} 
-                                    placeholder="Margin"
-                                    readOnly
-                                    className="readonly-field"
-                                />
-                            </div>
+                        {/* In the Create Project Form */}
+                    <div className="financial-grid">
+                        <div className="form-group">
+                            <label htmlFor="sales">Sales (RM)</label>
+                            <input 
+                                id="sales"
+                                name="sales" 
+                                type="number"
+                                step="0.01"
+                                value={newProject.sales} 
+                                onChange={handleInputChange} 
+                                placeholder="Sales Amount"
+                                onWheel={(e) => e.target.blur()}
+                            />
                         </div>
+                        
+                        <div className="form-group">
+                            <label htmlFor="sell">Sell (RM)</label>
+                            <input 
+                                id="sell"
+                                name="sell" 
+                                type="number"
+                                step="0.01"
+                                value={newProject.sell} 
+                                onChange={handleInputChange} 
+                                placeholder="Sell Price"
+                                onWheel={(e) => e.target.blur()}
+                            />
+                        </div>
+                        
+                        <div className="form-group">
+                            <label htmlFor="cost">Cost (RM)</label>
+                            <input 
+                                id="cost"
+                                name="cost" 
+                                type="number"
+                                step="0.01"
+                                value={newProject.cost} 
+                                onChange={handleInputChange} 
+                                placeholder="Cost"
+                                onWheel={(e) => e.target.blur()}
+                            />
+                        </div>
+                        
+                        <div className="form-group">
+                            <label htmlFor="margin">Margin (RM)</label>
+                            <input 
+                                id="margin"
+                                name="margin" 
+                                type="number"
+                                step="0.01"
+                                value={newProject.margin} 
+                                onChange={handleInputChange} 
+                                placeholder="Margin"
+                                readOnly
+                                className="readonly-field"
+                                onWheel={(e) => e.target.blur()}
+                            />
+                        </div>
+                    </div>
                     </div>
                     
                     <div className="form-group">
@@ -1976,61 +1981,66 @@ function App() {
                                         {/* Financial Details Section */}
                                         <div className="financial-section">
                                             <h4>Financial Details (Optional)</h4>
-                                            <div className="financial-grid">
-                                                <div className="form-group">
-                                                    <label htmlFor="sales">Sales (RM)</label>
-                                                    <input 
-                                                        id="sales"
-                                                        name="sales" 
-                                                        type="number"
-                                                        step="0.01"
-                                                        value={newProject.sales} 
-                                                        onChange={handleInputChange} 
-                                                        placeholder="Sales Amount"
-                                                    />
-                                                </div>
-                                                
-                                                <div className="form-group">
-                                                    <label htmlFor="sell">Sell (RM)</label>
-                                                    <input 
-                                                        id="sell"
-                                                        name="sell" 
-                                                        type="number"
-                                                        step="0.01"
-                                                        value={newProject.sell} 
-                                                        onChange={handleInputChange} 
-                                                        placeholder="Sell Price"
-                                                    />
-                                                </div>
-                                                
-                                                <div className="form-group">
-                                                    <label htmlFor="cost">Cost (RM)</label>
-                                                    <input 
-                                                        id="cost"
-                                                        name="cost" 
-                                                        type="number"
-                                                        step="0.01"
-                                                        value={newProject.cost} 
-                                                        onChange={handleInputChange} 
-                                                        placeholder="Cost"
-                                                    />
-                                                </div>
-                                                
-                                                <div className="form-group">
-                                                    <label htmlFor="margin">Margin (RM)</label>
-                                                    <input 
-                                                        id="margin"
-                                                        name="margin" 
-                                                        type="number"
-                                                        step="0.01"
-                                                        value={newProject.margin} 
-                                                        onChange={handleInputChange} 
-                                                        placeholder="Margin"
-                                                        readOnly
-                                                        className="readonly-field"
-                                                    />
-                                                </div>
+                                            {/* In the Edit Project Form */}
+                                        <div className="financial-grid">
+                                            <div className="form-group">
+                                                <label htmlFor="edit-sales">Sales (RM)</label>
+                                                <input 
+                                                    id="edit-sales"
+                                                    name="sales" 
+                                                    type="number"
+                                                    step="0.01"
+                                                    value={editingProject.sales} 
+                                                    onChange={handleEditInputChange} 
+                                                    placeholder="Sales Amount"
+                                                    onWheel={(e) => e.target.blur()}
+                                                />
                                             </div>
+                                            
+                                            <div className="form-group">
+                                                <label htmlFor="edit-sell">Sell (RM)</label>
+                                                <input 
+                                                    id="edit-sell"
+                                                    name="sell" 
+                                                    type="number"
+                                                    step="0.01"
+                                                    value={editingProject.sell} 
+                                                    onChange={handleEditInputChange} 
+                                                    placeholder="Sell Price"
+                                                    onWheel={(e) => e.target.blur()}
+                                                />
+                                            </div>
+                                            
+                                            <div className="form-group">
+                                                <label htmlFor="edit-cost">Cost (RM)</label>
+                                                <input 
+                                                    id="edit-cost"
+                                                    name="cost" 
+                                                    type="number"
+                                                    step="0.01"
+                                                    value={editingProject.cost} 
+                                                    onChange={handleEditInputChange} 
+                                                    placeholder="Cost"
+                                                    onWheel={(e) => e.target.blur()}
+                                                />
+                                            </div>
+                                            
+                                            <div className="form-group">
+                                                <label htmlFor="edit-margin">Margin (RM)</label>
+                                                <input 
+                                                    id="edit-margin"
+                                                    name="margin" 
+                                                    type="number"
+                                                    step="0.01"
+                                                    value={editingProject.margin} 
+                                                    onChange={handleEditInputChange} 
+                                                    placeholder="Margin"
+                                                    readOnly
+                                                    className="readonly-field"
+                                                    onWheel={(e) => e.target.blur()}
+                                                />
+                                            </div>
+                                        </div>
                                             <small className="field-hint">Margin is automatically calculated as Sell - Cost</small>
                                         </div>
                                         
