@@ -2245,20 +2245,66 @@ const ViewPanelPage = () => {
                                 
                                 <div className="form-group">
                                     <label htmlFor="copyCount">Number of copies:</label>
-                                    <input
-                                        type="number"
-                                        id="copyCount"
-                                        min="1"
-                                        max="100"
-                                        value={numberOfCopies}
-                                        onChange={(e) => {
-                                            const value = parseInt(e.target.value) || 1;
-                                            setNumberOfCopies(Math.min(Math.max(value, 1), 100));
-                                        }}
-                                        className="form-input"
-                                        onWheel={handleWheel}
-                                    />
-                                    <small className="form-hint">Enter 1 to 100</small>
+                                    <div className="input-with-validation">
+                                        <input
+                                            type="number"
+                                            id="copyCount"
+                                            min="1"
+                                            max="100"
+                                            value={numberOfCopies}
+                                            onChange={(e) => {
+                                                const value = e.target.value;
+                                                
+                                                // Allow user to delete (empty) and type
+                                                if (value === '') {
+                                                    setNumberOfCopies('');
+                                                } else {
+                                                    const numValue = parseInt(value);
+                                                    
+                                                    // Validate input
+                                                    if (!isNaN(numValue) && numValue >= 1 && numValue <= 100) {
+                                                        setNumberOfCopies(numValue);
+                                                    }
+                                                    // If invalid (like 0 or negative), don't update state
+                                                }
+                                            }}
+                                            onBlur={(e) => {
+                                                const value = e.target.value;
+                                                // Auto-correct on blur
+                                                if (value === '' || parseInt(value) < 1 || isNaN(parseInt(value))) {
+                                                    setNumberOfCopies(1);
+                                                } else if (parseInt(value) > 100) {
+                                                    setNumberOfCopies(100);
+                                                }
+                                            }}
+                                            className="form-input"
+                                            onWheel={handleWheel}
+                                            placeholder="Enter number"
+                                        />
+                                        <div className="input-actions">
+                                            <button 
+                                                type="button" 
+                                                className="input-action-btn"
+                                                onClick={() => setNumberOfCopies(Math.max(1, numberOfCopies - 1))}
+                                                disabled={numberOfCopies <= 1}
+                                            >
+                                                −
+                                            </button>
+                                            <button 
+                                                type="button" 
+                                                className="input-action-btn"
+                                                onClick={() => setNumberOfCopies(Math.min(100, (numberOfCopies || 0) + 1))}
+                                                disabled={numberOfCopies >= 100}
+                                            >
+                                                +
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div className="validation-hint">
+                                        <span className={`hint-text ${(!numberOfCopies || numberOfCopies < 1) ? 'error' : ''}`}>
+                                            {(!numberOfCopies || numberOfCopies < 1) ? 'Minimum 1 copy required' : 'Enter 1 to 100'}
+                                        </span>
+                                    </div>
                                 </div>
                                 
                                 <div className="duplicate-info">
@@ -2281,9 +2327,16 @@ const ViewPanelPage = () => {
                                     <button 
                                         type="button" 
                                         className="primary-btn"
-                                        onClick={() => handleDuplicatePanel(selectedPanelToDuplicate, numberOfCopies)}
+                                        onClick={() => {
+                                            let count = numberOfCopies;
+                                            if (count === '' || count < 1 || isNaN(count)) {
+                                                count = 1;
+                                            }
+                                            handleDuplicatePanel(selectedPanelToDuplicate, count);
+                                        }}
+                                        disabled={!numberOfCopies || numberOfCopies < 1}
                                     >
-                                        Create {numberOfCopies} {numberOfCopies === 1 ? 'Copy' : 'Copies'}
+                                        Create {numberOfCopies >= 1 ? numberOfCopies : 1} {numberOfCopies >= 1 ? (numberOfCopies === 1 ? 'Copy' : 'Copies') : 'Copy'}
                                     </button>
                                 </div>
                             </div>
