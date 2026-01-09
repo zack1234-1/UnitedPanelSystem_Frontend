@@ -955,6 +955,23 @@ const ViewPanelPage = () => {
                     ? `${originalNotes}\n\n---\nDuplicate of ${panel.reference_number}`
                     : `Duplicate of ${panel.reference_number}`;
                 
+                // FIX: Format the estimated_delivery to YYYY-MM-DD
+                let formattedEstimatedDelivery = null;
+                if (panel.estimated_delivery) {
+                    try {
+                        const date = new Date(panel.estimated_delivery);
+                        if (!isNaN(date.getTime())) {
+                            const year = date.getFullYear();
+                            const month = String(date.getMonth() + 1).padStart(2, '0');
+                            const day = String(date.getDate()).padStart(2, '0');
+                            formattedEstimatedDelivery = `${year}-${month}-${day}`;
+                        }
+                    } catch (error) {
+                        console.error('Error formatting estimated_delivery:', error);
+                        formattedEstimatedDelivery = null;
+                    }
+                }
+                
                 const panelData = {
                     job_no: newJobNo,
                     type: panel.type || null,
@@ -976,8 +993,16 @@ const ViewPanelPage = () => {
                     notes: newNotes,
                     reference_number: referenceNumbers[i],
                     brand: panel.brand || null,
-                    estimated_delivery: panel.estimated_delivery || null
+                    // Use the formatted date instead of the raw one
+                    estimated_delivery: formattedEstimatedDelivery
                 };
+                
+                // Remove empty string values to avoid sending '' to the backend
+                Object.keys(panelData).forEach(key => {
+                    if (panelData[key] === '' || panelData[key] === undefined) {
+                        panelData[key] = null;
+                    }
+                });
                 
                 const createdPanel = await viewPanelAPI.create(panelData);
                 newPanels.push({
