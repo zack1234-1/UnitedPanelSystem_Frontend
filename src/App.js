@@ -1638,7 +1638,6 @@ function App() {
                             onChange={handleEditInputChange} 
                             placeholder="Additional notes or remarks"
                             rows="3"
-                            onWheel={(e) => e.target.blur()}
                         />
                     </div>
                     
@@ -2020,6 +2019,7 @@ function App() {
                                                         value={newProject.cost} 
                                                         onChange={handleInputChange} 
                                                         placeholder="Cost"
+                                                        onWheel={(e) => e.target.blur()}
                                                     />
                                                 </div>
                                                 
@@ -2035,6 +2035,7 @@ function App() {
                                                         placeholder="Margin"
                                                         readOnly
                                                         className="readonly-field"
+                                                        onWheel={(e) => e.target.blur()}
                                                     />
                                                 </div>
                                             </div>
