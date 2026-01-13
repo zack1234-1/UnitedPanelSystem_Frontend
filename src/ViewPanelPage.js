@@ -1287,15 +1287,12 @@ const ViewPanelPage = () => {
                                                                 
                                                                 // Calculate production meter: (Total Qty - Balance) × Length (convert mm to meters)
                                                                 const alreadyProduced = panelQty - balance;
-                                                                const productionMeter = (alreadyProduced * panelLength) / 1000;
+                                                                const productionMeter = (alreadyProduced * panelLength);
                                                                 
                                                                 return (
                                                                     <div>
                                                                         <div className="meter-value">
                                                                             {productionMeter.toFixed(2)} m
-                                                                        </div>
-                                                                        <div className="meter-detail">
-                                                                            ({formatNumber(alreadyProduced)} × {formatNumber(panelLength)} mm ÷ 1000)
                                                                         </div>
                                                                     </div>
                                                                 );
