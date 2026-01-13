@@ -1475,11 +1475,6 @@ const ViewPanelPage = () => {
                                                             <div className="area-value">
                                                                 {area > 0 ? area.toFixed(3) : '0'} m²
                                                             </div>
-                                                            {area > 0 && (
-                                                                <div className="area-detail">
-                                                                    ({formatNumber(panelWidth)} × {formatNumber(panelLength)} mm ÷ 1,000,000)
-                                                                </div>
-                                                            )}
                                                         </div>
                                                     </td>
                                                     <td>
@@ -1500,10 +1495,7 @@ const ViewPanelPage = () => {
                                                     <td>
                                                         <div className="production-meter-cell">
                                                             <div className="meter-value">
-                                                                {productionMeter.toFixed(2)} m
-                                                            </div>
-                                                            <div className="meter-detail">
-                                                                ({formatNumber(alreadyProduced)} × {formatNumber(panelLength)} mm ÷ 1000)
+                                                                {productionMeter.toFixed(2)} mm
                                                             </div>
                                                         </div>
                                                     </td>
