@@ -1280,12 +1280,26 @@ const ViewPanelPage = () => {
                                                     </td>
                                                     <td>
                                                         <div className="production-meter-cell">
-                                                            <div className="meter-value">
-                                                                {productionMeter.toFixed(2)} m
-                                                            </div>
-                                                            <div className="meter-detail">
-                                                                {alreadyProduced} × {formatNumber(panelLength)} mm ÷ 1000
-                                                            </div>
+                                                            {(() => {
+                                                                const panelQty = parseInt(panel.qty) || 0;
+                                                                const balance = panel.balance !== undefined ? panel.balance : panel.qty;
+                                                                const panelLength = parseFloat(panel.length) || 0;
+                                                                
+                                                                // Calculate production meter: (Total Qty - Balance) × Length (convert mm to meters)
+                                                                const alreadyProduced = panelQty - balance;
+                                                                const productionMeter = (alreadyProduced * panelLength) / 1000;
+                                                                
+                                                                return (
+                                                                    <div>
+                                                                        <div className="meter-value">
+                                                                            {productionMeter.toFixed(2)} m
+                                                                        </div>
+                                                                        <div className="meter-detail">
+                                                                            ({formatNumber(alreadyProduced)} × {formatNumber(panelLength)} mm ÷ 1000)
+                                                                        </div>
+                                                                    </div>
+                                                                );
+                                                            })()}
                                                         </div>
                                                     </td>
                                                     <td>
