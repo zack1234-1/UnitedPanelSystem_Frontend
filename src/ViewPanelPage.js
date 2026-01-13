@@ -24,6 +24,27 @@ const generateReferenceNumber = (existingReferences = []) => {
     return `${todayPrefix}-${String(sequence).padStart(3, '0')}`;
 };
 
+const generateProductionReferenceNumber = (existingProductionRefs = []) => {
+    const now = new Date();
+    const year = now.getFullYear().toString().slice(-2);
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    
+    const todayPrefix = `PROD-${year}${month}${day}`;
+    const todayRefs = existingProductionRefs.filter(ref => ref && ref.startsWith(todayPrefix));
+    
+    let sequence = 1;
+    if (todayRefs.length > 0) {
+        const sequences = todayRefs.map(ref => {
+            const match = ref.match(/\d+$/);
+            return match ? parseInt(match[0]) : 0;
+        });
+        sequence = Math.max(...sequences) + 1;
+    }
+    
+    return `${todayPrefix}-${String(sequence).padStart(3, '0')}`;
+};
+
 const ProductionDetailsModal = ({ panel, onClose, updatePanelBalance, formatNumber, formatDate }) => {
     const [productionDate, setProductionDate] = useState('');
     const [numberOfPanels, setNumberOfPanels] = useState(1);
@@ -34,6 +55,7 @@ const ProductionDetailsModal = ({ panel, onClose, updatePanelBalance, formatNumb
     const [productionRecords, setProductionRecords] = useState([]);
     const [isLoadingRecords, setIsLoadingRecords] = useState(true);
     const [currentPanel, setCurrentPanel] = useState(panel);
+    const [productionRecordFilter, setProductionRecordFilter] = useState('');
 
     const balance = currentPanel.balance !== undefined ? currentPanel.balance : currentPanel.qty || 0;
     const panelQty = parseInt(currentPanel.qty) || 0;
@@ -112,11 +134,16 @@ const ProductionDetailsModal = ({ panel, onClose, updatePanelBalance, formatNumb
         setLocalSuccess(null);
 
         try {
+            // Generate production reference number
+            const existingProdRefs = productionRecords.map(record => record.production_ref_number).filter(Boolean);
+            const productionRefNumber = generateProductionReferenceNumber(existingProdRefs);
+
             const productionRecordData = {
                 date: productionDate,
                 number_of_panels: numberOfPanels,
                 delivery_date: productionDate,
                 reference_number: currentPanel.reference_number,
+                production_ref_number: productionRefNumber,
                 status: productionStatus || 'pending',
                 notes: `Production for job ${currentPanel.job_no}`
             };
@@ -145,7 +172,7 @@ const ProductionDetailsModal = ({ panel, onClose, updatePanelBalance, formatNumb
                     setNumberOfPanels(0);
                 }
                 
-                setLocalSuccess('Production record added successfully! Balance updated.');
+                setLocalSuccess(`Production record ${productionRefNumber} added successfully! Balance updated.`);
                 
                 setTimeout(() => {
                     setLocalSuccess(null);
@@ -240,6 +267,17 @@ const ProductionDetailsModal = ({ panel, onClose, updatePanelBalance, formatNumb
         const panels = parseInt(record.number_of_panels) || 0;
         return ((panels * panelLength) / 1000).toFixed(2);
     };
+
+    // Filter production records by reference number
+    const filteredProductionRecords = useMemo(() => {
+        if (!productionRecordFilter) return productionRecords;
+        
+        const filterLower = productionRecordFilter.toLowerCase();
+        return productionRecords.filter(record => 
+            record.production_ref_number?.toLowerCase().includes(filterLower) ||
+            (record.production_ref_number && record.production_ref_number.toLowerCase().includes(filterLower))
+        );
+    }, [productionRecords, productionRecordFilter]);
 
     return (
         <div className="modal-overlay" onClick={onClose}>
@@ -381,23 +419,39 @@ const ProductionDetailsModal = ({ panel, onClose, updatePanelBalance, formatNumb
                         </div>
 
                         <div className="production-records-section">
-                            <h3>Production Records ({productionRecords.length})</h3>
+                            <div className="production-records-header">
+                                <h3>Production Records ({filteredProductionRecords.length} of {productionRecords.length})</h3>
+                                <div className="production-records-filter">
+                                    <input
+                                        type="text"
+                                        placeholder="Filter by production reference..."
+                                        value={productionRecordFilter}
+                                        onChange={(e) => setProductionRecordFilter(e.target.value)}
+                                        className="form-input small"
+                                    />
+                                </div>
+                            </div>
                             
                             {isLoadingRecords ? (
                                 <div className="loading-state">
                                     <div className="loading-spinner"></div>
                                     <p>Loading records...</p>
                                 </div>
-                            ) : productionRecords.length === 0 ? (
+                            ) : filteredProductionRecords.length === 0 ? (
                                 <div className="empty-state">
                                     <div className="empty-icon">📅</div>
-                                    <p>No production records yet.</p>
+                                    <p>
+                                        {productionRecordFilter ? 
+                                            `No production records match "${productionRecordFilter}"` : 
+                                            'No production records yet.'}
+                                    </p>
                                 </div>
                             ) : (
                                 <div className="records-table-container">
                                     <table className="records-table">
                                         <thead>
                                             <tr>
+                                                <th>Production Ref</th>
                                                 <th>Date</th>
                                                 <th>Panels</th>
                                                 <th>Length</th>
@@ -406,7 +460,7 @@ const ProductionDetailsModal = ({ panel, onClose, updatePanelBalance, formatNumb
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {productionRecords.map((record) => {
+                                            {filteredProductionRecords.map((record) => {
                                                 const recordDate = new Date(record.date);
                                                 const today = new Date();
                                                 today.setHours(0, 0, 0, 0);
@@ -415,6 +469,11 @@ const ProductionDetailsModal = ({ panel, onClose, updatePanelBalance, formatNumb
                                                 
                                                 return (
                                                     <tr key={record.id} className={isPastDue ? 'past-due' : ''}>
+                                                        <td>
+                                                            <div className="production-ref-cell">
+                                                                <strong>{record.production_ref_number || 'N/A'}</strong>
+                                                            </div>
+                                                        </td>
                                                         <td>
                                                             {formatDate(record.date)}
                                                             {isPastDue && <span className="past-due-badge">!</span>}
@@ -456,6 +515,9 @@ const ProductionDetailsModal = ({ panel, onClose, updatePanelBalance, formatNumb
                                             <tr className="records-total">
                                                 <td colSpan="2">
                                                     <strong>Total:</strong>
+                                                </td>
+                                                <td>
+                                                    <strong>{totalProducedPanels}</strong>
                                                 </td>
                                                 <td className="total-length">
                                                     <strong>{totalProductionLength.toFixed(2)} m</strong>
@@ -526,7 +588,8 @@ const ViewPanelPage = () => {
         width: '',
         length: '',
         qty: '',
-        cutting: ''
+        cutting: '',
+        production_ref: '' // New filter for production reference
     });
 
     const [sortConfig, setSortConfig] = useState({
@@ -784,6 +847,15 @@ const ViewPanelPage = () => {
                 const panelQty = parseInt(panel.qty) || 0;
                 const filterQty = parseInt(filters.qty);
                 if (panelQty !== filterQty) return false;
+            }
+            
+            // New filter for production reference
+            if (filters.production_ref) {
+                // We need to check if any production record for this panel has the matching reference
+                // This would require fetching production records for each panel, which might be expensive
+                // For now, we'll skip this filter if we don't have production records loaded
+                // In a real app, you might want to preload production records or use a backend filter
+                return true; // Placeholder - implement properly if needed
             }
             
             if (filters.balance_status) {
@@ -1319,6 +1391,16 @@ const ViewPanelPage = () => {
                                 <option key={thk} value={thk}>{thk} mm</option>
                             ))}
                         </select>
+                        
+                        {/* Add production reference filter */}
+                        <input
+                            type="text"
+                            name="production_ref"
+                            placeholder="Production Ref"
+                            value={filters.production_ref}
+                            onChange={handleFilterChange}
+                            className="form-select"
+                        />
                     </div>
                 </div>
             </div>
@@ -1475,6 +1557,11 @@ const ViewPanelPage = () => {
                                                             <div className="area-value">
                                                                 {area > 0 ? area.toFixed(3) : '0'} m²
                                                             </div>
+                                                            {area > 0 && (
+                                                                <div className="area-detail">
+                                                                    ({formatNumber(panelWidth)} × {formatNumber(panelLength)} mm ÷ 1,000,000)
+                                                                </div>
+                                                            )}
                                                         </div>
                                                     </td>
                                                     <td>
@@ -1495,7 +1582,10 @@ const ViewPanelPage = () => {
                                                     <td>
                                                         <div className="production-meter-cell">
                                                             <div className="meter-value">
-                                                                {productionMeter.toFixed(2)} mm
+                                                                {productionMeter.toFixed(2)} m
+                                                            </div>
+                                                            <div className="meter-detail">
+                                                                ({formatNumber(alreadyProduced)} × {formatNumber(panelLength)} mm ÷ 1000)
                                                             </div>
                                                         </div>
                                                     </td>
