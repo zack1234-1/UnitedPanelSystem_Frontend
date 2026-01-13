@@ -731,12 +731,31 @@ const ViewPanelPage = () => {
             if (filters.type && panel.type !== filters.type) return false;
             if (filters.brand && panel.brand !== filters.brand) return false;
             if (filters.status && panel.status !== filters.status) return false;
-            if (filters.panel_thk && panel.panel_thk !== filters.panel_thk) return false;
+            
+            // Fixed numeric filter comparisons
+            if (filters.panel_thk) {
+                const panelThk = parseFloat(panel.panel_thk) || 0;
+                const filterThk = parseFloat(filters.panel_thk);
+                if (panelThk !== filterThk) return false;
+            }
+            
             if (filters.joint && panel.joint !== filters.joint) return false;
             if (filters.surface_front && panel.surface_front !== filters.surface_front) return false;
             if (filters.surface_back && panel.surface_back !== filters.surface_back) return false;
-            if (filters.surface_front_thk && panel.surface_front_thk !== filters.surface_front_thk) return false;
-            if (filters.surface_back_thk && panel.surface_back_thk !== filters.surface_back_thk) return false;
+            
+            // Fixed numeric filter comparisons for thickness
+            if (filters.surface_front_thk) {
+                const panelFrontThk = parseFloat(panel.surface_front_thk) || 0;
+                const filterFrontThk = parseFloat(filters.surface_front_thk);
+                if (panelFrontThk !== filterFrontThk) return false;
+            }
+            
+            if (filters.surface_back_thk) {
+                const panelBackThk = parseFloat(panel.surface_back_thk) || 0;
+                const filterBackThk = parseFloat(filters.surface_back_thk);
+                if (panelBackThk !== filterBackThk) return false;
+            }
+            
             if (filters.surface_type && panel.surface_type !== filters.surface_type) return false;
             if (filters.cutting && panel.cutting !== filters.cutting) return false;
             
