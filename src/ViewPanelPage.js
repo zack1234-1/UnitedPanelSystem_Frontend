@@ -24,25 +24,35 @@ const generateReferenceNumber = (existingReferences = []) => {
     return `${todayPrefix}-${String(sequence).padStart(3, '0')}`;
 };
 
-const generateProductionReferenceNumber = (existingProductionRefs = []) => {
+const generateProductionReferenceNumber = (existingProductionRefs = [], panelRef) => {
     const now = new Date();
     const year = now.getFullYear().toString().slice(-2);
     const month = String(now.getMonth() + 1).padStart(2, '0');
     const day = String(now.getDate()).padStart(2, '0');
     
-    const todayPrefix = `PROD-${year}${month}${day}`;
-    const todayRefs = existingProductionRefs.filter(ref => ref && ref.startsWith(todayPrefix));
+    // Get the panel reference part (last 3 digits)
+    const panelRefParts = panelRef?.split('-') || [];
+    const panelRefNum = panelRefParts[panelRefParts.length - 1] || '001';
+    
+    // Create a base prefix that includes panel reference for uniqueness
+    const basePrefix = `PROD-${year}${month}${day}-${panelRefNum}`;
+    
+    // Filter existing production refs for this panel and date
+    const existingPanelRefs = existingProductionRefs.filter(ref => 
+        ref && ref.startsWith(`PROD-${year}${month}${day}`) && ref.includes(`-${panelRefNum}-`)
+    );
     
     let sequence = 1;
-    if (todayRefs.length > 0) {
-        const sequences = todayRefs.map(ref => {
-            const match = ref.match(/\d+$/);
-            return match ? parseInt(match[0]) : 0;
+    if (existingPanelRefs.length > 0) {
+        const sequences = existingPanelRefs.map(ref => {
+            const parts = ref.split('-');
+            const lastPart = parts[parts.length - 1];
+            return lastPart ? parseInt(lastPart) : 0;
         });
         sequence = Math.max(...sequences) + 1;
     }
     
-    return `${todayPrefix}-${String(sequence).padStart(3, '0')}`;
+    return `${basePrefix}-${String(sequence).padStart(3, '0')}`;
 };
 
 const ProductionDetailsModal = ({ panel, onClose, updatePanelBalance, formatNumber, formatDate }) => {
@@ -134,16 +144,16 @@ const ProductionDetailsModal = ({ panel, onClose, updatePanelBalance, formatNumb
         setLocalSuccess(null);
 
         try {
-            // Generate production reference number
+            // Auto-generate production reference number
             const existingProdRefs = productionRecords.map(record => record.production_ref_number).filter(Boolean);
-            const productionRefNumber = generateProductionReferenceNumber(existingProdRefs);
+            const productionRefNumber = generateProductionReferenceNumber(existingProdRefs, currentPanel.reference_number);
 
             const productionRecordData = {
                 date: productionDate,
                 number_of_panels: numberOfPanels,
                 delivery_date: productionDate,
                 reference_number: currentPanel.reference_number,
-                production_ref_number: productionRefNumber,
+                production_ref_number: productionRefNumber, // Auto-generated reference
                 status: productionStatus || 'pending',
                 notes: `Production for job ${currentPanel.job_no}`
             };
@@ -849,13 +859,12 @@ const ViewPanelPage = () => {
                 if (panelQty !== filterQty) return false;
             }
             
-            // New filter for production reference
+            // Production reference filter
             if (filters.production_ref) {
-                // We need to check if any production record for this panel has the matching reference
-                // This would require fetching production records for each panel, which might be expensive
-                // For now, we'll skip this filter if we don't have production records loaded
-                // In a real app, you might want to preload production records or use a backend filter
-                return true; // Placeholder - implement properly if needed
+                // This filter would require fetching production records for each panel
+                // For now, we'll skip this filter at the panel level
+                // It's better implemented in the production records view
+                return true;
             }
             
             if (filters.balance_status) {
