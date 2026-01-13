@@ -37,12 +37,17 @@ const ProductionDetailsModal = ({ panel, onClose, updatePanelBalance, formatNumb
 
     const balance = currentPanel.balance !== undefined ? currentPanel.balance : currentPanel.qty || 0;
     const panelQty = parseInt(currentPanel.qty) || 0;
+    const panelLength = parseFloat(currentPanel.length) || 0;
 
     const totalProducedPanels = useMemo(() => {
         return productionRecords.reduce((sum, record) => 
             sum + (parseInt(record.number_of_panels) || 0), 0
         );
     }, [productionRecords]);
+
+    const totalProductionLength = useMemo(() => {
+        return (totalProducedPanels * panelLength) / 1000;
+    }, [totalProducedPanels, panelLength]);
 
     useEffect(() => {
         fetchProductionRecords();
@@ -231,6 +236,11 @@ const ProductionDetailsModal = ({ panel, onClose, updatePanelBalance, formatNumb
         }
     };
 
+    const calculateRecordLength = (record) => {
+        const panels = parseInt(record.number_of_panels) || 0;
+        return ((panels * panelLength) / 1000).toFixed(2);
+    };
+
     return (
         <div className="modal-overlay" onClick={onClose}>
             <div className="modal-content large-modal" onClick={e => e.stopPropagation()}>
@@ -263,6 +273,15 @@ const ProductionDetailsModal = ({ panel, onClose, updatePanelBalance, formatNumb
                             <div className="stat-box">
                                 <span className="stat-label">Already Produced</span>
                                 <span className="stat-value">{formatNumber(totalProducedPanels)}</span>
+                            </div>
+                            <div className="stat-box">
+                                <span className="stat-label">Production Length</span>
+                                <span className="stat-value">
+                                    {totalProductionLength.toFixed(2)} m
+                                </span>
+                                <div className="stat-hint">
+                                    ({totalProducedPanels} × {formatNumber(panelLength)} mm ÷ 1000)
+                                </div>
                             </div>
                             <div className="stat-box highlight">
                                 <span className="stat-label">Available Balance</span>
@@ -326,6 +345,17 @@ const ProductionDetailsModal = ({ panel, onClose, updatePanelBalance, formatNumb
                                     )}
                                 </div>
                                 <div className="form-group">
+                                    <label>Production Length</label>
+                                    <div className="calculated-length">
+                                        <span className="length-value">
+                                            {((numberOfPanels || 0) * panelLength / 1000).toFixed(2)} m
+                                        </span>
+                                        <div className="length-formula">
+                                            ({numberOfPanels || 0} × {formatNumber(panelLength)} mm ÷ 1000)
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="form-group">
                                     <label>Status</label>
                                     <select
                                         className="form-input"
@@ -370,6 +400,7 @@ const ProductionDetailsModal = ({ panel, onClose, updatePanelBalance, formatNumb
                                             <tr>
                                                 <th>Date</th>
                                                 <th>Panels</th>
+                                                <th>Length</th>
                                                 <th>Status</th>
                                                 <th>Actions</th>
                                             </tr>
@@ -380,6 +411,7 @@ const ProductionDetailsModal = ({ panel, onClose, updatePanelBalance, formatNumb
                                                 const today = new Date();
                                                 today.setHours(0, 0, 0, 0);
                                                 const isPastDue = recordDate < today;
+                                                const recordLength = calculateRecordLength(record);
                                                 
                                                 return (
                                                     <tr key={record.id} className={isPastDue ? 'past-due' : ''}>
@@ -388,6 +420,12 @@ const ProductionDetailsModal = ({ panel, onClose, updatePanelBalance, formatNumb
                                                             {isPastDue && <span className="past-due-badge">!</span>}
                                                         </td>
                                                         <td>{record.number_of_panels || 1}</td>
+                                                        <td className="record-length-cell">
+                                                            <span className="length-value">{recordLength} m</span>
+                                                            <div className="length-detail">
+                                                                {record.number_of_panels || 1} × {formatNumber(panelLength)} mm ÷ 1000
+                                                            </div>
+                                                        </td>
                                                         <td>
                                                             <select
                                                                 className="status-dropdown"
@@ -414,6 +452,20 @@ const ProductionDetailsModal = ({ panel, onClose, updatePanelBalance, formatNumb
                                                 );
                                             })}
                                         </tbody>
+                                        <tfoot>
+                                            <tr className="records-total">
+                                                <td colSpan="2">
+                                                    <strong>Total:</strong>
+                                                </td>
+                                                <td className="total-length">
+                                                    <strong>{totalProductionLength.toFixed(2)} m</strong>
+                                                    <div className="total-detail">
+                                                        {totalProducedPanels} panels × {formatNumber(panelLength)} mm ÷ 1000
+                                                    </div>
+                                                </td>
+                                                <td colSpan="2"></td>
+                                            </tr>
+                                        </tfoot>
                                     </table>
                                 </div>
                             )}
@@ -463,7 +515,18 @@ const ViewPanelPage = () => {
         brand: '',
         status: '',
         balance_status: '',
-        search: ''
+        search: '',
+        panel_thk: '',
+        joint: '',
+        surface_front: '',
+        surface_back: '',
+        surface_front_thk: '',
+        surface_back_thk: '',
+        surface_type: '',
+        width: '',
+        length: '',
+        qty: '',
+        cutting: ''
     });
 
     const [sortConfig, setSortConfig] = useState({
@@ -643,11 +706,57 @@ const ViewPanelPage = () => {
         let filtered = panels.filter(panel => {
             if (!panel || !panel.id) return false;
             
+            if (filters.search) {
+                const searchLower = filters.search.toLowerCase();
+                const searchFields = [
+                    panel.reference_number,
+                    panel.job_no?.toString(),
+                    panel.type,
+                    panel.brand,
+                    panel.salesman,
+                    panel.joint,
+                    panel.surface_front,
+                    panel.surface_back,
+                    panel.surface_type,
+                    panel.cutting
+                ];
+                
+                if (!searchFields.some(field => 
+                    field && field.toString().toLowerCase().includes(searchLower)
+                )) return false;
+            }
+            
             if (filters.reference_number && !panel.reference_number?.toLowerCase().includes(filters.reference_number.toLowerCase())) return false;
             if (filters.job_no && !panel.job_no?.toString().toLowerCase().includes(filters.job_no.toLowerCase())) return false;
             if (filters.type && panel.type !== filters.type) return false;
             if (filters.brand && panel.brand !== filters.brand) return false;
             if (filters.status && panel.status !== filters.status) return false;
+            if (filters.panel_thk && panel.panel_thk !== filters.panel_thk) return false;
+            if (filters.joint && panel.joint !== filters.joint) return false;
+            if (filters.surface_front && panel.surface_front !== filters.surface_front) return false;
+            if (filters.surface_back && panel.surface_back !== filters.surface_back) return false;
+            if (filters.surface_front_thk && panel.surface_front_thk !== filters.surface_front_thk) return false;
+            if (filters.surface_back_thk && panel.surface_back_thk !== filters.surface_back_thk) return false;
+            if (filters.surface_type && panel.surface_type !== filters.surface_type) return false;
+            if (filters.cutting && panel.cutting !== filters.cutting) return false;
+            
+            if (filters.width) {
+                const panelWidth = parseFloat(panel.width) || 0;
+                const filterWidth = parseFloat(filters.width);
+                if (panelWidth !== filterWidth) return false;
+            }
+            
+            if (filters.length) {
+                const panelLength = parseFloat(panel.length) || 0;
+                const filterLength = parseFloat(filters.length);
+                if (panelLength !== filterLength) return false;
+            }
+            
+            if (filters.qty) {
+                const panelQty = parseInt(panel.qty) || 0;
+                const filterQty = parseInt(filters.qty);
+                if (panelQty !== filterQty) return false;
+            }
             
             if (filters.balance_status) {
                 const balance = panel.balance !== undefined ? panel.balance : panel.qty;
@@ -669,16 +778,6 @@ const ViewPanelPage = () => {
                 }
             }
             
-            if (filters.search) {
-                const searchLower = filters.search.toLowerCase();
-                return (
-                    (panel.reference_number?.toLowerCase().includes(searchLower)) ||
-                    (panel.job_no?.toString().toLowerCase().includes(searchLower)) ||
-                    (panel.type?.toLowerCase().includes(searchLower)) ||
-                    (panel.brand?.toLowerCase().includes(searchLower)) ||
-                    (panel.salesman?.toLowerCase().includes(searchLower))
-                );
-            }
             return true;
         });
 
@@ -992,58 +1091,50 @@ const ViewPanelPage = () => {
         return number.toLocaleString('en-US');
     };
 
-    const uniqueJobNos = useMemo(() => {
-        const jobNos = panels
-            .map(panel => {
-                if (panel.job_no) {
-                    return String(panel.job_no).trim();
-                }
-                return null;
-            })
-            .filter(p => p);
-        
-        const unique = [...new Set(jobNos)];
-        
-        return unique.sort((a, b) => {
-            const aNum = parseFloat(a);
-            const bNum = parseFloat(b);
+    const uniqueValues = useMemo(() => {
+        const getUnique = (key, isNumeric = false) => {
+            const values = panels
+                .map(panel => {
+                    const value = panel[key];
+                    if (value === null || value === undefined || value === '') return null;
+                    
+                    if (isNumeric) {
+                        const numValue = parseFloat(value);
+                        return isNaN(numValue) ? null : numValue.toString();
+                    }
+                    
+                    return value.toString().trim();
+                })
+                .filter(p => p);
             
-            if (!isNaN(aNum) && !isNaN(bNum)) {
-                return aNum - bNum;
+            const unique = [...new Set(values)];
+            
+            if (isNumeric) {
+                return unique.sort((a, b) => parseFloat(a) - parseFloat(b));
             }
             
-            return a.localeCompare(b, undefined, { numeric: true });
-        });
-    }, [panels]);
+            return unique.sort();
+        };
 
-    const uniqueTypes = useMemo(() => {
-        const types = panels.map(panel => panel.type).filter(p => p);
-        return [...new Set(types)].sort();
+        return {
+            jobNos: getUnique('job_no'),
+            types: getUnique('type'),
+            brands: getUnique('brand'),
+            statuses: getUnique('status'),
+            salesmen: getUnique('salesman'),
+            panelThks: getUnique('panel_thk', true),
+            joints: getUnique('joint'),
+            surfaceFronts: getUnique('surface_front'),
+            surfaceBacks: getUnique('surface_back'),
+            surfaceFrontThks: getUnique('surface_front_thk', true),
+            surfaceBackThks: getUnique('surface_back_thk', true),
+            surfaceTypes: getUnique('surface_type'),
+            widths: getUnique('width', true),
+            lengths: getUnique('length', true),
+            qtys: getUnique('qty', true),
+            cuttings: getUnique('cutting')
+        };
     }, [panels]);
-
-    const uniqueBrands = useMemo(() => {
-        const brands = panels.map(panel => panel.brand).filter(p => p);
-        return [...new Set(brands)].sort();
-    }, [panels]);
-
-    const uniqueStatuses = useMemo(() => {
-        const statuses = panels.map(panel => panel.status).filter(p => p);
-        return [...new Set(statuses)].sort();
-    }, [panels]);
-
-    const uniqueSalesmen = useMemo(() => {
-        const salesmen = panels.map(panel => panel.salesman).filter(p => p);
-        return [...new Set(salesmen)].sort();
-    }, [panels]);
-
-    const getStatusBadge = (status) => {
-        switch(status) {
-            case 'completed': return <span className="badge badge-success">Completed</span>;
-            case 'in_progress': return <span className="badge badge-warning">In Progress</span>;
-            case 'pending': return <span className="badge badge-info">Pending</span>;
-            default: return <span className="badge badge-secondary">{status}</span>;
-        }
-    };
 
     return (
         <div className="view-panel-container">
@@ -1066,7 +1157,7 @@ const ViewPanelPage = () => {
                     <div className="search-box">
                         <input
                             type="text"
-                            placeholder="Search panels..."
+                            placeholder="Search all fields..."
                             value={filters.search}
                             onChange={handleSearchChange}
                             className="search-input"
@@ -1080,7 +1171,7 @@ const ViewPanelPage = () => {
                             className="form-select"
                         >
                             <option value="">All Job Numbers</option>
-                            {uniqueJobNos.map(jobNo => (
+                            {uniqueValues.jobNos.map(jobNo => (
                                 <option key={jobNo} value={jobNo}>{jobNo}</option>
                             ))}
                         </select>
@@ -1092,7 +1183,7 @@ const ViewPanelPage = () => {
                             className="form-select"
                         >
                             <option value="">All Types</option>
-                            {uniqueTypes.map(type => (
+                            {uniqueValues.types.map(type => (
                                 <option key={type} value={type}>{type}</option>
                             ))}
                         </select>
@@ -1104,7 +1195,7 @@ const ViewPanelPage = () => {
                             className="form-select"
                         >
                             <option value="">All Brands</option>
-                            {uniqueBrands.map(brand => (
+                            {uniqueValues.brands.map(brand => (
                                 <option key={brand} value={brand}>{brand}</option>
                             ))}
                         </select>
@@ -1116,9 +1207,153 @@ const ViewPanelPage = () => {
                             className="form-select"
                         >
                             <option value="">All Status</option>
-                            <option value="pending">Pending</option>
-                            <option value="in_progress">In Progress</option>
-                            <option value="completed">Completed</option>
+                            {uniqueValues.statuses.map(status => (
+                                <option key={status} value={status}>{status}</option>
+                            ))}
+                        </select>
+                    </div>
+                </div>
+
+                <div className="filter-row second-row">
+                    <div className="filter-group">
+                        <select 
+                            name="panel_thk" 
+                            value={filters.panel_thk} 
+                            onChange={handleFilterChange} 
+                            className="form-select"
+                        >
+                            <option value="">Panel Thickness</option>
+                            {uniqueValues.panelThks.map(thk => (
+                                <option key={thk} value={thk}>{thk} mm</option>
+                            ))}
+                        </select>
+
+                        <select 
+                            name="joint" 
+                            value={filters.joint} 
+                            onChange={handleFilterChange} 
+                            className="form-select"
+                        >
+                            <option value="">Joint</option>
+                            {uniqueValues.joints.map(joint => (
+                                <option key={joint} value={joint}>{joint}</option>
+                            ))}
+                        </select>
+
+                        <select 
+                            name="surface_front" 
+                            value={filters.surface_front} 
+                            onChange={handleFilterChange} 
+                            className="form-select"
+                        >
+                            <option value="">Surface Front</option>
+                            {uniqueValues.surfaceFronts.map(surface => (
+                                <option key={surface} value={surface}>{surface}</option>
+                            ))}
+                        </select>
+
+                        <select 
+                            name="surface_back" 
+                            value={filters.surface_back} 
+                            onChange={handleFilterChange} 
+                            className="form-select"
+                        >
+                            <option value="">Surface Back</option>
+                            {uniqueValues.surfaceBacks.map(surface => (
+                                <option key={surface} value={surface}>{surface}</option>
+                            ))}
+                        </select>
+
+                        <select 
+                            name="surface_front_thk" 
+                            value={filters.surface_front_thk} 
+                            onChange={handleFilterChange} 
+                            className="form-select"
+                        >
+                            <option value="">Front Thickness</option>
+                            {uniqueValues.surfaceFrontThks.map(thk => (
+                                <option key={thk} value={thk}>{thk} mm</option>
+                            ))}
+                        </select>
+                    </div>
+                </div>
+
+                <div className="filter-row third-row">
+                    <div className="filter-group">
+                        <select 
+                            name="surface_back_thk" 
+                            value={filters.surface_back_thk} 
+                            onChange={handleFilterChange} 
+                            className="form-select"
+                        >
+                            <option value="">Back Thickness</option>
+                            {uniqueValues.surfaceBackThks.map(thk => (
+                                <option key={thk} value={thk}>{thk} mm</option>
+                            ))}
+                        </select>
+
+                        <select 
+                            name="surface_type" 
+                            value={filters.surface_type} 
+                            onChange={handleFilterChange} 
+                            className="form-select"
+                        >
+                            <option value="">Surface Type</option>
+                            {uniqueValues.surfaceTypes.map(type => (
+                                <option key={type} value={type}>{type}</option>
+                            ))}
+                        </select>
+
+                        <select 
+                            name="width" 
+                            value={filters.width} 
+                            onChange={handleFilterChange} 
+                            className="form-select"
+                        >
+                            <option value="">Width</option>
+                            {uniqueValues.widths.map(width => (
+                                <option key={width} value={width}>{width} mm</option>
+                            ))}
+                        </select>
+
+                        <select 
+                            name="length" 
+                            value={filters.length} 
+                            onChange={handleFilterChange} 
+                            className="form-select"
+                        >
+                            <option value="">Length</option>
+                            {uniqueValues.lengths.map(length => (
+                                <option key={length} value={length}>{length} mm</option>
+                            ))}
+                        </select>
+
+                        <select 
+                            name="cutting" 
+                            value={filters.cutting} 
+                            onChange={handleFilterChange} 
+                            className="form-select"
+                        >
+                            <option value="">Cutting</option>
+                            {uniqueValues.cuttings.map(cutting => (
+                                <option key={cutting} value={cutting}>{cutting}</option>
+                            ))}
+                        </select>
+                    </div>
+                </div>
+
+                <div className="filter-row balance-row">
+                    <div className="filter-group">
+                        <select 
+                            name="balance_status" 
+                            value={filters.balance_status} 
+                            onChange={handleFilterChange} 
+                            className="form-select"
+                        >
+                            <option value="">All Balance Status</option>
+                            <option value="positive">Positive Balance</option>
+                            <option value="zero">Zero Balance</option>
+                            <option value="low">Low Balance (&lt;10%)</option>
                         </select>
                     </div>
                 </div>
@@ -1163,6 +1398,7 @@ const ViewPanelPage = () => {
                                     <option value="qty">Quantity</option>
                                     <option value="balance">Balance</option>
                                     <option value="status">Status</option>
+                                    <option value="production_meter">Production Meter</option>
                                 </select>
                                 <button 
                                     className="sort-direction-btn"
@@ -1202,8 +1438,12 @@ const ViewPanelPage = () => {
                                     {filteredPanels
                                         .filter(panel => panel && panel.id)
                                         .map(panel => {
-                                            const balance = panel.balance !== undefined ? panel.balance : panel.qty;
                                             const panelQty = parseInt(panel.qty) || 0;
+                                            const balance = panel.balance !== undefined ? panel.balance : panel.qty;
+                                            const panelLength = parseFloat(panel.length) || 0;
+                                            
+                                            const alreadyProduced = panelQty - balance;
+                                            const productionMeter = (alreadyProduced * panelLength) / 1000;
                                             
                                             return (
                                                 <tr key={panel.id} className="panel-row">
@@ -1280,23 +1520,12 @@ const ViewPanelPage = () => {
                                                     </td>
                                                     <td>
                                                         <div className="production-meter-cell">
-                                                            {(() => {
-                                                                const panelQty = parseInt(panel.qty) || 0;
-                                                                const balance = panel.balance !== undefined ? panel.balance : panel.qty;
-                                                                const panelLength = parseFloat(panel.length) || 0;
-                                                                
-                                                                // Calculate production meter: (Total Qty - Balance) × Length (convert mm to meters)
-                                                                const alreadyProduced = panelQty - balance;
-                                                                const productionMeter = (alreadyProduced * panelLength);
-                                                                
-                                                                return (
-                                                                    <div>
-                                                                        <div className="meter-value">
-                                                                            {productionMeter.toFixed(2)} m
-                                                                        </div>
-                                                                    </div>
-                                                                );
-                                                            })()}
+                                                            <div className="meter-value">
+                                                                {productionMeter.toFixed(2)} m
+                                                            </div>
+                                                            <div className="meter-detail">
+                                                                ({formatNumber(alreadyProduced)} × {formatNumber(panelLength)} mm ÷ 1000)
+                                                            </div>
                                                         </div>
                                                     </td>
                                                     <td>
@@ -1350,7 +1579,6 @@ const ViewPanelPage = () => {
                 )}
             </div>
 
-            {/* Production Modal */}
             {selectedPanelForProduction && (
                 <ProductionDetailsModal
                     panel={selectedPanelForProduction}
@@ -1361,7 +1589,6 @@ const ViewPanelPage = () => {
                 />
             )}
 
-            {/* Create Modal */}
             {isCreateModalOpen && (
                 <div className="modal-overlay" onClick={closeCreateModal}>
                     <div className="modal-content wide-modal" onClick={e => e.stopPropagation()}>
@@ -1632,7 +1859,6 @@ const ViewPanelPage = () => {
                 </div>
             )}
 
-            {/* Edit Modal */}
             {isEditModalOpen && editingPanel && (
                 <div className="modal-overlay" onClick={closeEditModal}>
                     <div className="modal-content wide-modal" onClick={e => e.stopPropagation()}>
@@ -1903,7 +2129,6 @@ const ViewPanelPage = () => {
                 </div>
             )}
 
-            {/* Duplicate Modal */}
             {isDuplicateModalOpen && selectedPanelToDuplicate && (
                 <div className="modal-overlay" onClick={closeDuplicateModal}>
                     <div className="modal-content small-modal" onClick={e => e.stopPropagation()}>
