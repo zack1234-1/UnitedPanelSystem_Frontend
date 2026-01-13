@@ -33,9 +33,11 @@ const ProductionDetailsModal = ({ panel, onClose, updatePanelBalance, formatNumb
     const [localSuccess, setLocalSuccess] = useState(null);
     const [productionRecords, setProductionRecords] = useState([]);
     const [isLoadingRecords, setIsLoadingRecords] = useState(true);
+    const [currentPanel, setCurrentPanel] = useState(panel); // Local state for panel data
 
-    const balance = panel.balance !== undefined ? panel.balance : panel.qty || 0;
-    const panelQty = parseInt(panel.qty) || 0;
+    // Use currentPanel for balance instead of panel prop
+    const balance = currentPanel.balance !== undefined ? currentPanel.balance : currentPanel.qty || 0;
+    const panelQty = parseInt(currentPanel.qty) || 0;
 
     const totalProducedPanels = useMemo(() => {
         return productionRecords.reduce((sum, record) => 
@@ -45,7 +47,24 @@ const ProductionDetailsModal = ({ panel, onClose, updatePanelBalance, formatNumb
 
     useEffect(() => {
         fetchProductionRecords();
-    }, [panel]);
+        // Also fetch the latest panel data
+        fetchCurrentPanelData();
+    }, [panel.id]); // Re-fetch when panel.id changes
+
+    // Function to fetch current panel data
+    const fetchCurrentPanelData = async () => {
+        try {
+            const data = await viewPanelAPI.getById(panel.id);
+            if (data) {
+                setCurrentPanel({
+                    ...data,
+                    balance: data.balance !== undefined ? data.balance : data.qty
+                });
+            }
+        } catch (err) {
+            console.error('Failed to fetch panel data:', err);
+        }
+    };
 
     const handleWheel = (e) => {
         e.target.blur();
@@ -95,24 +114,34 @@ const ProductionDetailsModal = ({ panel, onClose, updatePanelBalance, formatNumb
                 date: productionDate,
                 number_of_panels: numberOfPanels,
                 delivery_date: productionDate,
-                reference_number: panel.reference_number,
+                reference_number: currentPanel.reference_number,
                 status: productionStatus || 'pending',
-                notes: `Production for job ${panel.job_no}`
+                notes: `Production for job ${currentPanel.job_no}`
             };
 
             const result = await viewPanelAPI.createProductionWithBalance(panel.id, productionRecordData);
             
             if (result && result.production_record) {
+                // Add new record to the list
                 setProductionRecords(prev => [result.production_record, ...prev]);
                 
+                // Update the balance in parent component
                 if (updatePanelBalance && result.updated_balance !== undefined) {
                     updatePanelBalance(panel.id, result.updated_balance);
                 }
                 
+                // Update local panel balance
+                setCurrentPanel(prev => ({
+                    ...prev,
+                    balance: result.updated_balance !== undefined ? result.updated_balance : prev.balance
+                }));
+                
+                // Reset form
                 setProductionDate('');
                 setProductionStatus('pending');
                 
-                const newBalance = result.updated_balance;
+                // Set number of panels based on new balance
+                const newBalance = result.updated_balance || balance - numberOfPanels;
                 if (newBalance > 0) {
                     setNumberOfPanels(Math.min(1, newBalance));
                 } else {
@@ -131,7 +160,10 @@ const ProductionDetailsModal = ({ panel, onClose, updatePanelBalance, formatNumb
         } catch (err) {
             console.error('Failed to create production record:', err);
             setLocalError('Failed to add production record: ' + (err.message || 'Unknown error'));
+            
+            // Refresh both records and panel data
             fetchProductionRecords();
+            fetchCurrentPanelData();
         } finally {
             setIsSaving(false);
         }
@@ -148,15 +180,24 @@ const ProductionDetailsModal = ({ panel, onClose, updatePanelBalance, formatNumb
         try {
             const result = await viewPanelAPI.deleteProductionWithBalance(panel.id, recordId);
             
+            // Remove record from local list
             setProductionRecords(prev => prev.filter(record => record.id !== recordId));
             
+            // Update the balance in parent component
             if (updatePanelBalance && result.updated_balance !== undefined) {
                 updatePanelBalance(panel.id, result.updated_balance);
-                
-                const newBalance = result.updated_balance;
-                if (newBalance > 0) {
-                    setNumberOfPanels(Math.min(1, newBalance));
-                }
+            }
+            
+            // Update local panel balance
+            setCurrentPanel(prev => ({
+                ...prev,
+                balance: result.updated_balance !== undefined ? result.updated_balance : prev.balance
+            }));
+            
+            // Set number of panels based on new balance
+            const newBalance = result.updated_balance || balance + numberOfPanels;
+            if (newBalance > 0) {
+                setNumberOfPanels(Math.min(1, newBalance));
             }
             
             setLocalSuccess('Production record deleted. Balance restored.');
@@ -168,7 +209,10 @@ const ProductionDetailsModal = ({ panel, onClose, updatePanelBalance, formatNumb
         } catch (err) {
             console.error('Failed to delete production record:', err);
             setLocalError('Failed to delete production record: ' + (err.message || 'Unknown error'));
+            
+            // Refresh both records and panel data
             fetchProductionRecords();
+            fetchCurrentPanelData();
         } finally {
             setIsSaving(false);
         }
@@ -178,6 +222,7 @@ const ProductionDetailsModal = ({ panel, onClose, updatePanelBalance, formatNumb
         try {
             const updatedRecord = await productionAPI.updateStatus(recordId, { status: newStatus });
             
+            // Update local record
             setProductionRecords(prev => prev.map(record => 
                 record.id === recordId ? updatedRecord : record
             ));
@@ -207,7 +252,7 @@ const ProductionDetailsModal = ({ panel, onClose, updatePanelBalance, formatNumb
         <div className="modal-overlay" onClick={onClose}>
             <div className="modal-content large-modal" onClick={e => e.stopPropagation()}>
                 <div className="modal-header">
-                    <h2>Production Management: {panel.reference_number}</h2>
+                    <h2>Production Management: {currentPanel.reference_number}</h2>
                     <button type="button" className="close-button" onClick={onClose}>
                         ×
                     </button>
