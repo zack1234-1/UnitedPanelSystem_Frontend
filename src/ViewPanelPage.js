@@ -702,6 +702,15 @@ const ViewPanelPage = () => {
         }
     };
 
+    // Calculate area function
+    const calculateArea = (width, length) => {
+        const w = parseFloat(width) || 0;
+        const l = parseFloat(length) || 0;
+        if (w <= 0 || l <= 0) return 0;
+        // Convert from mm² to m² by dividing by 1,000,000
+        return (w * l) / 1000000;
+    };
+
     const filteredPanels = useMemo(() => {
         let filtered = panels.filter(panel => {
             if (!panel || !panel.id) return false;
@@ -1382,6 +1391,7 @@ const ViewPanelPage = () => {
                                         <th>SurfaceType</th>
                                         <th>Width</th>
                                         <th>Length</th>
+                                        <th>Area</th>
                                         <th>Qty</th>
                                         <th>Cutting</th>
                                         <th>Balance</th>
@@ -1396,9 +1406,11 @@ const ViewPanelPage = () => {
                                             const panelQty = parseInt(panel.qty) || 0;
                                             const balance = panel.balance !== undefined ? panel.balance : panel.qty;
                                             const panelLength = parseFloat(panel.length) || 0;
+                                            const panelWidth = parseFloat(panel.width) || 0;
                                             
                                             const alreadyProduced = panelQty - balance;
                                             const productionMeter = (alreadyProduced * panelLength) / 1000;
+                                            const area = calculateArea(panelWidth, panelLength);
                                             
                                             return (
                                                 <tr key={panel.id} className="panel-row">
@@ -1456,6 +1468,18 @@ const ViewPanelPage = () => {
                                                     <td>
                                                         <div className="dimension-cell">
                                                             {panel.length ? `${formatNumber(panel.length)} mm` : 'N/A'}
+                                                        </div>
+                                                    </td>
+                                                    <td>
+                                                        <div className="area-cell">
+                                                            <div className="area-value">
+                                                                {area > 0 ? area.toFixed(3) : '0'} m²
+                                                            </div>
+                                                            {area > 0 && (
+                                                                <div className="area-detail">
+                                                                    ({formatNumber(panelWidth)} × {formatNumber(panelLength)} mm ÷ 1,000,000)
+                                                                </div>
+                                                            )}
                                                         </div>
                                                     </td>
                                                     <td>
