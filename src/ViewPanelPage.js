@@ -1280,7 +1280,12 @@ const ViewPanelPage = () => {
                                                     </td>
                                                     <td>
                                                         <div className="production-meter-cell">
-                                                            {panel.production_meter ? `${formatNumber(panel.production_meter)} m` : 'N/A'}
+                                                            <div className="meter-value">
+                                                                {productionMeter.toFixed(2)} m
+                                                            </div>
+                                                            <div className="meter-detail">
+                                                                {alreadyProduced} × {formatNumber(panelLength)} mm ÷ 1000
+                                                            </div>
                                                         </div>
                                                     </td>
                                                     <td>
