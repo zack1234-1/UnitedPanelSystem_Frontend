@@ -24,37 +24,6 @@ const generateReferenceNumber = (existingReferences = []) => {
     return `${todayPrefix}-${String(sequence).padStart(3, '0')}`;
 };
 
-const generateProductionReferenceNumber = (existingProductionRefs = [], panelRef) => {
-    const now = new Date();
-    const year = now.getFullYear().toString().slice(-2);
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const day = String(now.getDate()).padStart(2, '0');
-    
-    // Get the panel reference part (last 3 digits)
-    const panelRefParts = panelRef?.split('-') || [];
-    const panelRefNum = panelRefParts[panelRefParts.length - 1] || '001';
-    
-    // Create a base prefix that includes panel reference for uniqueness
-    const basePrefix = `PROD-${year}${month}${day}-${panelRefNum}`;
-    
-    // Filter existing production refs for this panel and date
-    const existingPanelRefs = existingProductionRefs.filter(ref => 
-        ref && ref.startsWith(`PROD-${year}${month}${day}`) && ref.includes(`-${panelRefNum}-`)
-    );
-    
-    let sequence = 1;
-    if (existingPanelRefs.length > 0) {
-        const sequences = existingPanelRefs.map(ref => {
-            const parts = ref.split('-');
-            const lastPart = parts[parts.length - 1];
-            return lastPart ? parseInt(lastPart) : 0;
-        });
-        sequence = Math.max(...sequences) + 1;
-    }
-    
-    return `${basePrefix}-${String(sequence).padStart(3, '0')}`;
-};
-
 const ProductionDetailsModal = ({ panel, onClose, updatePanelBalance, formatNumber, formatDate }) => {
     const [productionDate, setProductionDate] = useState('');
     const [numberOfPanels, setNumberOfPanels] = useState(1);
@@ -65,7 +34,6 @@ const ProductionDetailsModal = ({ panel, onClose, updatePanelBalance, formatNumb
     const [productionRecords, setProductionRecords] = useState([]);
     const [isLoadingRecords, setIsLoadingRecords] = useState(true);
     const [currentPanel, setCurrentPanel] = useState(panel);
-    const [productionRecordFilter, setProductionRecordFilter] = useState('');
 
     const balance = currentPanel.balance !== undefined ? currentPanel.balance : currentPanel.qty || 0;
     const panelQty = parseInt(currentPanel.qty) || 0;
@@ -144,16 +112,11 @@ const ProductionDetailsModal = ({ panel, onClose, updatePanelBalance, formatNumb
         setLocalSuccess(null);
 
         try {
-            // Auto-generate production reference number
-            const existingProdRefs = productionRecords.map(record => record.production_ref_number).filter(Boolean);
-            const productionRefNumber = generateProductionReferenceNumber(existingProdRefs, currentPanel.reference_number);
-
             const productionRecordData = {
                 date: productionDate,
                 number_of_panels: numberOfPanels,
                 delivery_date: productionDate,
                 reference_number: currentPanel.reference_number,
-                production_ref_number: productionRefNumber, // Auto-generated reference
                 status: productionStatus || 'pending',
                 notes: `Production for job ${currentPanel.job_no}`
             };
@@ -182,7 +145,7 @@ const ProductionDetailsModal = ({ panel, onClose, updatePanelBalance, formatNumb
                     setNumberOfPanels(0);
                 }
                 
-                setLocalSuccess(`Production record ${productionRefNumber} added successfully! Balance updated.`);
+                setLocalSuccess('Production record added successfully! Balance updated.');
                 
                 setTimeout(() => {
                     setLocalSuccess(null);
@@ -277,17 +240,6 @@ const ProductionDetailsModal = ({ panel, onClose, updatePanelBalance, formatNumb
         const panels = parseInt(record.number_of_panels) || 0;
         return ((panels * panelLength) / 1000).toFixed(2);
     };
-
-    // Filter production records by reference number
-    const filteredProductionRecords = useMemo(() => {
-        if (!productionRecordFilter) return productionRecords;
-        
-        const filterLower = productionRecordFilter.toLowerCase();
-        return productionRecords.filter(record => 
-            record.production_ref_number?.toLowerCase().includes(filterLower) ||
-            (record.production_ref_number && record.production_ref_number.toLowerCase().includes(filterLower))
-        );
-    }, [productionRecords, productionRecordFilter]);
 
     return (
         <div className="modal-overlay" onClick={onClose}>
@@ -429,39 +381,23 @@ const ProductionDetailsModal = ({ panel, onClose, updatePanelBalance, formatNumb
                         </div>
 
                         <div className="production-records-section">
-                            <div className="production-records-header">
-                                <h3>Production Records ({filteredProductionRecords.length} of {productionRecords.length})</h3>
-                                <div className="production-records-filter">
-                                    <input
-                                        type="text"
-                                        placeholder="Filter by production reference..."
-                                        value={productionRecordFilter}
-                                        onChange={(e) => setProductionRecordFilter(e.target.value)}
-                                        className="form-input small"
-                                    />
-                                </div>
-                            </div>
+                            <h3>Production Records ({productionRecords.length})</h3>
                             
                             {isLoadingRecords ? (
                                 <div className="loading-state">
                                     <div className="loading-spinner"></div>
                                     <p>Loading records...</p>
                                 </div>
-                            ) : filteredProductionRecords.length === 0 ? (
+                            ) : productionRecords.length === 0 ? (
                                 <div className="empty-state">
                                     <div className="empty-icon">📅</div>
-                                    <p>
-                                        {productionRecordFilter ? 
-                                            `No production records match "${productionRecordFilter}"` : 
-                                            'No production records yet.'}
-                                    </p>
+                                    <p>No production records yet.</p>
                                 </div>
                             ) : (
                                 <div className="records-table-container">
                                     <table className="records-table">
                                         <thead>
                                             <tr>
-                                                <th>Production Ref</th>
                                                 <th>Date</th>
                                                 <th>Panels</th>
                                                 <th>Length</th>
@@ -470,7 +406,7 @@ const ProductionDetailsModal = ({ panel, onClose, updatePanelBalance, formatNumb
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {filteredProductionRecords.map((record) => {
+                                            {productionRecords.map((record) => {
                                                 const recordDate = new Date(record.date);
                                                 const today = new Date();
                                                 today.setHours(0, 0, 0, 0);
@@ -479,11 +415,6 @@ const ProductionDetailsModal = ({ panel, onClose, updatePanelBalance, formatNumb
                                                 
                                                 return (
                                                     <tr key={record.id} className={isPastDue ? 'past-due' : ''}>
-                                                        <td>
-                                                            <div className="production-ref-cell">
-                                                                <strong>{record.production_ref_number || 'N/A'}</strong>
-                                                            </div>
-                                                        </td>
                                                         <td>
                                                             {formatDate(record.date)}
                                                             {isPastDue && <span className="past-due-badge">!</span>}
@@ -525,9 +456,6 @@ const ProductionDetailsModal = ({ panel, onClose, updatePanelBalance, formatNumb
                                             <tr className="records-total">
                                                 <td colSpan="2">
                                                     <strong>Total:</strong>
-                                                </td>
-                                                <td>
-                                                    <strong>{totalProducedPanels}</strong>
                                                 </td>
                                                 <td className="total-length">
                                                     <strong>{totalProductionLength.toFixed(2)} m</strong>
@@ -598,8 +526,7 @@ const ViewPanelPage = () => {
         width: '',
         length: '',
         qty: '',
-        cutting: '',
-        production_ref: '' // New filter for production reference
+        cutting: ''
     });
 
     const [sortConfig, setSortConfig] = useState({
@@ -781,7 +708,7 @@ const ViewPanelPage = () => {
         const l = parseFloat(length) || 0;
         if (w <= 0 || l <= 0) return 0;
         // Convert from mm² to m² by dividing by 1,000,000
-        return (w * l) / 1000000;
+        return (w * l);
     };
 
     const filteredPanels = useMemo(() => {
@@ -857,14 +784,6 @@ const ViewPanelPage = () => {
                 const panelQty = parseInt(panel.qty) || 0;
                 const filterQty = parseInt(filters.qty);
                 if (panelQty !== filterQty) return false;
-            }
-            
-            // Production reference filter
-            if (filters.production_ref) {
-                // This filter would require fetching production records for each panel
-                // For now, we'll skip this filter at the panel level
-                // It's better implemented in the production records view
-                return true;
             }
             
             if (filters.balance_status) {
@@ -1400,16 +1319,6 @@ const ViewPanelPage = () => {
                                 <option key={thk} value={thk}>{thk} mm</option>
                             ))}
                         </select>
-                        
-                        {/* Add production reference filter */}
-                        <input
-                            type="text"
-                            name="production_ref"
-                            placeholder="Production Ref"
-                            value={filters.production_ref}
-                            onChange={handleFilterChange}
-                            className="form-select"
-                        />
                     </div>
                 </div>
             </div>
@@ -1500,7 +1409,7 @@ const ViewPanelPage = () => {
                                             const panelWidth = parseFloat(panel.width) || 0;
                                             
                                             const alreadyProduced = panelQty - balance;
-                                            const productionMeter = (alreadyProduced * panelLength) / 1000;
+                                            const productionMeter = (alreadyProduced * panelLength);
                                             const area = calculateArea(panelWidth, panelLength);
                                             
                                             return (
@@ -1566,11 +1475,6 @@ const ViewPanelPage = () => {
                                                             <div className="area-value">
                                                                 {area > 0 ? area.toFixed(3) : '0'} m²
                                                             </div>
-                                                            {area > 0 && (
-                                                                <div className="area-detail">
-                                                                    ({formatNumber(panelWidth)} × {formatNumber(panelLength)} mm ÷ 1,000,000)
-                                                                </div>
-                                                            )}
                                                         </div>
                                                     </td>
                                                     <td>
@@ -1591,10 +1495,7 @@ const ViewPanelPage = () => {
                                                     <td>
                                                         <div className="production-meter-cell">
                                                             <div className="meter-value">
-                                                                {productionMeter.toFixed(2)} m
-                                                            </div>
-                                                            <div className="meter-detail">
-                                                                ({formatNumber(alreadyProduced)} × {formatNumber(panelLength)} mm ÷ 1000)
+                                                                {productionMeter.toFixed(2)} mm
                                                             </div>
                                                         </div>
                                                     </td>
