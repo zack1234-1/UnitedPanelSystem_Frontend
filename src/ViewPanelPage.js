@@ -33,9 +33,8 @@ const ProductionDetailsModal = ({ panel, onClose, updatePanelBalance, formatNumb
     const [localSuccess, setLocalSuccess] = useState(null);
     const [productionRecords, setProductionRecords] = useState([]);
     const [isLoadingRecords, setIsLoadingRecords] = useState(true);
-    const [currentPanel, setCurrentPanel] = useState(panel); // Local state for panel data
+    const [currentPanel, setCurrentPanel] = useState(panel);
 
-    // Use currentPanel for balance instead of panel prop
     const balance = currentPanel.balance !== undefined ? currentPanel.balance : currentPanel.qty || 0;
     const panelQty = parseInt(currentPanel.qty) || 0;
 
@@ -47,11 +46,9 @@ const ProductionDetailsModal = ({ panel, onClose, updatePanelBalance, formatNumb
 
     useEffect(() => {
         fetchProductionRecords();
-        // Also fetch the latest panel data
         fetchCurrentPanelData();
-    }, [panel.id]); // Re-fetch when panel.id changes
+    }, [panel.id]);
 
-    // Function to fetch current panel data
     const fetchCurrentPanelData = async () => {
         try {
             const data = await viewPanelAPI.getById(panel.id);
@@ -122,25 +119,20 @@ const ProductionDetailsModal = ({ panel, onClose, updatePanelBalance, formatNumb
             const result = await viewPanelAPI.createProductionWithBalance(panel.id, productionRecordData);
             
             if (result && result.production_record) {
-                // Add new record to the list
                 setProductionRecords(prev => [result.production_record, ...prev]);
                 
-                // Update the balance in parent component
                 if (updatePanelBalance && result.updated_balance !== undefined) {
                     updatePanelBalance(panel.id, result.updated_balance);
                 }
                 
-                // Update local panel balance
                 setCurrentPanel(prev => ({
                     ...prev,
                     balance: result.updated_balance !== undefined ? result.updated_balance : prev.balance
                 }));
                 
-                // Reset form
                 setProductionDate('');
                 setProductionStatus('pending');
                 
-                // Set number of panels based on new balance
                 const newBalance = result.updated_balance || balance - numberOfPanels;
                 if (newBalance > 0) {
                     setNumberOfPanels(Math.min(1, newBalance));
@@ -160,8 +152,6 @@ const ProductionDetailsModal = ({ panel, onClose, updatePanelBalance, formatNumb
         } catch (err) {
             console.error('Failed to create production record:', err);
             setLocalError('Failed to add production record: ' + (err.message || 'Unknown error'));
-            
-            // Refresh both records and panel data
             fetchProductionRecords();
             fetchCurrentPanelData();
         } finally {
@@ -180,21 +170,17 @@ const ProductionDetailsModal = ({ panel, onClose, updatePanelBalance, formatNumb
         try {
             const result = await viewPanelAPI.deleteProductionWithBalance(panel.id, recordId);
             
-            // Remove record from local list
             setProductionRecords(prev => prev.filter(record => record.id !== recordId));
             
-            // Update the balance in parent component
             if (updatePanelBalance && result.updated_balance !== undefined) {
                 updatePanelBalance(panel.id, result.updated_balance);
             }
             
-            // Update local panel balance
             setCurrentPanel(prev => ({
                 ...prev,
                 balance: result.updated_balance !== undefined ? result.updated_balance : prev.balance
             }));
             
-            // Set number of panels based on new balance
             const newBalance = result.updated_balance || balance + numberOfPanels;
             if (newBalance > 0) {
                 setNumberOfPanels(Math.min(1, newBalance));
@@ -209,8 +195,6 @@ const ProductionDetailsModal = ({ panel, onClose, updatePanelBalance, formatNumb
         } catch (err) {
             console.error('Failed to delete production record:', err);
             setLocalError('Failed to delete production record: ' + (err.message || 'Unknown error'));
-            
-            // Refresh both records and panel data
             fetchProductionRecords();
             fetchCurrentPanelData();
         } finally {
@@ -222,7 +206,6 @@ const ProductionDetailsModal = ({ panel, onClose, updatePanelBalance, formatNumb
         try {
             const updatedRecord = await productionAPI.updateStatus(recordId, { status: newStatus });
             
-            // Update local record
             setProductionRecords(prev => prev.map(record => 
                 record.id === recordId ? updatedRecord : record
             ));
@@ -1053,58 +1036,6 @@ const ViewPanelPage = () => {
         return [...new Set(salesmen)].sort();
     }, [panels]);
 
-    const stats = useMemo(() => {
-        const totalPanels = panels.length;
-        const totalQty = panels.reduce((sum, panel) => sum + (parseInt(panel.qty) || 0), 0);
-        const totalProduced = panels.reduce((sum, panel) => {
-            const panelQty = parseInt(panel.qty) || 0;
-            const balance = panel.balance !== undefined ? panel.balance : panel.qty;
-            return sum + (panelQty - balance);
-        }, 0);
-        const totalBalance = panels.reduce((sum, panel) => {
-            const balance = panel.balance !== undefined ? panel.balance : panel.qty;
-            return sum + (parseInt(balance) || 0);
-        }, 0);
-        
-        const statusCounts = {};
-        panels.forEach(panel => {
-            const status = panel.status || 'pending';
-            statusCounts[status] = (statusCounts[status] || 0) + 1;
-        });
-        
-        const balanceStats = {
-            positive: 0,
-            zero: 0,
-            negative: 0,
-            low: 0
-        };
-        
-        panels.forEach(panel => {
-            const panelQty = parseInt(panel.qty) || 0;
-            const balance = panel.balance !== undefined ? panel.balance : panel.qty;
-            
-            if (balance > 0) {
-                balanceStats.positive++;
-                if (balance <= panelQty * 0.1) {
-                    balanceStats.low++;
-                }
-            } else if (balance === 0) {
-                balanceStats.zero++;
-            } else {
-                balanceStats.negative++;
-            }
-        });
-
-        return {
-            totalPanels,
-            totalQty,
-            totalProduced,
-            totalBalance,
-            statusCounts,
-            balanceStats
-        };
-    }, [panels]);
-
     const getStatusBadge = (status) => {
         switch(status) {
             case 'completed': return <span className="badge badge-success">Completed</span>;
@@ -1193,37 +1124,6 @@ const ViewPanelPage = () => {
                 </div>
             </div>
 
-            <div className="stats-cards">
-                <div className="stat-card">
-                    <div className="stat-icon">📊</div>
-                    <div className="stat-content">
-                        <h3>Total Panels</h3>
-                        <p className="stat-value">{stats.totalPanels}</p>
-                    </div>
-                </div>
-                <div className="stat-card">
-                    <div className="stat-icon">📦</div>
-                    <div className="stat-content">
-                        <h3>Total Quantity</h3>
-                        <p className="stat-value">{formatNumber(stats.totalQty)}</p>
-                    </div>
-                </div>
-                <div className="stat-card">
-                    <div className="stat-icon">✅</div>
-                    <div className="stat-content">
-                        <h3>Produced</h3>
-                        <p className="stat-value">{formatNumber(stats.totalProduced)}</p>
-                    </div>
-                </div>
-                <div className="stat-card">
-                    <div className="stat-icon">⚖️</div>
-                    <div className="stat-content">
-                        <h3>Balance</h3>
-                        <p className="stat-value">{formatNumber(stats.totalBalance)}</p>
-                    </div>
-                </div>
-            </div>
-
             <div className="table-container">
                 {error && <div className="alert alert-danger">{error}</div>}
 
@@ -1280,16 +1180,21 @@ const ViewPanelPage = () => {
                             <table className="panels-table">
                                 <thead>
                                     <tr>
-                                        <th>Reference</th>
-                                        <th>Job No</th>
+                                        <th>JobNo.</th>
                                         <th>Type</th>
-                                        <th>Brand</th>
-                                        <th>Dimensions</th>
-                                        <th>Quantity</th>
+                                        <th>PanelThk</th>
+                                        <th>Joint</th>
+                                        <th>Surface Front</th>
+                                        <th>Surface Back</th>
+                                        <th>Surface FrontThk</th>
+                                        <th>SurfaceBackThk</th>
+                                        <th>SurfaceType</th>
+                                        <th>Width</th>
+                                        <th>Length</th>
+                                        <th>Qty</th>
+                                        <th>Cutting</th>
                                         <th>Balance</th>
-                                        <th>Status</th>
-                                        <th>Salesman</th>
-                                        <th>Created</th>
+                                        <th>Production Meter</th>
                                         <th>Actions</th>
                                     </tr>
                                 </thead>
@@ -1299,22 +1204,13 @@ const ViewPanelPage = () => {
                                         .map(panel => {
                                             const balance = panel.balance !== undefined ? panel.balance : panel.qty;
                                             const panelQty = parseInt(panel.qty) || 0;
-                                            const productionProgress = panelQty > 0 ? Math.min(((panelQty - balance) / panelQty) * 100, 100) : 0;
                                             
                                             return (
                                                 <tr key={panel.id} className="panel-row">
                                                     <td>
-                                                        <div className="reference-cell">
-                                                            <strong>{panel.reference_number}</strong>
-                                                            <div className="panel-meta">
-                                                                <span className="panel-type">{panel.type || 'N/A'}</span>
-                                                                <span className="panel-joint">{panel.joint || 'N/A'}</span>
-                                                            </div>
-                                                        </div>
-                                                    </td>
-                                                    <td>
                                                         <div className="job-no-cell">
-                                                            {panel.job_no || 'N/A'}
+                                                            <strong>{panel.job_no || 'N/A'}</strong>
+                                                            <div className="panel-ref">{panel.reference_number}</div>
                                                         </div>
                                                     </td>
                                                     <td>
@@ -1323,58 +1219,68 @@ const ViewPanelPage = () => {
                                                         </div>
                                                     </td>
                                                     <td>
-                                                        <div className="brand-cell">
-                                                            {panel.brand || 'N/A'}
+                                                        <div className="panel-thk-cell">
+                                                            {panel.panel_thk ? `${formatNumber(panel.panel_thk)} mm` : 'N/A'}
                                                         </div>
                                                     </td>
                                                     <td>
-                                                        <div className="dimensions-cell">
-                                                            <div className="dimension-item">
-                                                                <span className="dim-label">W:</span>
-                                                                <span className="dim-value">{formatNumber(panel.width)} mm</span>
-                                                            </div>
-                                                            <div className="dimension-item">
-                                                                <span className="dim-label">L:</span>
-                                                                <span className="dim-value">{formatNumber(panel.length)} mm</span>
-                                                            </div>
-                                                            <div className="dimension-item">
-                                                                <span className="dim-label">T:</span>
-                                                                <span className="dim-value">{formatNumber(panel.panel_thk)} mm</span>
-                                                            </div>
+                                                        <div className="joint-cell">
+                                                            {panel.joint || 'N/A'}
                                                         </div>
                                                     </td>
                                                     <td>
-                                                        <div className="quantity-cell">
+                                                        <div className="surface-cell">
+                                                            {panel.surface_front || 'N/A'}
+                                                        </div>
+                                                    </td>
+                                                    <td>
+                                                        <div className="surface-cell">
+                                                            {panel.surface_back || 'N/A'}
+                                                        </div>
+                                                    </td>
+                                                    <td>
+                                                        <div className="surface-thk-cell">
+                                                            {panel.surface_front_thk ? `${formatNumber(panel.surface_front_thk)} mm` : 'N/A'}
+                                                        </div>
+                                                    </td>
+                                                    <td>
+                                                        <div className="surface-thk-cell">
+                                                            {panel.surface_back_thk ? `${formatNumber(panel.surface_back_thk)} mm` : 'N/A'}
+                                                        </div>
+                                                    </td>
+                                                    <td>
+                                                        <div className="surface-type-cell">
+                                                            {panel.surface_type || 'N/A'}
+                                                        </div>
+                                                    </td>
+                                                    <td>
+                                                        <div className="dimension-cell">
+                                                            {panel.width ? `${formatNumber(panel.width)} mm` : 'N/A'}
+                                                        </div>
+                                                    </td>
+                                                    <td>
+                                                        <div className="dimension-cell">
+                                                            {panel.length ? `${formatNumber(panel.length)} mm` : 'N/A'}
+                                                        </div>
+                                                    </td>
+                                                    <td>
+                                                        <div className="qty-cell">
                                                             {formatNumber(panel.qty)}
                                                         </div>
                                                     </td>
                                                     <td>
-                                                        <div className="balance-cell">
-                                                            <div className={`balance-value ${balance <= 0 ? 'zero' : ''}`}>
-                                                                {formatNumber(balance)}
-                                                            </div>
-                                                            {panelQty > 0 && (
-                                                                <div className="progress-bar-small">
-                                                                    <div 
-                                                                        className="progress"
-                                                                        style={{ width: `${productionProgress}%` }}
-                                                                        title={`${productionProgress.toFixed(1)}% complete`}
-                                                                    ></div>
-                                                                </div>
-                                                            )}
+                                                        <div className="cutting-cell">
+                                                            {panel.cutting || 'N/A'}
                                                         </div>
                                                     </td>
                                                     <td>
-                                                        {getStatusBadge(panel.status)}
-                                                    </td>
-                                                    <td>
-                                                        <div className="salesman-cell">
-                                                            {panel.salesman || 'N/A'}
+                                                        <div className={`balance-cell ${balance <= 0 ? 'zero' : ''}`}>
+                                                            {formatNumber(balance)}
                                                         </div>
                                                     </td>
                                                     <td>
-                                                        <div className="date-cell">
-                                                            {formatDate(panel.created_at)}
+                                                        <div className="production-meter-cell">
+                                                            {panel.production_meter ? `${formatNumber(panel.production_meter)} m` : 'N/A'}
                                                         </div>
                                                     </td>
                                                     <td>

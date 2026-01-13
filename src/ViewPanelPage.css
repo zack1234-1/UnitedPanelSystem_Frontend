@@ -2716,32 +2716,62 @@ input[type="number"] {
     max-width: 100%;
 }
 
+/* Table with image headers */
 .panels-table {
     width: 100%;
     border-collapse: collapse;
     font-size: 14px;
+    min-width: 1600px; /* Minimum width for all columns */
 }
 
 .panels-table thead {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
+    position: sticky;
+    top: 0;
+    z-index: 10;
 }
 
 .panels-table th {
-    padding: 15px 12px;
+    padding: 12px 8px;
     text-align: left;
     font-weight: 600;
-    font-size: 14px;
+    font-size: 13px;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    border-bottom: 2px solid #dee2e6;
+    border-right: 1px solid rgba(255, 255, 255, 0.2);
     white-space: nowrap;
+    position: relative;
+}
+
+.panels-table th:last-child {
+    border-right: none;
+}
+
+.panels-table th::after {
+    content: '';
+    position: absolute;
+    right: 0;
+    top: 25%;
+    height: 50%;
+    width: 1px;
+    background: rgba(255, 255, 255, 0.3);
+}
+
+.panels-table th:last-child::after {
+    display: none;
 }
 
 .panels-table td {
-    padding: 15px 12px;
+    padding: 10px 8px;
     vertical-align: middle;
     border-bottom: 1px solid #f0f0f0;
+    border-right: 1px solid #f0f0f0;
+    min-width: 80px;
+}
+
+.panels-table td:last-child {
+    border-right: none;
 }
 
 .panels-table tbody tr:hover {
@@ -2756,6 +2786,245 @@ input[type="number"] {
     background-color: #f1f3ff;
     transform: translateY(-1px);
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Column specific styles */
+.job-no-cell {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.job-no-cell strong {
+    font-size: 14px;
+    color: #333;
+    font-weight: 600;
+}
+
+.panel-ref {
+    font-size: 11px;
+    color: #666;
+    background: #f0f0f0;
+    padding: 2px 6px;
+    border-radius: 4px;
+    display: inline-block;
+    width: fit-content;
+}
+
+.type-cell, .joint-cell, .surface-cell, .surface-type-cell, .cutting-cell {
+    font-size: 13px;
+    color: #333;
+}
+
+.panel-thk-cell, .surface-thk-cell, .dimension-cell, .qty-cell, .balance-cell, .production-meter-cell {
+    font-size: 13px;
+    color: #333;
+    font-weight: 500;
+}
+
+.balance-cell.zero {
+    color: #dc3545;
+    font-weight: 600;
+}
+
+/* Actions Cell */
+.actions-cell {
+    display: flex;
+    gap: 5px;
+    flex-wrap: wrap;
+}
+
+.action-btn {
+    width: 28px;
+    height: 28px;
+    border: none;
+    border-radius: 4px;
+    background: #f8f9fa;
+    color: #666;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    transition: all 0.2s ease;
+}
+
+.action-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.action-btn.edit-btn:hover {
+    background: #007bff;
+    color: white;
+}
+
+.action-btn.duplicate-btn:hover {
+    background: #17a2b8;
+    color: white;
+}
+
+.action-btn.production-btn:hover {
+    background: #ffc107;
+    color: white;
+}
+
+.action-btn.delete-btn:hover {
+    background: #dc3545;
+    color: white;
+}
+
+/* Responsive wrapper */
+.responsive-table-wrapper {
+    overflow-x: auto;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    margin: 15px 0;
+    background: white;
+}
+
+/* Table header and footer */
+.table-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 0;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.table-header h3 {
+    margin: 0;
+    font-size: 18px;
+    color: #333;
+}
+
+.table-footer {
+    padding: 15px 0;
+    border-top: 1px solid #f0f0f0;
+    background: #f8f9fa;
+    border-radius: 0 0 6px 6px;
+}
+
+.table-summary {
+    font-size: 14px;
+    color: #666;
+    text-align: center;
+}
+
+/* Sort controls */
+.sort-controls {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.sort-direction-btn {
+    padding: 6px 12px;
+    background: #f8f9fa;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+    color: #495057;
+    transition: all 0.2s ease;
+}
+
+.sort-direction-btn:hover {
+    background: #e9ecef;
+}
+
+/* Column widths based on the image */
+.panels-table th:nth-child(1) { min-width: 80px; }  /* JobNo */
+.panels-table th:nth-child(2) { min-width: 60px; }  /* Type */
+.panels-table th:nth-child(3) { min-width: 80px; }  /* PanelThk */
+.panels-table th:nth-child(4) { min-width: 60px; }  /* Joint */
+.panels-table th:nth-child(5) { min-width: 100px; } /* Surface Front */
+.panels-table th:nth-child(6) { min-width: 100px; } /* Surface Back */
+.panels-table th:nth-child(7) { min-width: 100px; } /* Surface FrontThk */
+.panels-table th:nth-child(8) { min-width: 100px; } /* SurfaceBackThk */
+.panels-table th:nth-child(9) { min-width: 100px; } /* SurfaceType */
+.panels-table th:nth-child(10) { min-width: 80px; } /* Width */
+.panels-table th:nth-child(11) { min-width: 80px; } /* Length */
+.panels-table th:nth-child(12) { min-width: 60px; } /* Qty */
+.panels-table th:nth-child(13) { min-width: 80px; } /* Cutting */
+.panels-table th:nth-child(14) { min-width: 80px; } /* Balance */
+.panels-table th:nth-child(15) { min-width: 100px; } /* Production Meter */
+.panels-table th:nth-child(16) { min-width: 120px; } /* Actions */
+
+/* Responsive design */
+@media (max-width: 1200px) {
+    .panels-table {
+        font-size: 13px;
+    }
+    
+    .action-btn {
+        width: 26px;
+        height: 26px;
+        font-size: 12px;
+    }
+    
+    .panels-table th {
+        font-size: 12px;
+        padding: 10px 6px;
+    }
+    
+    .panels-table td {
+        padding: 8px 6px;
+    }
+}
+
+@media (max-width: 768px) {
+    .responsive-table-wrapper {
+        border: none;
+        border-radius: 0;
+    }
+    
+    .table-header {
+        flex-direction: column;
+        gap: 10px;
+        align-items: flex-start;
+    }
+    
+    .sort-controls {
+        width: 100%;
+    }
+}
+
+/* Fix for table scroll */
+.view-panel-container {
+    overflow-x: hidden;
+}
+
+/* Add this to ensure table is readable on mobile */
+@media (max-width: 576px) {
+    .panels-table {
+        min-width: 1400px;
+    }
+    
+    .panels-table th,
+    .panels-table td {
+        padding: 8px 4px;
+        font-size: 12px;
+    }
+    
+    .job-no-cell strong {
+        font-size: 12px;
+    }
+    
+    .panel-ref {
+        font-size: 10px;
+        padding: 1px 4px;
+    }
+    
+    .actions-cell {
+        gap: 3px;
+    }
+    
+    .action-btn {
+        width: 24px;
+        height: 24px;
+        font-size: 11px;
+    }
 }
 
 /* Cell Styles */
