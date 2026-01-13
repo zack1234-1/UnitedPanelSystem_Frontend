@@ -24,7 +24,7 @@ const generateReferenceNumber = (existingReferences = []) => {
     return `${todayPrefix}-${String(sequence).padStart(3, '0')}`;
 };
 
-const PanelCard = ({ panel, onEdit, onDuplicate, onDelete, onToggleProduction, formatNumber, formatDecimal, formatDate, updatePanelBalance }) => {
+const ProductionDetails = ({ panel, updatePanelBalance, formatNumber, formatDate }) => {
     const [showProductionDetails, setShowProductionDetails] = useState(false);
     const [productionDate, setProductionDate] = useState('');
     const [numberOfPanels, setNumberOfPanels] = useState(1);
@@ -37,7 +37,6 @@ const PanelCard = ({ panel, onEdit, onDuplicate, onDelete, onToggleProduction, f
     const [editingProductionRecord, setEditingProductionRecord] = useState(null);
     const [isEditingProduction, setIsEditingProduction] = useState(false);
 
-    // Use panel.balance directly from props (single source of truth)
     const balance = panel.balance !== undefined ? panel.balance : panel.qty || 0;
     const panelQty = parseInt(panel.qty) || 0;
 
@@ -53,23 +52,14 @@ const PanelCard = ({ panel, onEdit, onDuplicate, onDelete, onToggleProduction, f
         }
     }, [showProductionDetails, panel]);
 
-    // Handle wheel event to prevent number input scrolling
     const handleWheel = (e) => {
         e.target.blur();
     };
-
-    if (!panel || !panel.id) {
-        console.error('PanelCard received invalid panel data:', panel);
-        return null;
-    }
 
     const toggleProductionView = () => {
         setShowProductionDetails(!showProductionDetails);
         setLocalError(null);
         setLocalSuccess(null);
-        if (onToggleProduction) {
-            onToggleProduction(panel.id, !showProductionDetails);
-        }
     };
 
     const fetchProductionRecords = async () => {
@@ -124,19 +114,15 @@ const PanelCard = ({ panel, onEdit, onDuplicate, onDelete, onToggleProduction, f
             const result = await viewPanelAPI.createProductionWithBalance(panel.id, productionRecordData);
             
             if (result && result.production_record) {
-                // Add new record to the list
                 setProductionRecords(prev => [result.production_record, ...prev]);
                 
-                // Update the balance in parent component
                 if (updatePanelBalance && result.updated_balance !== undefined) {
                     updatePanelBalance(panel.id, result.updated_balance);
                 }
                 
-                // Reset form
                 setProductionDate('');
                 setProductionStatus('pending');
                 
-                // Set number of panels based on new balance
                 const newBalance = result.updated_balance;
                 if (newBalance > 0) {
                     setNumberOfPanels(Math.min(1, newBalance));
@@ -156,8 +142,6 @@ const PanelCard = ({ panel, onEdit, onDuplicate, onDelete, onToggleProduction, f
         } catch (err) {
             console.error('Failed to create production record:', err);
             setLocalError('Failed to add production record: ' + (err.message || 'Unknown error'));
-            
-            // Refresh records to ensure consistency
             fetchProductionRecords();
         } finally {
             setIsSaving(false);
@@ -175,14 +159,11 @@ const PanelCard = ({ panel, onEdit, onDuplicate, onDelete, onToggleProduction, f
         try {
             const result = await viewPanelAPI.deleteProductionWithBalance(panel.id, recordId);
             
-            // Remove record from local list
             setProductionRecords(prev => prev.filter(record => record.id !== recordId));
             
-            // Update the balance in parent component
             if (updatePanelBalance && result.updated_balance !== undefined) {
                 updatePanelBalance(panel.id, result.updated_balance);
                 
-                // Set number of panels based on new balance
                 const newBalance = result.updated_balance;
                 if (newBalance > 0) {
                     setNumberOfPanels(Math.min(1, newBalance));
@@ -198,8 +179,6 @@ const PanelCard = ({ panel, onEdit, onDuplicate, onDelete, onToggleProduction, f
         } catch (err) {
             console.error('Failed to delete production record:', err);
             setLocalError('Failed to delete production record: ' + (err.message || 'Unknown error'));
-            
-            // Refresh records to ensure consistency
             fetchProductionRecords();
         } finally {
             setIsSaving(false);
@@ -211,22 +190,18 @@ const PanelCard = ({ panel, onEdit, onDuplicate, onDelete, onToggleProduction, f
         setLocalError(null);
 
         try {
-            // Calculate balance adjustment if number of panels changed
             const oldRecord = productionRecords.find(record => record.id === recordId);
             const oldPanels = parseInt(oldRecord?.number_of_panels) || 0;
             const newPanels = parseInt(updatedData.number_of_panels) || 0;
             const panelDifference = newPanels - oldPanels;
             
-            // Only call update if there are changes
             if (panelDifference !== 0) {
-                // Check if we have enough balance to increase production
                 if (panelDifference > 0 && panelDifference > balance) {
                     setLocalError(`Cannot increase by ${panelDifference} panels. Only ${balance} available.`);
                     setIsSaving(false);
                     return;
                 }
                 
-                // Update with balance adjustment
                 const result = await viewPanelAPI.updateProductionWithBalance(
                     panel.id, 
                     recordId, 
@@ -235,17 +210,14 @@ const PanelCard = ({ panel, onEdit, onDuplicate, onDelete, onToggleProduction, f
                 );
                 
                 if (result && result.updated_balance !== undefined) {
-                    // Update parent component balance
                     if (updatePanelBalance) {
                         updatePanelBalance(panel.id, result.updated_balance);
                     }
                 }
             } else {
-                // Just update the record without changing balance
                 await productionAPI.update(panel.id, recordId, updatedData);
             }
             
-            // Refresh production records
             fetchProductionRecords();
             
             setLocalSuccess('Production record updated successfully!');
@@ -268,7 +240,6 @@ const PanelCard = ({ panel, onEdit, onDuplicate, onDelete, onToggleProduction, f
         try {
             const updatedRecord = await productionAPI.updateStatus(recordId, { status: newStatus });
             
-            // Update local record
             setProductionRecords(prev => prev.map(record => 
                 record.id === recordId ? updatedRecord : record
             ));
@@ -311,512 +282,187 @@ const PanelCard = ({ panel, onEdit, onDuplicate, onDelete, onToggleProduction, f
         setLocalError(null);
     };
 
-    const productionProgress = panelQty > 0 ? Math.min(((panelQty - balance) / panelQty) * 100, 100) : 0;
+    if (!showProductionDetails) return null;
 
     return (
-        <div className="panel-card-horizontal">
-            <div className="card-header-section">
-                <div className="card-title">
-                    <h3>{panel.reference_number}</h3>
-                    <span className={`panel-status status-${panel.status || 'pending'}`}>
-                        {panel.status === 'completed' ? '✓ Completed' : 
-                         panel.status === 'in_progress' ? '⟳ In Progress' : 
-                         panel.status === 'pending' ? '⏳ Pending' : 'Pending'}
-                    </span>
-                </div>
-                <div className="card-meta">
-                    <span className="job-no">Job: {panel.job_no || 'N/A'}</span>
-                    <span className="created-date">
-                        {formatDate(panel.created_at)}
-                    </span>
+        <div className="production-details-modal">
+            <div className="production-details-content">
+                <div className="production-header">
+                    <h3>Production Management: {panel.reference_number}</h3>
+                    <button className="close-btn" onClick={toggleProductionView}>×</button>
                 </div>
                 
-                <div className="toggle-switch-container">
-                    <button 
-                        className={`toggle-view-btn ${showProductionDetails ? 'active' : ''}`}
-                        onClick={toggleProductionView}
-                    >
-                        {showProductionDetails ? '📋 Panel Details' : '🏭 Production'}
-                    </button>
-                </div>
-                
-                <div className="card-actions">
-                    <button
-                        onClick={() => onEdit(panel)}
-                        className="card-btn edit-btn"
-                        title="Edit panel"
-                    >
-                        Edit
-                    </button>
-                    <button
-                        onClick={() => onDuplicate(panel)}
-                        className="card-btn duplicate-btn"
-                        title="Duplicate panel"
-                    >
-                        Duplicate
-                    </button>
-                    <button
-                        onClick={() => onDelete(panel.id)}
-                        className="card-btn delete-btn"
-                        title="Delete panel"
-                    >
-                        Delete
-                    </button>
-                </div>
-            </div>
-
-            <div className="card-content-section">
-                {showProductionDetails ? (
-                    <div className="production-details-view">
-                        {localError && (
-                            <div className="alert alert-danger production-alert">
-                                {localError}
-                            </div>
-                        )}
-                        
-                        {localSuccess && (
-                            <div className="alert alert-success production-alert">
-                                {localSuccess}
-                            </div>
-                        )}
-
-                        <div className="production-horizontal-layout">
-                            <div className="production-left-column">
-                                <div className="card-section compact-section">
-                                    <h4 className="card-section-title">Production Status</h4>
-                                    <div className="balance-summary-grid compact">
-                                        <div className="balance-item">
-                                            <span className="balance-label">Total:</span>
-                                            <span className="balance-value">{formatNumber(panelQty)}</span>
-                                        </div>
-                                        <div className="balance-item">
-                                            <span className="balance-label">Produced:</span>
-                                            <span className="balance-value">{formatNumber(totalProducedPanels)}</span>
-                                        </div>
-                                        <div className="balance-item highlight">
-                                            <span className="balance-label">Balance:</span>
-                                            <span className={`balance-value ${balance <= 0 ? 'zero-balance' : ''}`}>
-                                                {formatNumber(balance)}
-                                            </span>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div className="card-section compact-section">
-                                    <h4 className="card-section-title">Production Records ({productionRecords.length})</h4>
-                                    
-                                    {isLoadingRecords ? (
-                                        <div className="loading-records">
-                                            <div className="loading-spinner small"></div>
-                                            <p>Loading records...</p>
-                                        </div>
-                                    ) : productionRecords.length === 0 ? (
-                                        <div className="empty-production-records">
-                                            <div className="empty-icon">📅</div>
-                                            <p>No production records yet.</p>
-                                        </div>
-                                    ) : (
-                                        <div className="compact-production-records">
-                                            {productionRecords.slice(0, 3).map((record) => {
-                                                const recordDate = new Date(record.date);
-                                                const today = new Date();
-                                                today.setHours(0, 0, 0, 0);
-                                                const isPastDue = recordDate < today;
-                                                
-                                                return (
-                                                    <div key={record.id} className={`compact-record-item ${isPastDue ? 'past-due' : ''}`}>
-                                                        <div className="record-header">
-                                                            <div className="record-date">
-                                                                {formatDate(record.date)}
-                                                                {isPastDue && <span className="past-due-badge">!</span>}
-                                                            </div>
-                                                            <div className="record-main-info">
-                                                                <span className="record-panels">{record.number_of_panels || 1} panels</span>
-                                                            </div>
-                                                        </div>
-                                                        <div className="record-details">
-                                                            <div className="record-status-row">
-                                                                <div className="status-display-with-controls">
-                                                                    <select
-                                                                        className="status-change-dropdown mini"
-                                                                        value={record.status || 'pending'}
-                                                                        onChange={(e) => handleUpdateProductionStatus(record.id, e.target.value)}
-                                                                        disabled={isSaving}
-                                                                        title="Change status"
-                                                                    >
-                                                                        <option value="pending">⏳ Pending</option>
-                                                                        <option value="in_progress">⚙️ In Progress</option>
-                                                                        <option value="completed">✅ Completed</option>
-                                                                    </select>
-                                                                    <button
-                                                                        className="delete-record-btn mini"
-                                                                        onClick={() => handleDeleteProductionRecord(record.id)}
-                                                                        disabled={isSaving}
-                                                                        title="Delete"
-                                                                    >
-                                                                        ✕
-                                                                    </button>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-
-                            <div className="production-right-column">
-                                <div className="card-section compact-section">
-                                    <h4 className="card-section-title">Add Production</h4>
-                                    
-                                    <div className="compact-form-group">
-                                        <label className="compact-label">Available Balance:</label>
-                                        <span className={`compact-value ${balance <= 0 ? 'zero-balance' : balance <= panelQty * 0.1 ? 'low-balance' : ''}`}>
-                                            {formatNumber(balance)} panels
-                                        </span>
-                                    </div>
-                                    
-                                    <div className="compact-form-group">
-                                        <label className="compact-label">Date:</label>
-                                        <input 
-                                            type="date" 
-                                            className="compact-input"
-                                            value={productionDate}
-                                            onChange={(e) => {
-                                                setProductionDate(e.target.value);
-                                                setLocalError(null);
-                                            }}
-                                            disabled={isSaving || balance <= 0}
-                                            min={new Date().toISOString().split('T')[0]}
-                                        />
-                                    </div>
-                                    
-                                    <div className="compact-form-group">
-                                        <label className="compact-label">Panels:</label>
-                                        <div className="compact-input-with-hint">
-                                            <input 
-                                                type="number"
-                                                min="1"
-                                                max={balance}
-                                                step="1"
-                                                className="compact-input"
-                                                value={numberOfPanels}
-                                                onChange={(e) => {
-                                                    const value = e.target.value;
-                                                    if (value === '') {
-                                                        setNumberOfPanels('');
-                                                    } else {
-                                                        const numValue = parseInt(value);
-                                                        if (!isNaN(numValue) && numValue >= 1) {
-                                                            // Cap at balance if balance > 0
-                                                            if (balance > 0 && numValue > balance) {
-                                                                setNumberOfPanels(balance);
-                                                            } else {
-                                                                setNumberOfPanels(numValue);
-                                                            }
-                                                        }
-                                                    }
-                                                    setLocalError(null);
-                                                }}
-                                                onBlur={(e) => {
-                                                    // Auto-correct on blur if empty or invalid
-                                                    if (numberOfPanels === '' || parseInt(numberOfPanels) < 1 || isNaN(parseInt(numberOfPanels))) {
-                                                        setNumberOfPanels(Math.min(1, balance));
-                                                    }
-                                                }}
-                                                onWheel={handleWheel}
-                                                disabled={isSaving || balance <= 0}
-                                            />
-                                            <div className="input-hint">
-                                                {balance > 0 ? `Max: ${balance}` : 'No panels available'}
-                                            </div>
-                                        </div>
-                                    </div>
-                                    
-                                    <button
-                                        className={`compact-button primary ${balance <= 0 ? 'disabled' : ''}`}
-                                        onClick={handleCreateProductionRecord}
-                                        disabled={isSaving || !productionDate || !numberOfPanels || parseInt(numberOfPanels) < 1 || parseInt(numberOfPanels) > balance || balance <= 0}
-                                    >
-                                        {isSaving ? (
-                                            <>
-                                                <span className="saving-spinner"></span>
-                                                Saving...
-                                            </>
-                                        ) : balance <= 0 ? (
-                                            'No Panels Available'
-                                        ) : (
-                                            'Add Production'
-                                        )}
-                                    </button>
-                                </div>
-
-                                {productionRecords.length > 0 && (
-                                    <div className="card-section compact-section">
-                                        <h4 className="card-section-title">Summary</h4>
-                                        <div className="compact-summary-grid">
-                                            <div className="compact-summary-item">
-                                                <span className="compact-summary-label">Records</span>
-                                                <span className="compact-summary-value">{productionRecords.length}</span>
-                                            </div>
-                                            <div className="compact-summary-item">
-                                                <span className="compact-summary-label">Produced</span>
-                                                <span className="compact-summary-value">{formatNumber(totalProducedPanels)}</span>
-                                            </div>
-                                            <div className="compact-summary-item highlight">
-                                                <span className="compact-summary-label">Remaining</span>
-                                                <span className={`compact-summary-value ${balance <= 0 ? 'zero-balance' : ''}`}>
-                                                    {formatNumber(balance)}
-                                                </span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-                ) : (
-                    <div className="panel-details-horizontal-layout">
-                        <div className="panel-details-column">
-                            <div className="card-section compact-section">
-                                <h4 className="card-section-title">Basic Info</h4>
-                                <div className="info-grid compact">
-                                    <div className="info-item">
-                                        <span className="info-label">Job No:</span>
-                                        <span className="info-value">{panel.job_no || 'N/A'}</span>
-                                    </div>
-                                    <div className="info-item">
-                                        <span className="info-label">Type:</span>
-                                        <span className="info-value">{panel.type || 'N/A'}</span>
-                                    </div>
-                                    <div className="info-item">
-                                        <span className="info-label">Brand:</span>
-                                        <span className="info-value">{panel.brand || 'N/A'}</span>
-                                    </div>
-                                    <div className="info-item">
-                                        <span className="info-label">Panel Thk:</span>
-                                        <span className="info-value">{formatNumber(panel.panel_thk)} mm</span>
-                                    </div>
-                                    <div className="info-item">
-                                        <span className="info-label">Joint:</span>
-                                        <span className="info-value">{panel.joint || 'N/A'}</span>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="card-section compact-section">
-                                <h4 className="card-section-title">Surface Details</h4>
-                                <div className="info-grid compact">
-                                    <div className="info-item">
-                                        <span className="info-label">Surface Front:</span>
-                                        <span className="info-value">{panel.surface_front || 'N/A'}</span>
-                                    </div>
-                                    <div className="info-item">
-                                        <span className="info-label">Surface Back:</span>
-                                        <span className="info-value">{panel.surface_back || 'N/A'}</span>
-                                    </div>
-                                    <div className="info-item">
-                                        <span className="info-label">Surface Type:</span>
-                                        <span className="info-value">{panel.surface_type || 'N/A'}</span>
-                                    </div>
-                                    <div className="info-item">
-                                        <span className="info-label">Front Thk:</span>
-                                        <span className="info-value">{panel.surface_front_thk || 'N/A'} mm</span>
-                                    </div>
-                                    <div className="info-item">
-                                        <span className="info-label">Back Thk:</span>
-                                        <span className="info-value">{panel.surface_back_thk || 'N/A'} mm</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="panel-details-column">
-                            <div className="card-section compact-section">
-                                <h4 className="card-section-title">Production Status</h4>
-                                <div className="balance-display compact">
-                                    <div className="balance-item">
-                                        <span className="balance-label">Total Qty:</span>
-                                        <span className="balance-value">{formatNumber(panelQty)}</span>
-                                    </div>
-                                    <div className="balance-item highlight">
-                                        <span className="balance-label">Balance:</span>
-                                        <span className={`balance-value ${balance <= 0 ? 'zero-balance' : ''}`}>
-                                            {formatNumber(balance)}
-                                        </span>
-                                    </div>
-                                </div>
-                                
-                                {panelQty > 0 && (
-                                    <div className="compact-progress">
-                                        <div className="progress-label">
-                                            <span>Progress:</span>
-                                            <span>{productionProgress.toFixed(1)}%</span>
-                                        </div>
-                                        <div className="progress-bar">
-                                            <div 
-                                                className="progress"
-                                                style={{ width: `${productionProgress}%` }}
-                                            ></div>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-
-                            <div className="card-section compact-section">
-                                <h4 className="card-section-title">Dimensions</h4>
-                                <div className="info-grid compact">
-                                    <div className="info-item">
-                                        <span className="info-label">Width:</span>
-                                        <span className="info-value">{formatNumber(panel.width)} mm</span>
-                                    </div>
-                                    <div className="info-item">
-                                        <span className="info-label">Length:</span>
-                                        <span className="info-value">{formatNumber(panel.length)} mm</span>
-                                    </div>
-                                    <div className="info-item">
-                                        <span className="info-label">Quantity:</span>
-                                        <span className="info-value">{formatNumber(panel.qty)}</span>
-                                    </div>
-                                    <div className="info-item">
-                                        <span className="info-label">Cutting:</span>
-                                        <span className="info-value">{panel.cutting || 'N/A'}</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="panel-details-column">
-                            <div className="card-section compact-section">
-                                <h4 className="card-section-title">Status & Sales</h4>
-                                <div className="info-grid compact">
-                                    <div className="info-item">
-                                        <span className="info-label">Status:</span>
-                                        <span className={`info-value status-badge status-${panel.status || 'pending'}`}>
-                                            {panel.status === 'completed' ? 'Completed' : 
-                                             panel.status === 'in_progress' ? 'In Progress' : 
-                                             panel.status === 'pending' ? 'Pending' : 'N/A'}
-                                        </span>
-                                    </div>
-                                    <div className="info-item">
-                                        <span className="info-label">Salesman:</span>
-                                        <span className="info-value">{panel.salesman || 'N/A'}</span>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="card-section compact-section">
-                                <h4 className="card-section-title">Additional Info</h4>
-                                {panel.estimated_delivery && (
-                                    <div className="info-item">
-                                        <span className="info-label">Est. Delivery:</span>
-                                        <span className="info-value">{formatDate(panel.estimated_delivery)}</span>
-                                    </div>
-                                )}
-                                {panel.notes && (
-                                    <div className="notes-preview">
-                                        <span className="info-label">Notes:</span>
-                                        <span className="notes-content" title={panel.notes}>
-                                            {panel.notes.length > 50 ? panel.notes.substring(0, 50) + '...' : panel.notes}
-                                        </span>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
+                {localError && (
+                    <div className="alert alert-danger">
+                        {localError}
                     </div>
                 )}
-            </div>
+                
+                {localSuccess && (
+                    <div className="alert alert-success">
+                        {localSuccess}
+                    </div>
+                )}
 
-            {isEditingProduction && editingProductionRecord && (
-                <div className="modal-overlay production-edit-modal">
-                    <div className="modal-content small-modal" onClick={e => e.stopPropagation()}>
-                        <div className="modal-header">
-                            <h2>Edit Production Record</h2>
-                            <button type="button" className="close-button" onClick={closeEditProductionRecord}>
-                                ×
-                            </button>
+                <div className="production-main-section">
+                    <div className="production-stats">
+                        <div className="stat-box">
+                            <span className="stat-label">Total Quantity</span>
+                            <span className="stat-value">{formatNumber(panelQty)}</span>
                         </div>
-                        <div className="modal-body">
-                            <form onSubmit={(e) => {
-                                e.preventDefault();
-                                handleUpdateProductionRecord(editingProductionRecord.id, {
-                                    ...editingProductionRecord,
-                                    date: editingProductionRecord.date,
-                                    number_of_panels: parseInt(editingProductionRecord.number_of_panels) || 1,
-                                    status: editingProductionRecord.status || 'pending'
-                                });
-                            }} className="production-edit-form">
-                                <div className="form-group">
-                                    <label htmlFor="edit_date">Date</label>
-                                    <input
-                                        type="date"
-                                        id="edit_date"
-                                        name="date"
-                                        value={editingProductionRecord.date}
-                                        onChange={(e) => setEditingProductionRecord(prev => ({ ...prev, date: e.target.value }))}
-                                        className="form-input"
-                                        required
-                                    />
-                                </div>
-
-                                <div className="form-group">
-                                    <label htmlFor="edit_number_of_panels">Number of Panels</label>
-                                    <input
-                                        type="number"
-                                        id="edit_number_of_panels"
-                                        name="number_of_panels"
-                                        min="1"
-                                        // Calculate max based on current balance + current record's panels
-                                        max={balance + (parseInt(editingProductionRecord.number_of_panels) || 0)}
-                                        value={editingProductionRecord.number_of_panels}
-                                        onChange={(e) => setEditingProductionRecord(prev => ({ 
-                                            ...prev, 
-                                            number_of_panels: e.target.value 
-                                        }))}
-                                        onWheel={handleWheel}
-                                        className="form-input"
-                                        required
-                                    />
-                                    <small className="form-hint">
-                                        Max: {balance + (parseInt(editingProductionRecord.number_of_panels) || 0)} panels
-                                    </small>
-                                </div>
-
-                                <div className="form-group">
-                                    <label htmlFor="edit_status">Status</label>
-                                    <select
-                                        id="edit_status"
-                                        name="status"
-                                        value={editingProductionRecord.status}
-                                        onChange={(e) => setEditingProductionRecord(prev => ({ 
-                                            ...prev, 
-                                            status: e.target.value 
-                                        }))}
-                                        className="form-input"
-                                    >
-                                        <option value="pending">⏳ Pending</option>
-                                        <option value="in_progress">⚙️ In Progress</option>
-                                        <option value="completed">✅ Completed</option>
-                                    </select>
-                                </div>
-
-                                {localError && <div className="alert alert-danger">{localError}</div>}
-
-                                <div className="form-actions">
-                                    <button type="button" className="secondary-btn" onClick={closeEditProductionRecord}>
-                                        Cancel
-                                    </button>
-                                    <button type="submit" className="primary-btn" disabled={isSaving}>
-                                        {isSaving ? 'Saving...' : 'Update Record'}
-                                    </button>
-                                </div>
-                            </form>
+                        <div className="stat-box">
+                            <span className="stat-label">Already Produced</span>
+                            <span className="stat-value">{formatNumber(totalProducedPanels)}</span>
+                        </div>
+                        <div className="stat-box highlight">
+                            <span className="stat-label">Balance</span>
+                            <span className={`stat-value ${balance <= 0 ? 'zero-balance' : ''}`}>
+                                {formatNumber(balance)}
+                            </span>
                         </div>
                     </div>
+
+                    <div className="production-form-section">
+                        <h4>Add Production Record</h4>
+                        <div className="form-grid">
+                            <div className="form-group">
+                                <label>Available Balance:</label>
+                                <div className={`balance-display ${balance <= 0 ? 'zero' : balance <= panelQty * 0.1 ? 'low' : ''}`}>
+                                    {formatNumber(balance)} panels
+                                </div>
+                            </div>
+                            <div className="form-group">
+                                <label>Production Date *</label>
+                                <input 
+                                    type="date" 
+                                    className="form-input"
+                                    value={productionDate}
+                                    onChange={(e) => {
+                                        setProductionDate(e.target.value);
+                                        setLocalError(null);
+                                    }}
+                                    disabled={isSaving || balance <= 0}
+                                />
+                            </div>
+                            <div className="form-group">
+                                <label>Number of Panels *</label>
+                                <input 
+                                    type="number"
+                                    min="1"
+                                    max={balance}
+                                    step="1"
+                                    className="form-input"
+                                    value={numberOfPanels}
+                                    onChange={(e) => {
+                                        const value = e.target.value;
+                                        if (value === '') {
+                                            setNumberOfPanels('');
+                                        } else {
+                                            const numValue = parseInt(value);
+                                            if (!isNaN(numValue) && numValue >= 1) {
+                                                if (balance > 0 && numValue > balance) {
+                                                    setNumberOfPanels(balance);
+                                                } else {
+                                                    setNumberOfPanels(numValue);
+                                                }
+                                            }
+                                        }
+                                        setLocalError(null);
+                                    }}
+                                    onBlur={(e) => {
+                                        if (numberOfPanels === '' || parseInt(numberOfPanels) < 1 || isNaN(parseInt(numberOfPanels))) {
+                                            setNumberOfPanels(Math.min(1, balance));
+                                        }
+                                    }}
+                                    onWheel={handleWheel}
+                                    disabled={isSaving || balance <= 0}
+                                />
+                                {balance > 0 && (
+                                    <div className="form-hint">Max: {balance} panels available</div>
+                                )}
+                            </div>
+                            <div className="form-group">
+                                <button
+                                    className={`btn btn-primary ${balance <= 0 ? 'disabled' : ''}`}
+                                    onClick={handleCreateProductionRecord}
+                                    disabled={isSaving || !productionDate || !numberOfPanels || parseInt(numberOfPanels) < 1 || parseInt(numberOfPanels) > balance || balance <= 0}
+                                >
+                                    {isSaving ? 'Saving...' : 'Add Production Record'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="production-records-section">
+                        <h4>Production Records ({productionRecords.length})</h4>
+                        
+                        {isLoadingRecords ? (
+                            <div className="loading-state">
+                                <div className="loading-spinner"></div>
+                                <p>Loading records...</p>
+                            </div>
+                        ) : productionRecords.length === 0 ? (
+                            <div className="empty-state">
+                                <div className="empty-icon">📅</div>
+                                <p>No production records yet.</p>
+                            </div>
+                        ) : (
+                            <div className="records-table-container">
+                                <table className="records-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Date</th>
+                                            <th>Panels</th>
+                                            <th>Status</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {productionRecords.map((record) => {
+                                            const recordDate = new Date(record.date);
+                                            const today = new Date();
+                                            today.setHours(0, 0, 0, 0);
+                                            const isPastDue = recordDate < today;
+                                            
+                                            return (
+                                                <tr key={record.id} className={isPastDue ? 'past-due' : ''}>
+                                                    <td>
+                                                        {formatDate(record.date)}
+                                                        {isPastDue && <span className="past-due-badge">!</span>}
+                                                    </td>
+                                                    <td>{record.number_of_panels || 1}</td>
+                                                    <td>
+                                                        <select
+                                                            className="status-dropdown"
+                                                            value={record.status || 'pending'}
+                                                            onChange={(e) => handleUpdateProductionStatus(record.id, e.target.value)}
+                                                            disabled={isSaving}
+                                                        >
+                                                            <option value="pending">⏳ Pending</option>
+                                                            <option value="in_progress">⚙️ In Progress</option>
+                                                            <option value="completed">✅ Completed</option>
+                                                        </select>
+                                                    </td>
+                                                    <td>
+                                                        <button
+                                                            className="btn btn-sm btn-danger"
+                                                            onClick={() => handleDeleteProductionRecord(record.id)}
+                                                            disabled={isSaving}
+                                                            title="Delete"
+                                                        >
+                                                            Delete
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
+                    </div>
                 </div>
-            )}
+            </div>
         </div>
     );
 };
@@ -867,16 +513,15 @@ const ViewPanelPage = () => {
         direction: 'desc'
     });
 
-    // Duplicate modal states
     const [isDuplicateModalOpen, setIsDuplicateModalOpen] = useState(false);
     const [selectedPanelToDuplicate, setSelectedPanelToDuplicate] = useState(null);
     const [numberOfCopies, setNumberOfCopies] = useState(1);
+    const [expandedPanelId, setExpandedPanelId] = useState(null);
 
     useEffect(() => {
         fetchPanels();
     }, []);
 
-    // Handle wheel event to prevent number input scrolling
     const handleWheel = (e) => {
         e.target.blur();
     };
@@ -889,7 +534,6 @@ const ViewPanelPage = () => {
             
             if (Array.isArray(data)) {
                 const validPanels = data.filter(panel => panel && panel.id);
-                // Ensure each panel has a balance field
                 const panelsWithBalance = validPanels.map(panel => ({
                     ...panel,
                     balance: panel.balance !== undefined ? panel.balance : (panel.qty || 0)
@@ -913,12 +557,11 @@ const ViewPanelPage = () => {
         setPanels(prev => prev.map(panel => 
             panel.id === panelId ? { 
                 ...panel, 
-                balance: Math.max(0, newBalance) // Ensure balance never goes negative
+                balance: Math.max(0, newBalance)
             } : panel
         ));
     };
 
-    // Duplicate panel functions
     const openDuplicateModal = (panel) => {
         setSelectedPanelToDuplicate(panel);
         setNumberOfCopies(1);
@@ -933,7 +576,6 @@ const ViewPanelPage = () => {
 
     const handleDuplicatePanel = async (panel, count = 1) => {
         try {
-            // Generate all reference numbers at once
             const existingRefs = panels.map(p => p.reference_number);
             const baseDate = new Date();
             const year = baseDate.getFullYear().toString().slice(-2);
@@ -941,7 +583,6 @@ const ViewPanelPage = () => {
             const day = String(baseDate.getDate()).padStart(2, '0');
             const todayPrefix = `REF-${year}${month}${day}`;
             
-            // Find the highest sequence number for today
             let maxSequence = 0;
             const todayRefs = existingRefs.filter(ref => ref && ref.startsWith(todayPrefix));
             if (todayRefs.length > 0) {
@@ -952,30 +593,25 @@ const ViewPanelPage = () => {
                 maxSequence = Math.max(...sequences);
             }
             
-            // Generate reference numbers
             const referenceNumbers = [];
             for (let i = 1; i <= count; i++) {
                 const sequence = maxSequence + i;
                 referenceNumbers.push(`${todayPrefix}-${String(sequence).padStart(3, '0')}`);
             }
             
-            // Create all copies
             const newPanels = [];
             
             for (let i = 0; i < count; i++) {
-                // Create a modified job number by adding "Copy" to the original
                 const originalJobNo = panel.job_no || '';
                 const newJobNo = count === 1 
                     ? `${originalJobNo} (Copy)`
                     : `${originalJobNo} (Copy ${i + 1})`;
                 
-                // Create notes indicating this is a duplicate
                 const originalNotes = panel.notes || '';
                 const newNotes = originalNotes 
                     ? `${originalNotes}\n\n---\nDuplicate of ${panel.reference_number}`
                     : `Duplicate of ${panel.reference_number}`;
                 
-                // Format the estimated_delivery to YYYY-MM-DD
                 let formattedEstimatedDelivery = null;
                 if (panel.estimated_delivery) {
                     try {
@@ -1016,7 +652,6 @@ const ViewPanelPage = () => {
                     estimated_delivery: formattedEstimatedDelivery
                 };
                 
-                // Remove empty string values to avoid sending '' to the backend
                 Object.keys(panelData).forEach(key => {
                     if (panelData[key] === '' || panelData[key] === undefined) {
                         panelData[key] = null;
@@ -1030,13 +665,8 @@ const ViewPanelPage = () => {
                 });
             }
             
-            // Add all new panels to the beginning of the list
             setPanels(prev => [...newPanels, ...prev]);
-            
-            // Close the duplicate modal
             closeDuplicateModal();
-            
-            // Show success message
             setError(null);
             
             if (count === 1) {
@@ -1197,7 +827,6 @@ const ViewPanelPage = () => {
                 production_meter: editingPanel.production_meter ? parseFloat(editingPanel.production_meter) : null,
                 salesman: editingPanel.salesman || null,
                 notes: editingPanel.notes || null,
-                // When updating panel quantity, also update balance to match
                 balance: editingPanel.qty ? parseInt(editingPanel.qty) : null
             };
             
@@ -1249,7 +878,7 @@ const ViewPanelPage = () => {
                 surface_back_thk: newPanel.surface_back_thk ? parseFloat(newPanel.surface_back_thk) : null,
                 panel_thk: newPanel.panel_thk ? parseFloat(newPanel.panel_thk) : null,
                 qty: newPanel.qty ? parseInt(newPanel.qty) : null,
-                balance: newPanel.qty ? parseInt(newPanel.qty) : null, // Initial balance equals quantity
+                balance: newPanel.qty ? parseInt(newPanel.qty) : null,
                 production_meter: newPanel.production_meter ? parseFloat(newPanel.production_meter) : null,
                 salesman: newPanel.salesman || null,
                 notes: newPanel.notes || null,
@@ -1310,8 +939,8 @@ const ViewPanelPage = () => {
         }
     };
 
-    const handleToggleProduction = async (panelId, showProduction) => {
-        console.log(`Panel ${panelId} production view: ${showProduction}`);
+    const toggleProductionDetails = (panelId) => {
+        setExpandedPanelId(prev => prev === panelId ? null : panelId);
     };
 
     const openEditModal = (panel) => {
@@ -1408,8 +1037,7 @@ const ViewPanelPage = () => {
         return number.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
     };
 
-   const uniqueJobNos = useMemo(() => {
-        // Convert all job numbers to strings and trim whitespace
+    const uniqueJobNos = useMemo(() => {
         const jobNos = panels
             .map(panel => {
                 if (panel.job_no) {
@@ -1419,11 +1047,9 @@ const ViewPanelPage = () => {
             })
             .filter(p => p);
         
-        // Use Set to remove duplicates, then convert to array and sort
         const unique = [...new Set(jobNos)];
         
         return unique.sort((a, b) => {
-            // Try to parse as numbers for numeric sorting
             const aNum = parseFloat(a);
             const bNum = parseFloat(b);
             
@@ -1431,7 +1057,6 @@ const ViewPanelPage = () => {
                 return aNum - bNum;
             }
             
-            // If not both numbers, sort as strings
             return a.localeCompare(b, undefined, { numeric: true });
         });
     }, [panels]);
@@ -1468,18 +1093,11 @@ const ViewPanelPage = () => {
             const balance = panel.balance !== undefined ? panel.balance : panel.qty;
             return sum + (parseInt(balance) || 0);
         }, 0);
-        const totalProductionMeter = panels.reduce((sum, panel) => sum + (parseFloat(panel.production_meter) || 0), 0);
         
         const statusCounts = {};
         panels.forEach(panel => {
             const status = panel.status || 'pending';
             statusCounts[status] = (statusCounts[status] || 0) + 1;
-        });
-        
-        const salesmanCounts = {};
-        panels.forEach(panel => {
-            const salesman = panel.salesman || 'Not Assigned';
-            salesmanCounts[salesman] = (salesmanCounts[salesman] || 0) + 1;
         });
         
         const balanceStats = {
@@ -1510,12 +1128,19 @@ const ViewPanelPage = () => {
             totalQty,
             totalProduced,
             totalBalance,
-            totalProductionMeter,
             statusCounts,
-            salesmanCounts,
             balanceStats
         };
     }, [panels]);
+
+    const getStatusBadge = (status) => {
+        switch(status) {
+            case 'completed': return <span className="badge badge-success">Completed</span>;
+            case 'in_progress': return <span className="badge badge-warning">In Progress</span>;
+            case 'pending': return <span className="badge badge-info">Pending</span>;
+            default: return <span className="badge badge-secondary">{status}</span>;
+        }
+    };
 
     return (
         <div className="view-panel-container">
@@ -1582,18 +1207,6 @@ const ViewPanelPage = () => {
                         </select>
 
                         <select 
-                            name="salesman" 
-                            value={filters.salesman} 
-                            onChange={handleFilterChange} 
-                            className="form-select"
-                        >
-                            <option value="">All Salesmen</option>
-                            {uniqueSalesmen.map(salesman => (
-                                <option key={salesman} value={salesman}>{salesman}</option>
-                            ))}
-                        </select>
-
-                        <select 
                             name="status" 
                             value={filters.status} 
                             onChange={handleFilterChange} 
@@ -1623,9 +1236,23 @@ const ViewPanelPage = () => {
                         <p className="stat-value">{formatNumber(stats.totalQty)}</p>
                     </div>
                 </div>
+                <div className="stat-card">
+                    <div className="stat-icon">✅</div>
+                    <div className="stat-content">
+                        <h3>Produced</h3>
+                        <p className="stat-value">{formatNumber(stats.totalProduced)}</p>
+                    </div>
+                </div>
+                <div className="stat-card">
+                    <div className="stat-icon">⚖️</div>
+                    <div className="stat-content">
+                        <h3>Balance</h3>
+                        <p className="stat-value">{formatNumber(stats.totalBalance)}</p>
+                    </div>
+                </div>
             </div>
 
-            <div className="panels-display-container">
+            <div className="table-container">
                 {error && <div className="alert alert-danger">{error}</div>}
 
                 {isLoading ? (
@@ -1647,7 +1274,7 @@ const ViewPanelPage = () => {
                     </div>
                 ) : (
                     <>
-                        <div className="cards-header">
+                        <div className="table-header">
                             <h3>Panels ({filteredPanels.length} of {panels.length})</h3>
                             <div className="sort-controls">
                                 <select 
@@ -1664,7 +1291,6 @@ const ViewPanelPage = () => {
                                     <option value="qty">Quantity</option>
                                     <option value="balance">Balance</option>
                                     <option value="status">Status</option>
-                                    <option value="production_meter">Production Meter</option>
                                 </select>
                                 <button 
                                     className="sort-direction-btn"
@@ -1677,34 +1303,168 @@ const ViewPanelPage = () => {
                                 </button>
                             </div>
                         </div>
-                        <div className="panels-grid-horizontal">
-                            {filteredPanels
-                                .filter(panel => panel && panel.id)
-                                .map(panel => (
-                                <PanelCard
-                                    key={panel.id}
-                                    panel={panel}
-                                    onEdit={openEditModal}
-                                    onDuplicate={openDuplicateModal}
-                                    onDelete={handleDeletePanel}
-                                    onToggleProduction={handleToggleProduction}
-                                    formatNumber={formatNumber}
-                                    formatDecimal={formatDecimal}
-                                    formatDate={formatDate}
-                                    updatePanelBalance={updatePanelBalance}
-                                />
-                            ))}
+                        
+                        <div className="responsive-table-wrapper">
+                            <table className="panels-table">
+                                <thead>
+                                    <tr>
+                                        <th>Reference</th>
+                                        <th>Job No</th>
+                                        <th>Type</th>
+                                        <th>Brand</th>
+                                        <th>Dimensions</th>
+                                        <th>Quantity</th>
+                                        <th>Balance</th>
+                                        <th>Status</th>
+                                        <th>Salesman</th>
+                                        <th>Created</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {filteredPanels
+                                        .filter(panel => panel && panel.id)
+                                        .map(panel => {
+                                            const balance = panel.balance !== undefined ? panel.balance : panel.qty;
+                                            const panelQty = parseInt(panel.qty) || 0;
+                                            const productionProgress = panelQty > 0 ? Math.min(((panelQty - balance) / panelQty) * 100, 100) : 0;
+                                            
+                                            return (
+                                                <React.Fragment key={panel.id}>
+                                                    <tr className="panel-row">
+                                                        <td>
+                                                            <div className="reference-cell">
+                                                                <strong>{panel.reference_number}</strong>
+                                                                <div className="panel-meta">
+                                                                    <span className="panel-type">{panel.type || 'N/A'}</span>
+                                                                    <span className="panel-joint">{panel.joint || 'N/A'}</span>
+                                                                </div>
+                                                            </div>
+                                                        </td>
+                                                        <td>
+                                                            <div className="job-no-cell">
+                                                                {panel.job_no || 'N/A'}
+                                                            </div>
+                                                        </td>
+                                                        <td>
+                                                            <div className="type-cell">
+                                                                {panel.type || 'N/A'}
+                                                            </div>
+                                                        </td>
+                                                        <td>
+                                                            <div className="brand-cell">
+                                                                {panel.brand || 'N/A'}
+                                                            </div>
+                                                        </td>
+                                                        <td>
+                                                            <div className="dimensions-cell">
+                                                                <div className="dimension-item">
+                                                                    <span className="dim-label">W:</span>
+                                                                    <span className="dim-value">{formatNumber(panel.width)} mm</span>
+                                                                </div>
+                                                                <div className="dimension-item">
+                                                                    <span className="dim-label">L:</span>
+                                                                    <span className="dim-value">{formatNumber(panel.length)} mm</span>
+                                                                </div>
+                                                                <div className="dimension-item">
+                                                                    <span className="dim-label">T:</span>
+                                                                    <span className="dim-value">{formatNumber(panel.panel_thk)} mm</span>
+                                                                </div>
+                                                            </div>
+                                                        </td>
+                                                        <td>
+                                                            <div className="quantity-cell">
+                                                                {formatNumber(panel.qty)}
+                                                            </div>
+                                                        </td>
+                                                        <td>
+                                                            <div className="balance-cell">
+                                                                <div className={`balance-value ${balance <= 0 ? 'zero' : ''}`}>
+                                                                    {formatNumber(balance)}
+                                                                </div>
+                                                                {panelQty > 0 && (
+                                                                    <div className="progress-bar-small">
+                                                                        <div 
+                                                                            className="progress"
+                                                                            style={{ width: `${productionProgress}%` }}
+                                                                            title={`${productionProgress.toFixed(1)}% complete`}
+                                                                        ></div>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </td>
+                                                        <td>
+                                                            {getStatusBadge(panel.status)}
+                                                        </td>
+                                                        <td>
+                                                            <div className="salesman-cell">
+                                                                {panel.salesman || 'N/A'}
+                                                            </div>
+                                                        </td>
+                                                        <td>
+                                                            <div className="date-cell">
+                                                                {formatDate(panel.created_at)}
+                                                            </div>
+                                                        </td>
+                                                        <td>
+                                                            <div className="actions-cell">
+                                                                <button
+                                                                    onClick={() => openEditModal(panel)}
+                                                                    className="action-btn edit-btn"
+                                                                    title="Edit"
+                                                                >
+                                                                    ✏️
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => openDuplicateModal(panel)}
+                                                                    className="action-btn duplicate-btn"
+                                                                    title="Duplicate"
+                                                                >
+                                                                    ⎘
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => toggleProductionDetails(panel.id)}
+                                                                    className={`action-btn production-btn ${expandedPanelId === panel.id ? 'active' : ''}`}
+                                                                    title="Production"
+                                                                >
+                                                                    🏭
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => handleDeletePanel(panel.id)}
+                                                                    className="action-btn delete-btn"
+                                                                    title="Delete"
+                                                                >
+                                                                    🗑️
+                                                                </button>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                    {expandedPanelId === panel.id && (
+                                                        <tr className="production-details-row">
+                                                            <td colSpan="11">
+                                                                <ProductionDetails
+                                                                    panel={panel}
+                                                                    updatePanelBalance={updatePanelBalance}
+                                                                    formatNumber={formatNumber}
+                                                                    formatDate={formatDate}
+                                                                />
+                                                            </td>
+                                                        </tr>
+                                                    )}
+                                                </React.Fragment>
+                                            );
+                                        })}
+                                </tbody>
+                            </table>
                         </div>
                     </>
                 )}
 
                 {filteredPanels.length > 0 && (
-                    <div className="display-footer">
-                        <div className="display-summary">
+                    <div className="table-footer">
+                        <div className="table-summary">
                             Showing {filteredPanels.length} of {panels.length} panels
                             {filters.search && ` matching "${filters.search}"`}
-                            {filters.status && ` with status: ${filters.status}`}
-                            {filters.balance_status && ` with ${filters.balance_status} balance`}
                         </div>
                     </div>
                 )}
@@ -2278,22 +2038,18 @@ const ViewPanelPage = () => {
                                             onChange={(e) => {
                                                 const value = e.target.value;
                                                 
-                                                // Allow user to delete (empty) and type
                                                 if (value === '') {
                                                     setNumberOfCopies('');
                                                 } else {
                                                     const numValue = parseInt(value);
                                                     
-                                                    // Validate input
                                                     if (!isNaN(numValue) && numValue >= 1 && numValue <= 100) {
                                                         setNumberOfCopies(numValue);
                                                     }
-                                                    // If invalid (like 0 or negative), don't update state
                                                 }
                                             }}
                                             onBlur={(e) => {
                                                 const value = e.target.value;
-                                                // Auto-correct on blur
                                                 if (value === '' || parseInt(value) < 1 || isNaN(parseInt(value))) {
                                                     setNumberOfCopies(1);
                                                 } else if (parseInt(value) > 100) {
