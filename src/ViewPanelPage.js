@@ -548,6 +548,26 @@ const ViewPanelPage = () => {
     // Refs for keyboard navigation in create modal
     const createModalRef = useRef(null);
     const inputRefs = useRef([]);
+    
+    // Define form layout as a 2D grid
+    const formLayout = useMemo(() => [
+        // Row 0: [0, 1, 2]
+        ['job_no', 'type', 'panel_thk'],
+        // Row 1: [3, 4, 5]
+        ['number', 'application', 'joint'],
+        // Row 2: [6, 7, 8]
+        ['surface_front', 'surface_back', 'surface_front_thk'],
+        // Row 3: [9, 10, 11]
+        ['surface_back_thk', 'surface_type', 'width'],
+        // Row 4: [12, 13, 14]
+        ['length', 'qty', 'cutting'],
+        // Row 5: [15, 16, 17]
+        ['status', 'production_meter', 'salesman'],
+        // Row 6: [18, 19, 20]
+        ['brand', 'estimated_delivery', ''],
+        // Row 7: [21] (notes - full width)
+        ['notes']
+    ], []);
 
     useEffect(() => {
         fetchPanels();
@@ -564,20 +584,125 @@ const ViewPanelPage = () => {
                 }
             }, 100);
 
-            // Setup keyboard navigation
+            // Setup 4-direction keyboard navigation
             const handleKeyDown = (e) => {
-                if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                // Only handle arrow keys when focused on form elements
+                if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key) && 
+                    (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA')) {
                     e.preventDefault();
-                    const inputs = Array.from(createModalRef.current.querySelectorAll('input, select, textarea'));
-                    const currentIndex = inputs.indexOf(document.activeElement);
+                    
+                    // Get all form elements in order
+                    const formElements = Array.from(createModalRef.current.querySelectorAll('input, select, textarea'));
+                    const currentIndex = formElements.indexOf(e.target);
                     
                     if (currentIndex !== -1) {
-                        if (e.key === 'ArrowDown') {
-                            const nextIndex = (currentIndex + 1) % inputs.length;
-                            inputs[nextIndex].focus();
-                        } else if (e.key === 'ArrowUp') {
-                            const prevIndex = currentIndex === 0 ? inputs.length - 1 : currentIndex - 1;
-                            inputs[prevIndex].focus();
+                        let nextIndex = currentIndex;
+                        
+                        // Calculate current position in 2D grid
+                        let currentRow = -1;
+                        let currentCol = -1;
+                        
+                        // Find which row and column the current element is in
+                        for (let row = 0; row < formLayout.length; row++) {
+                            const rowFields = formLayout[row];
+                            for (let col = 0; col < rowFields.length; col++) {
+                                const fieldName = rowFields[col];
+                                if (fieldName) {
+                                    const element = createModalRef.current.querySelector(`[name="${fieldName}"]`);
+                                    if (element === e.target) {
+                                        currentRow = row;
+                                        currentCol = col;
+                                        break;
+                                    }
+                                }
+                            }
+                            if (currentRow !== -1) break;
+                        }
+                        
+                        if (currentRow !== -1 && currentCol !== -1) {
+                            switch (e.key) {
+                                case 'ArrowUp':
+                                    // Move up to same column in previous row
+                                    for (let row = currentRow - 1; row >= 0; row--) {
+                                        const targetField = formLayout[row][currentCol];
+                                        if (targetField) {
+                                            const targetElement = createModalRef.current.querySelector(`[name="${targetField}"]`);
+                                            if (targetElement) {
+                                                targetElement.focus();
+                                                return;
+                                            }
+                                        }
+                                    }
+                                    break;
+                                    
+                                case 'ArrowDown':
+                                    // Move down to same column in next row
+                                    for (let row = currentRow + 1; row < formLayout.length; row++) {
+                                        const targetField = formLayout[row][currentCol];
+                                        if (targetField) {
+                                            const targetElement = createModalRef.current.querySelector(`[name="${targetField}"]`);
+                                            if (targetElement) {
+                                                targetElement.focus();
+                                                return;
+                                            }
+                                        }
+                                    }
+                                    break;
+                                    
+                                case 'ArrowLeft':
+                                    // Move left to previous column in same row
+                                    for (let col = currentCol - 1; col >= 0; col--) {
+                                        const targetField = formLayout[currentRow][col];
+                                        if (targetField) {
+                                            const targetElement = createModalRef.current.querySelector(`[name="${targetField}"]`);
+                                            if (targetElement) {
+                                                targetElement.focus();
+                                                return;
+                                            }
+                                        }
+                                    }
+                                    // If no field to left in same row, go to last column of previous row
+                                    for (let row = currentRow - 1; row >= 0; row--) {
+                                        for (let col = formLayout[row].length - 1; col >= 0; col--) {
+                                            const targetField = formLayout[row][col];
+                                            if (targetField) {
+                                                const targetElement = createModalRef.current.querySelector(`[name="${targetField}"]`);
+                                                if (targetElement) {
+                                                    targetElement.focus();
+                                                    return;
+                                                }
+                                            }
+                                        }
+                                    }
+                                    break;
+                                    
+                                case 'ArrowRight':
+                                    // Move right to next column in same row
+                                    for (let col = currentCol + 1; col < formLayout[currentRow].length; col++) {
+                                        const targetField = formLayout[currentRow][col];
+                                        if (targetField) {
+                                            const targetElement = createModalRef.current.querySelector(`[name="${targetField}"]`);
+                                            if (targetElement) {
+                                                targetElement.focus();
+                                                return;
+                                            }
+                                        }
+                                    }
+                                    // If no field to right in same row, go to first column of next row
+                                    for (let row = currentRow + 1; row < formLayout.length; row++) {
+                                        for (let col = 0; col < formLayout[row].length; col++) {
+                                            const targetField = formLayout[row][col];
+                                            if (targetField) {
+                                                const targetElement = createModalRef.current.querySelector(`[name="${targetField}"]`);
+                                                if (targetElement) {
+                                                    targetElement.focus();
+                                                    return;
+                                                }
+                                            }
+                                        }
+                                    }
+                                    break;
+                            }
                         }
                     }
                 }
@@ -597,7 +722,7 @@ const ViewPanelPage = () => {
                 }
             };
         }
-    }, [isCreateModalOpen]);
+    }, [isCreateModalOpen, formLayout]);
 
     const handleWheel = (e) => {
         e.target.blur();
@@ -1661,7 +1786,8 @@ const ViewPanelPage = () => {
                         <div className="modal-body">
                             <div className="keyboard-hint">
                                 <span className="hint-icon">⌨️</span>
-                                Use <kbd>↑</kbd> <kbd>↓</kbd> arrows to navigate | <kbd>Ctrl</kbd> + <kbd>D</kbd> to duplicate
+                                Use <kbd>↑</kbd> <kbd>↓</kbd> <kbd>←</kbd> <kbd>→</kbd> arrows to navigate | 
+                                <kbd>Ctrl</kbd> + <kbd>D</kbd> to duplicate
                             </div>
                             
                             <form onSubmit={handleCreatePanel} className="panel-form horizontal-form">

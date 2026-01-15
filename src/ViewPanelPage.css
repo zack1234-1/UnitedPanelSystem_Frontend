@@ -4050,3 +4050,91 @@ kbd {
     background: #0056b3;
     border-color: #0056b3;
 }
+
+.keyboard-hint {
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    padding: 8px 12px;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 14px;
+}
+
+.hint-icon {
+    font-size: 16px;
+}
+
+kbd {
+    background: #fff;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+    box-shadow: 0 1px 0 rgba(0,0,0,0.2);
+    color: #333;
+    display: inline-block;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1;
+    padding: 2px 5px;
+    white-space: nowrap;
+    margin: 0 2px;
+}
+
+.form-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    margin-top: 20px;
+}
+
+.form-actions button {
+    min-width: 120px;
+}
+
+.alert.global-success {
+    margin: 15px;
+    animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Style for the duplicate button in create modal */
+.form-actions .secondary-btn:not(:last-child) {
+    background: #6c757d;
+    color: white;
+    border: 1px solid #6c757d;
+}
+
+.form-actions .secondary-btn:not(:last-child):hover {
+    background: #5a6268;
+    border-color: #545b62;
+}
+
+.form-actions .primary-btn {
+    background: #007bff;
+    color: white;
+    border: 1px solid #007bff;
+}
+
+.form-actions .primary-btn:hover {
+    background: #0056b3;
+    border-color: #0056b3;
+}
+
+/* Highlight focused input for better visibility */
+.form-input:focus {
+    border-color: #007bff;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+    outline: none;
+}
