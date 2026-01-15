@@ -1784,12 +1784,6 @@ const ViewPanelPage = () => {
                             </button>
                         </div>
                         <div className="modal-body">
-                            <div className="keyboard-hint">
-                                <span className="hint-icon">⌨️</span>
-                                Use <kbd>↑</kbd> <kbd>↓</kbd> <kbd>←</kbd> <kbd>→</kbd> arrows to navigate | 
-                                <kbd>Ctrl</kbd> + <kbd>D</kbd> to duplicate
-                            </div>
-                            
                             <form onSubmit={handleCreatePanel} className="panel-form horizontal-form">
                                 <div className="form-row">
                                     <div className="form-group">
@@ -2075,9 +2069,6 @@ const ViewPanelPage = () => {
                                         onClick={handleDuplicateInCreateModal}
                                     >
                                         Duplicate Form
-                                    </button>
-                                    <button type="button" className="secondary-btn" onClick={closeCreateModal}>
-                                        Close
                                     </button>
                                     <button type="submit" className="primary-btn">
                                         Create Panel
