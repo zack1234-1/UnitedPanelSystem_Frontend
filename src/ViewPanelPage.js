@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { viewPanelAPI, productionAPI } from '../src/apiService';
 import './ViewPanelPage.css';
@@ -482,23 +482,30 @@ const ViewPanelPage = () => {
     const [panels, setPanels] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [success, setSuccess] = useState(null);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [editingPanel, setEditingPanel] = useState(null);
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-    const [newPanel, setNewPanel] = useState({
-        job_no: '',
+    const [isDuplicateModalOpen, setIsDuplicateModalOpen] = useState(false);
+    const [selectedPanelToDuplicate, setSelectedPanelToDuplicate] = useState(null);
+    const [numberOfCopies, setNumberOfCopies] = useState(1);
+    const [selectedPanelForProduction, setSelectedPanelForProduction] = useState(null);
+    
+    // Default values from the image
+    const defaultPanelValues = {
+        job_no: 'UPS.0525.18802',
         number: '',
         application: '',
-        type: '',
-        panel_thk: '',
-        joint: '',
-        surface_front: '',
-        surface_back: '',
-        surface_front_thk: '',
-        surface_back_thk: '',
-        surface_type: '',
-        width: '',
-        length: '',
+        type: 'PIR',
+        panel_thk: '100',
+        joint: 'Clip Joint',
+        surface_front: 'PPGI',
+        surface_back: 'PPGI',
+        surface_front_thk: '0.5',
+        surface_back_thk: '0.5',
+        surface_type: 'RIB',
+        width: '1150',
+        length: '3000',
         qty: '',
         cutting: '',
         status: 'pending',
@@ -508,7 +515,9 @@ const ViewPanelPage = () => {
         brand: '',
         estimated_delivery: '',
         notes: ''
-    });
+    };
+
+    const [newPanel, setNewPanel] = useState({...defaultPanelValues});
     
     const [filters, setFilters] = useState({
         reference_number: '',
@@ -536,14 +545,59 @@ const ViewPanelPage = () => {
         direction: 'desc'
     });
 
-    const [isDuplicateModalOpen, setIsDuplicateModalOpen] = useState(false);
-    const [selectedPanelToDuplicate, setSelectedPanelToDuplicate] = useState(null);
-    const [numberOfCopies, setNumberOfCopies] = useState(1);
-    const [selectedPanelForProduction, setSelectedPanelForProduction] = useState(null);
+    // Refs for keyboard navigation in create modal
+    const createModalRef = useRef(null);
+    const inputRefs = useRef([]);
 
     useEffect(() => {
         fetchPanels();
     }, []);
+
+    // Setup keyboard navigation when create modal opens
+    useEffect(() => {
+        if (isCreateModalOpen && createModalRef.current) {
+            // Focus first input when modal opens
+            setTimeout(() => {
+                const firstInput = createModalRef.current.querySelector('input, select, textarea');
+                if (firstInput) {
+                    firstInput.focus();
+                }
+            }, 100);
+
+            // Setup keyboard navigation
+            const handleKeyDown = (e) => {
+                if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    const inputs = Array.from(createModalRef.current.querySelectorAll('input, select, textarea'));
+                    const currentIndex = inputs.indexOf(document.activeElement);
+                    
+                    if (currentIndex !== -1) {
+                        if (e.key === 'ArrowDown') {
+                            const nextIndex = (currentIndex + 1) % inputs.length;
+                            inputs[nextIndex].focus();
+                        } else if (e.key === 'ArrowUp') {
+                            const prevIndex = currentIndex === 0 ? inputs.length - 1 : currentIndex - 1;
+                            inputs[prevIndex].focus();
+                        }
+                    }
+                }
+                
+                // Ctrl + D for duplicate
+                if (e.ctrlKey && e.key === 'd') {
+                    e.preventDefault();
+                    handleDuplicateInCreateModal();
+                }
+            };
+
+            createModalRef.current.addEventListener('keydown', handleKeyDown);
+            
+            return () => {
+                if (createModalRef.current) {
+                    createModalRef.current.removeEventListener('keydown', handleKeyDown);
+                }
+            };
+        }
+    }, [isCreateModalOpen]);
 
     const handleWheel = (e) => {
         e.target.blur();
@@ -937,6 +991,8 @@ const ViewPanelPage = () => {
             setIsEditModalOpen(false);
             setEditingPanel(null);
             setError(null);
+            setSuccess('Panel updated successfully!');
+            setTimeout(() => setSuccess(null), 3000);
         } catch (err) {
             console.error('Failed to update panel:', err);
             setError('Failed to update panel: ' + (err.message || 'Unknown error'));
@@ -990,36 +1046,62 @@ const ViewPanelPage = () => {
                 ...createdPanel,
                 balance: createdPanel.balance !== undefined ? createdPanel.balance : createdPanel.qty
             }, ...prev]);
-            setIsCreateModalOpen(false);
-            setNewPanel({
-                job_no: '',
-                number: '',
-                application: '',
-                type: '',
-                panel_thk: '',
-                joint: '',
-                surface_front: '',
-                surface_back: '',
-                surface_front_thk: '',
-                surface_back_thk: '',
-                surface_type: '',
-                width: '',
-                length: '',
-                qty: '',
-                cutting: '',
-                status: 'pending',
-                production_meter: '',
-                balance: '',
-                salesman: '',
-                brand: '',
-                estimated_delivery: '',
-                notes: ''
-            });
+            
+            // Show success message but don't close modal
+            setSuccess(`Panel created successfully! Reference: ${referenceNumber}`);
             setError(null);
+            
+            // Reset form to default values
+            setNewPanel({...defaultPanelValues});
+            
+            // Focus on first input field
+            setTimeout(() => {
+                const firstInput = createModalRef.current?.querySelector('input, select, textarea');
+                if (firstInput) {
+                    firstInput.focus();
+                }
+            }, 100);
+            
         } catch (err) {
             console.error('Failed to create panel:', err);
             setError('Failed to create panel: ' + (err.message || 'Unknown error'));
         }
+    };
+
+    const handleDuplicateInCreateModal = () => {
+        // Duplicate the current form values (create a new panel with same values)
+        const panelToDuplicate = {
+            ...newPanel,
+            job_no: newPanel.job_no ? `${newPanel.job_no} (Copy)` : ''
+        };
+        
+        // Set the form to the duplicated values
+        setNewPanel(panelToDuplicate);
+        
+        // Focus on first input
+        setTimeout(() => {
+            const firstInput = createModalRef.current?.querySelector('input, select, textarea');
+            if (firstInput) {
+                firstInput.focus();
+            }
+        }, 100);
+        
+        setSuccess('Form values duplicated! Edit and click Create Panel.');
+        setError(null);
+    };
+
+    const handleResetForm = () => {
+        setNewPanel({...defaultPanelValues});
+        setError(null);
+        setSuccess('Form reset to default values.');
+        
+        // Focus on first input
+        setTimeout(() => {
+            const firstInput = createModalRef.current?.querySelector('input, select, textarea');
+            if (firstInput) {
+                firstInput.focus();
+            }
+        }, 100);
     };
 
     const handleDeletePanel = async (id) => {
@@ -1028,6 +1110,8 @@ const ViewPanelPage = () => {
         try {
             await viewPanelAPI.delete(id);
             setPanels(prev => prev.filter(panel => panel.id !== id));
+            setSuccess('Panel deleted successfully!');
+            setTimeout(() => setSuccess(null), 3000);
         } catch (err) {
             console.error('Failed to delete panel:', err);
             setError('Failed to delete panel: ' + (err.message || 'Unknown error'));
@@ -1074,6 +1158,9 @@ const ViewPanelPage = () => {
     const openCreateModal = () => {
         setIsCreateModalOpen(true);
         setError(null);
+        setSuccess(null);
+        // Reset to default values when opening
+        setNewPanel({...defaultPanelValues});
     };
 
     const closeEditModal = () => {
@@ -1084,31 +1171,9 @@ const ViewPanelPage = () => {
 
     const closeCreateModal = () => {
         setIsCreateModalOpen(false);
-        setNewPanel({
-            job_no: '',
-            number: '',
-            application: '',
-            type: '',
-            panel_thk: '',
-            joint: '',
-            surface_front: '',
-            surface_back: '',
-            surface_front_thk: '',
-            surface_back_thk: '',
-            surface_type: '',
-            width: '',
-            length: '',
-            qty: '',
-            cutting: '',
-            status: 'pending',
-            production_meter: '',
-            balance: '',
-            salesman: '',
-            brand: '',
-            estimated_delivery: '',
-            notes: ''
-        });
+        setNewPanel({...defaultPanelValues});
         setError(null);
+        setSuccess(null);
     };
 
     const formatDate = (dateString) => {
@@ -1193,6 +1258,12 @@ const ViewPanelPage = () => {
                     </button>
                 </div>
             </header>
+
+            {success && (
+                <div className="alert alert-success global-success">
+                    {success}
+                </div>
+            )}
 
             <div className="filters-section">
                 <div className="filter-row">
@@ -1576,7 +1647,11 @@ const ViewPanelPage = () => {
 
             {isCreateModalOpen && (
                 <div className="modal-overlay" onClick={closeCreateModal}>
-                    <div className="modal-content wide-modal" onClick={e => e.stopPropagation()}>
+                    <div 
+                        className="modal-content wide-modal" 
+                        onClick={e => e.stopPropagation()}
+                        ref={createModalRef}
+                    >
                         <div className="modal-header">
                             <h2>Create New Panel</h2>
                             <button type="button" className="close-button" onClick={closeCreateModal}>
@@ -1584,6 +1659,11 @@ const ViewPanelPage = () => {
                             </button>
                         </div>
                         <div className="modal-body">
+                            <div className="keyboard-hint">
+                                <span className="hint-icon">⌨️</span>
+                                Use <kbd>↑</kbd> <kbd>↓</kbd> arrows to navigate | <kbd>Ctrl</kbd> + <kbd>D</kbd> to duplicate
+                            </div>
+                            
                             <form onSubmit={handleCreatePanel} className="panel-form horizontal-form">
                                 <div className="form-row">
                                     <div className="form-group">
@@ -1857,10 +1937,21 @@ const ViewPanelPage = () => {
                                 </div>
 
                                 {error && <div className="alert alert-danger">{error}</div>}
+                                {success && <div className="alert alert-success">{success}</div>}
                                 
                                 <div className="form-actions">
+                                    <button type="button" className="secondary-btn" onClick={handleResetForm}>
+                                        Reset
+                                    </button>
+                                    <button 
+                                        type="button" 
+                                        className="secondary-btn"
+                                        onClick={handleDuplicateInCreateModal}
+                                    >
+                                        Duplicate Form
+                                    </button>
                                     <button type="button" className="secondary-btn" onClick={closeCreateModal}>
-                                        Cancel
+                                        Close
                                     </button>
                                     <button type="submit" className="primary-btn">
                                         Create Panel
