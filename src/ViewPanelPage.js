@@ -491,6 +491,10 @@ const ViewPanelPage = () => {
     const [numberOfCopies, setNumberOfCopies] = useState(1);
     const [selectedPanelForProduction, setSelectedPanelForProduction] = useState(null);
     
+    // New state for create form duplicate modal
+    const [isCreateFormDuplicateModalOpen, setIsCreateFormDuplicateModalOpen] = useState(false);
+    const [duplicateFormCopies, setDuplicateFormCopies] = useState(1);
+    
     // Default values from the image
     const defaultPanelValues = {
         job_no: 'UPS.0525.18802',
@@ -894,6 +898,124 @@ const ViewPanelPage = () => {
         return (w * l);
     };
 
+    // NEW FUNCTION: Handle duplicate from create form modal
+    const handleDuplicateFromCreateForm = async () => {
+        if (!newPanel.job_no?.trim()) {
+            setError('Job No is required');
+            return;
+        }
+        
+        if (!newPanel.width || !newPanel.length) {
+            setError('Width and Length are required');
+            return;
+        }
+
+        const count = duplicateFormCopies || 1;
+        
+        try {
+            const existingRefs = panels.map(p => p.reference_number);
+            const baseDate = new Date();
+            const year = baseDate.getFullYear().toString().slice(-2);
+            const month = String(baseDate.getMonth() + 1).padStart(2, '0');
+            const day = String(baseDate.getDate()).padStart(2, '0');
+            const todayPrefix = `REF-${year}${month}${day}`;
+            
+            let maxSequence = 0;
+            const todayRefs = existingRefs.filter(ref => ref && ref.startsWith(todayPrefix));
+            if (todayRefs.length > 0) {
+                const sequences = todayRefs.map(ref => {
+                    const match = ref.match(/\d+$/);
+                    return match ? parseInt(match[0]) : 0;
+                });
+                maxSequence = Math.max(...sequences);
+            }
+            
+            const referenceNumbers = [];
+            for (let i = 1; i <= count; i++) {
+                const sequence = maxSequence + i;
+                referenceNumbers.push(`${todayPrefix}-${String(sequence).padStart(3, '0')}`);
+            }
+            
+            const newPanels = [];
+            
+            for (let i = 0; i < count; i++) {
+                const originalJobNo = newPanel.job_no || '';
+                const newJobNo = count === 1 
+                    ? `${originalJobNo} (Copy)`
+                    : `${originalJobNo} (Copy ${i + 1})`;
+                
+                const originalNotes = newPanel.notes || '';
+                const newNotes = originalNotes 
+                    ? `${originalNotes}\n\n---\nCreated from form`
+                    : `Created from form`;
+                
+                const panelData = {
+                    job_no: newJobNo,
+                    number: newPanel.number || null,
+                    application: newPanel.application || null,
+                    type: newPanel.type || null,
+                    panel_thk: newPanel.panel_thk ? parseFloat(newPanel.panel_thk) : null,
+                    joint: newPanel.joint || null,
+                    surface_front: newPanel.surface_front || null,
+                    surface_back: newPanel.surface_back || null,
+                    surface_front_thk: newPanel.surface_front_thk ? parseFloat(newPanel.surface_front_thk) : null,
+                    surface_back_thk: newPanel.surface_back_thk ? parseFloat(newPanel.surface_back_thk) : null,
+                    surface_type: newPanel.surface_type || null,
+                    width: newPanel.width ? parseFloat(newPanel.width) : 0,
+                    length: newPanel.length ? parseFloat(newPanel.length) : 0,
+                    qty: newPanel.qty ? parseInt(newPanel.qty) : null,
+                    cutting: newPanel.cutting || null,
+                    status: 'pending',
+                    production_meter: newPanel.production_meter ? parseFloat(newPanel.production_meter) : null,
+                    balance: newPanel.qty ? parseInt(newPanel.qty) : null,
+                    salesman: newPanel.salesman || null,
+                    notes: newNotes,
+                    reference_number: referenceNumbers[i],
+                    brand: newPanel.brand || null,
+                    estimated_delivery: newPanel.estimated_delivery || null
+                };
+                
+                Object.keys(panelData).forEach(key => {
+                    if (panelData[key] === '' || panelData[key] === undefined) {
+                        panelData[key] = null;
+                    }
+                });
+                
+                const createdPanel = await viewPanelAPI.create(panelData);
+                newPanels.push({
+                    ...createdPanel,
+                    balance: createdPanel.balance !== undefined ? createdPanel.balance : createdPanel.qty
+                });
+            }
+            
+            setPanels(prev => [...newPanels, ...prev]);
+            setIsCreateFormDuplicateModalOpen(false);
+            setNewPanel({...defaultPanelValues});
+            setError(null);
+            
+            if (count === 1) {
+                setSuccess(`Panel duplicated successfully! New reference: ${referenceNumbers[0]}`);
+            } else {
+                setSuccess(`Successfully created ${count} copies! References: ${referenceNumbers.join(', ')}`);
+            }
+            
+            setTimeout(() => {
+                setSuccess(null);
+            }, 5000);
+            
+        } catch (err) {
+            console.error('Failed to duplicate from form:', err);
+            setError('Failed to duplicate from form: ' + (err.message || 'Unknown error'));
+        }
+    };
+
+    // MODIFIED: Handle duplicate in create modal (now opens modal)
+    const handleDuplicateInCreateModal = () => {
+        setIsCreateFormDuplicateModalOpen(true);
+        setDuplicateFormCopies(1);
+        setError(null);
+    };
+
     const filteredPanels = useMemo(() => {
         let filtered = panels.filter(panel => {
             if (!panel || !panel.id) return false;
@@ -1191,28 +1313,6 @@ const ViewPanelPage = () => {
             console.error('Failed to create panel:', err);
             setError('Failed to create panel: ' + (err.message || 'Unknown error'));
         }
-    };
-
-    const handleDuplicateInCreateModal = () => {
-        // Duplicate the current form values (create a new panel with same values)
-        const panelToDuplicate = {
-            ...newPanel,
-            job_no: newPanel.job_no ? `${newPanel.job_no} (Copy)` : ''
-        };
-        
-        // Set the form to the duplicated values
-        setNewPanel(panelToDuplicate);
-        
-        // Focus on first input
-        setTimeout(() => {
-            const firstInput = createModalRef.current?.querySelector('input, select, textarea');
-            if (firstInput) {
-                firstInput.focus();
-            }
-        }, 100);
-        
-        setSuccess('Form values duplicated! Edit and click Create Panel.');
-        setError(null);
     };
 
     const handleResetForm = () => {
@@ -2485,6 +2585,112 @@ const ViewPanelPage = () => {
                                         disabled={!numberOfCopies || numberOfCopies < 1}
                                     >
                                         Create {numberOfCopies >= 1 ? numberOfCopies : 1} {numberOfCopies >= 1 ? (numberOfCopies === 1 ? 'Copy' : 'Copies') : 'Copy'}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* NEW: Create Form Duplicate Modal */}
+            {isCreateFormDuplicateModalOpen && (
+                <div className="modal-overlay" onClick={() => setIsCreateFormDuplicateModalOpen(false)}>
+                    <div className="modal-content small-modal" onClick={e => e.stopPropagation()}>
+                        <div className="modal-header">
+                            <h2>Duplicate Form</h2>
+                            <button type="button" className="close-button" onClick={() => setIsCreateFormDuplicateModalOpen(false)}>
+                                ×
+                            </button>
+                        </div>
+                        <div className="modal-body">
+                            <div className="duplicate-modal-content">
+                                <p>How many copies of the current panel would you like to create?</p>
+                                
+                                <div className="form-group">
+                                    <label htmlFor="duplicateFormCount">Number of copies:</label>
+                                    <div className="input-with-validation">
+                                        <input
+                                            type="number"
+                                            id="duplicateFormCount"
+                                            min="1"
+                                            max="100"
+                                            value={duplicateFormCopies}
+                                            onChange={(e) => {
+                                                const value = e.target.value;
+                                                
+                                                if (value === '') {
+                                                    setDuplicateFormCopies('');
+                                                } else {
+                                                    const numValue = parseInt(value);
+                                                    
+                                                    if (!isNaN(numValue) && numValue >= 1 && numValue <= 100) {
+                                                        setDuplicateFormCopies(numValue);
+                                                    }
+                                                }
+                                            }}
+                                            onBlur={(e) => {
+                                                const value = e.target.value;
+                                                if (value === '' || parseInt(value) < 1 || isNaN(parseInt(value))) {
+                                                    setDuplicateFormCopies(1);
+                                                } else if (parseInt(value) > 100) {
+                                                    setDuplicateFormCopies(100);
+                                                }
+                                            }}
+                                            className="form-input"
+                                            onWheel={handleWheel}
+                                            placeholder="Enter number"
+                                        />
+                                        <div className="input-actions">
+                                            <button 
+                                                type="button" 
+                                                className="input-action-btn"
+                                                onClick={() => setDuplicateFormCopies(Math.max(1, duplicateFormCopies - 1))}
+                                                disabled={duplicateFormCopies <= 1}
+                                            >
+                                                −
+                                            </button>
+                                            <button 
+                                                type="button" 
+                                                className="input-action-btn"
+                                                onClick={() => setDuplicateFormCopies(Math.min(100, (duplicateFormCopies || 0) + 1))}
+                                                disabled={duplicateFormCopies >= 100}
+                                            >
+                                                +
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div className="validation-hint">
+                                        <span className={`hint-text ${(!duplicateFormCopies || duplicateFormCopies < 1) ? 'error' : ''}`}>
+                                            {(!duplicateFormCopies || duplicateFormCopies < 1) ? 'Minimum 1 copy required' : 'Enter 1 to 100'}
+                                        </span>
+                                    </div>
+                                </div>
+                                
+                                <div className="duplicate-info">
+                                    <p><strong>Note:</strong> Duplicated panels will have:</p>
+                                    <ul>
+                                        <li>New reference numbers</li>
+                                        <li>Job No will have "(Copy)" appended</li>
+                                        <li>Notes will indicate it's created from form</li>
+                                        <li>Pending status</li>
+                                        <li>Balance reset to original quantity</li>
+                                    </ul>
+                                </div>
+                                
+                                {error && <div className="alert alert-danger">{error}</div>}
+                                
+                                <div className="form-actions">
+                                    <button type="button" className="secondary-btn" onClick={() => setIsCreateFormDuplicateModalOpen(false)}>
+                                        Cancel
+                                    </button>
+                                    <button 
+                                        type="button" 
+                                        className="primary-btn"
+                                        onClick={handleDuplicateFromCreateForm}
+                                        disabled={!duplicateFormCopies || duplicateFormCopies < 1}
+                                    >
+                                        Create {duplicateFormCopies >= 1 ? duplicateFormCopies : 1} {duplicateFormCopies >= 1 ? (duplicateFormCopies === 1 ? 'Copy' : 'Copies') : 'Copy'}
                                     </button>
                                 </div>
                             </div>
