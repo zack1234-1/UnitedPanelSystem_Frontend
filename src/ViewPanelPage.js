@@ -487,6 +487,8 @@ const ViewPanelPage = () => {
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [newPanel, setNewPanel] = useState({
         job_no: '',
+        number: '',
+        application: '',
         type: '',
         panel_thk: '',
         joint: '',
@@ -651,6 +653,8 @@ const ViewPanelPage = () => {
                 
                 const panelData = {
                     job_no: newJobNo,
+                    number: panel.number || null,
+                    application: panel.application || null,
                     type: panel.type || null,
                     panel_thk: panel.panel_thk ? parseFloat(panel.panel_thk) : null,
                     joint: panel.joint || null,
@@ -912,7 +916,9 @@ const ViewPanelPage = () => {
                 production_meter: editingPanel.production_meter ? parseFloat(editingPanel.production_meter) : null,
                 salesman: editingPanel.salesman || null,
                 notes: editingPanel.notes || null,
-                balance: editingPanel.qty ? parseInt(editingPanel.qty) : null
+                balance: editingPanel.qty ? parseInt(editingPanel.qty) : null,
+                number: editingPanel.number || null,
+                application: editingPanel.application || null
             };
             
             Object.keys(panelToUpdate).forEach(key => {
@@ -968,7 +974,9 @@ const ViewPanelPage = () => {
                 salesman: newPanel.salesman || null,
                 notes: newPanel.notes || null,
                 brand: newPanel.brand || null,
-                estimated_delivery: newPanel.estimated_delivery || null
+                estimated_delivery: newPanel.estimated_delivery || null,
+                number: newPanel.number || null,
+                application: newPanel.application || null
             };
             
             Object.keys(panelData).forEach(key => {
@@ -985,6 +993,8 @@ const ViewPanelPage = () => {
             setIsCreateModalOpen(false);
             setNewPanel({
                 job_no: '',
+                number: '',
+                application: '',
                 type: '',
                 panel_thk: '',
                 joint: '',
@@ -1036,6 +1046,8 @@ const ViewPanelPage = () => {
         setEditingPanel({ 
             ...panel,
             job_no: panel.job_no || '',
+            number: panel.number || '',
+            application: panel.application || '',
             type: panel.type || '',
             panel_thk: panel.panel_thk || '',
             joint: panel.joint || '',
@@ -1074,6 +1086,8 @@ const ViewPanelPage = () => {
         setIsCreateModalOpen(false);
         setNewPanel({
             job_no: '',
+            number: '',
+            application: '',
             type: '',
             panel_thk: '',
             joint: '',
@@ -1611,6 +1625,28 @@ const ViewPanelPage = () => {
 
                                 <div className="form-row">
                                     <div className="form-group">
+                                        <label htmlFor="number">Number</label>
+                                        <input
+                                            type="text"
+                                            id="number"
+                                            name="number"
+                                            value={newPanel.number}
+                                            onChange={handleNewPanelInputChange}
+                                            className="form-input"
+                                        />
+                                    </div>
+                                    <div className="form-group">
+                                        <label htmlFor="application">Application</label>
+                                        <input
+                                            type="text"
+                                            id="application"
+                                            name="application"
+                                            value={newPanel.application}
+                                            onChange={handleNewPanelInputChange}
+                                            className="form-input"
+                                        />
+                                    </div>
+                                    <div className="form-group">
                                         <label htmlFor="joint">Joint</label>
                                         <input
                                             type="text"
@@ -1621,6 +1657,9 @@ const ViewPanelPage = () => {
                                             className="form-input"
                                         />
                                     </div>
+                                </div>
+
+                                <div className="form-row">
                                     <div className="form-group">
                                         <label htmlFor="surface_front">Surface Front</label>
                                         <input
@@ -1643,9 +1682,6 @@ const ViewPanelPage = () => {
                                             className="form-input"
                                         />
                                     </div>
-                                </div>
-
-                                <div className="form-row">
                                     <div className="form-group">
                                         <label htmlFor="surface_front_thk">Front Thickness (mm)</label>
                                         <input
@@ -1658,6 +1694,9 @@ const ViewPanelPage = () => {
                                             className="form-input"
                                         />
                                     </div>
+                                </div>
+
+                                <div className="form-row">
                                     <div className="form-group">
                                         <label htmlFor="surface_back_thk">Back Thickness (mm)</label>
                                         <input
@@ -1681,9 +1720,6 @@ const ViewPanelPage = () => {
                                             className="form-input"
                                         />
                                     </div>
-                                </div>
-
-                                <div className="form-row">
                                     <div className="form-group">
                                         <label htmlFor="width">Width (mm) *</label>
                                         <input
@@ -1697,6 +1733,9 @@ const ViewPanelPage = () => {
                                             required
                                         />
                                     </div>
+                                </div>
+
+                                <div className="form-row">
                                     <div className="form-group">
                                         <label htmlFor="length">Length (mm) *</label>
                                         <input
@@ -1722,9 +1761,6 @@ const ViewPanelPage = () => {
                                             className="form-input"
                                         />
                                     </div>
-                                </div>
-
-                                <div className="form-row">
                                     <div className="form-group">
                                         <label htmlFor="cutting">Cutting</label>
                                         <input
@@ -1736,6 +1772,9 @@ const ViewPanelPage = () => {
                                             className="form-input"
                                         />
                                     </div>
+                                </div>
+
+                                <div className="form-row">
                                     <div className="form-group">
                                         <label htmlFor="status">Status</label>
                                         <select
@@ -1762,9 +1801,6 @@ const ViewPanelPage = () => {
                                             className="form-input"
                                         />
                                     </div>
-                                </div>
-
-                                <div className="form-row">
                                     <div className="form-group">
                                         <label htmlFor="salesman">Salesman</label>
                                         <input
@@ -1776,6 +1812,9 @@ const ViewPanelPage = () => {
                                             className="form-input"
                                         />
                                     </div>
+                                </div>
+
+                                <div className="form-row">
                                     <div className="form-group">
                                         <label htmlFor="brand">Brand</label>
                                         <input
@@ -1797,6 +1836,9 @@ const ViewPanelPage = () => {
                                             onChange={handleNewPanelInputChange}
                                             className="form-input"
                                         />
+                                    </div>
+                                    <div className="form-group">
+                                        {/* Empty column for layout consistency */}
                                     </div>
                                 </div>
 
@@ -1881,6 +1923,28 @@ const ViewPanelPage = () => {
 
                                 <div className="form-row">
                                     <div className="form-group">
+                                        <label htmlFor="edit_number">Number</label>
+                                        <input
+                                            type="text"
+                                            id="edit_number"
+                                            name="number"
+                                            value={editingPanel.number}
+                                            onChange={handleEditInputChange}
+                                            className="form-input"
+                                        />
+                                    </div>
+                                    <div className="form-group">
+                                        <label htmlFor="edit_application">Application</label>
+                                        <input
+                                            type="text"
+                                            id="edit_application"
+                                            name="application"
+                                            value={editingPanel.application}
+                                            onChange={handleEditInputChange}
+                                            className="form-input"
+                                        />
+                                    </div>
+                                    <div className="form-group">
                                         <label htmlFor="edit_joint">Joint</label>
                                         <input
                                             type="text"
@@ -1891,6 +1955,9 @@ const ViewPanelPage = () => {
                                             className="form-input"
                                         />
                                     </div>
+                                </div>
+
+                                <div className="form-row">
                                     <div className="form-group">
                                         <label htmlFor="edit_surface_front">Surface Front</label>
                                         <input
@@ -1913,9 +1980,6 @@ const ViewPanelPage = () => {
                                             className="form-input"
                                         />
                                     </div>
-                                </div>
-
-                                <div className="form-row">
                                     <div className="form-group">
                                         <label htmlFor="edit_surface_front_thk">Front Thickness (mm)</label>
                                         <input
@@ -1928,6 +1992,9 @@ const ViewPanelPage = () => {
                                             className="form-input"
                                         />
                                     </div>
+                                </div>
+
+                                <div className="form-row">
                                     <div className="form-group">
                                         <label htmlFor="edit_surface_back_thk">Back Thickness (mm)</label>
                                         <input
@@ -1951,9 +2018,6 @@ const ViewPanelPage = () => {
                                             className="form-input"
                                         />
                                     </div>
-                                </div>
-
-                                <div className="form-row">
                                     <div className="form-group">
                                         <label htmlFor="edit_width">Width (mm) *</label>
                                         <input
@@ -1967,6 +2031,9 @@ const ViewPanelPage = () => {
                                             required
                                         />
                                     </div>
+                                </div>
+
+                                <div className="form-row">
                                     <div className="form-group">
                                         <label htmlFor="edit_length">Length (mm) *</label>
                                         <input
@@ -1992,9 +2059,6 @@ const ViewPanelPage = () => {
                                             className="form-input"
                                         />
                                     </div>
-                                </div>
-
-                                <div className="form-row">
                                     <div className="form-group">
                                         <label htmlFor="edit_cutting">Cutting</label>
                                         <input
@@ -2006,6 +2070,9 @@ const ViewPanelPage = () => {
                                             className="form-input"
                                         />
                                     </div>
+                                </div>
+
+                                <div className="form-row">
                                     <div className="form-group">
                                         <label htmlFor="edit_status">Status</label>
                                         <select
@@ -2032,9 +2099,6 @@ const ViewPanelPage = () => {
                                             className="form-input"
                                         />
                                     </div>
-                                </div>
-
-                                <div className="form-row">
                                     <div className="form-group">
                                         <label htmlFor="edit_salesman">Salesman</label>
                                         <input
@@ -2046,6 +2110,9 @@ const ViewPanelPage = () => {
                                             className="form-input"
                                         />
                                     </div>
+                                </div>
+
+                                <div className="form-row">
                                     <div className="form-group">
                                         <label htmlFor="edit_brand">Brand</label>
                                         <input
@@ -2067,6 +2134,9 @@ const ViewPanelPage = () => {
                                             onChange={handleEditInputChange}
                                             className="form-input"
                                         />
+                                    </div>
+                                    <div className="form-group">
+                                        {/* Empty column for layout consistency */}
                                     </div>
                                 </div>
 
