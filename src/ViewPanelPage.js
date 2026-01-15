@@ -664,8 +664,6 @@ const ViewPanelPage = () => {
     direction: 'desc'
   });
 
-  const [viewMode, setViewMode] = useState('table'); // 'table' or 'grid'
-
   // Refs for keyboard navigation in create modal
   const createModalRef = useRef(null);
   
@@ -708,134 +706,8 @@ const ViewPanelPage = () => {
           firstInput.focus();
         }
       }, 100);
-
-      const handleKeyDown = (e) => {
-        if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key) && 
-          (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA')) {
-          e.preventDefault();
-          
-          const formElements = Array.from(createModalRef.current.querySelectorAll('input, select, textarea'));
-          const currentIndex = formElements.indexOf(e.target);
-          
-          if (currentIndex !== -1) {
-            let nextIndex = currentIndex;
-            
-            let currentRow = -1;
-            let currentCol = -1;
-            
-            for (let row = 0; row < formLayout.length; row++) {
-              const rowFields = formLayout[row];
-              for (let col = 0; col < rowFields.length; col++) {
-                const fieldName = rowFields[col];
-                if (fieldName) {
-                  const element = createModalRef.current.querySelector(`[name="${fieldName}"]`);
-                  if (element === e.target) {
-                    currentRow = row;
-                    currentCol = col;
-                    break;
-                  }
-                }
-              }
-              if (currentRow !== -1) break;
-            }
-            
-            if (currentRow !== -1 && currentCol !== -1) {
-              switch (e.key) {
-                case 'ArrowUp':
-                  for (let row = currentRow - 1; row >= 0; row--) {
-                    const targetField = formLayout[row][currentCol];
-                    if (targetField) {
-                      const targetElement = createModalRef.current.querySelector(`[name="${targetField}"]`);
-                      if (targetElement) {
-                        targetElement.focus();
-                        return;
-                      }
-                    }
-                  }
-                  break;
-                  
-                case 'ArrowDown':
-                  for (let row = currentRow + 1; row < formLayout.length; row++) {
-                    const targetField = formLayout[row][currentCol];
-                    if (targetField) {
-                      const targetElement = createModalRef.current.querySelector(`[name="${targetField}"]`);
-                      if (targetElement) {
-                        targetElement.focus();
-                        return;
-                      }
-                    }
-                  }
-                  break;
-                  
-                case 'ArrowLeft':
-                  for (let col = currentCol - 1; col >= 0; col--) {
-                    const targetField = formLayout[currentRow][col];
-                    if (targetField) {
-                      const targetElement = createModalRef.current.querySelector(`[name="${targetField}"]`);
-                      if (targetElement) {
-                        targetElement.focus();
-                        return;
-                      }
-                    }
-                  }
-                  for (let row = currentRow - 1; row >= 0; row--) {
-                    for (let col = formLayout[row].length - 1; col >= 0; col--) {
-                      const targetField = formLayout[row][col];
-                      if (targetField) {
-                        const targetElement = createModalRef.current.querySelector(`[name="${targetField}"]`);
-                        if (targetElement) {
-                          targetElement.focus();
-                          return;
-                        }
-                      }
-                    }
-                  }
-                  break;
-                  
-                case 'ArrowRight':
-                  for (let col = currentCol + 1; col < formLayout[currentRow].length; col++) {
-                    const targetField = formLayout[currentRow][col];
-                    if (targetField) {
-                      const targetElement = createModalRef.current.querySelector(`[name="${targetField}"]`);
-                      if (targetElement) {
-                        targetElement.focus();
-                        return;
-                      }
-                    }
-                  }
-                  for (let row = currentRow + 1; row < formLayout.length; row++) {
-                    for (let col = 0; col < formLayout[row].length; col++) {
-                      const targetField = formLayout[row][col];
-                      if (targetField) {
-                        const targetElement = createModalRef.current.querySelector(`[name="${targetField}"]`);
-                        if (targetElement) {
-                          targetElement.focus();
-                          return;
-                        }
-                      }
-                    }
-                  }
-                  break;
-              }
-            }
-          }
-        }
-        
-        if (e.ctrlKey && e.key === 'd') {
-          e.preventDefault();
-          handleDuplicateInCreateModal();
-        }
-      };
-
-      createModalRef.current.addEventListener('keydown', handleKeyDown);
-      
-      return () => {
-        if (createModalRef.current) {
-          createModalRef.current.removeEventListener('keydown', handleKeyDown);
-        }
-      };
     }
-  }, [isCreateModalOpen, formLayout]);
+  }, [isCreateModalOpen]);
 
   const handleWheel = (e) => {
     e.target.blur();
@@ -1299,25 +1171,6 @@ const ViewPanelPage = () => {
     }
   };
 
-  const handleDuplicateInCreateModal = () => {
-    const panelToDuplicate = {
-      ...newPanel,
-      job_no: newPanel.job_no ? `${newPanel.job_no} (Copy)` : ''
-    };
-    
-    setNewPanel(panelToDuplicate);
-    
-    setTimeout(() => {
-      const firstInput = createModalRef.current?.querySelector('input, select, textarea');
-      if (firstInput) {
-        firstInput.focus();
-      }
-    }, 100);
-    
-    setSuccess('Form values duplicated! Edit and click Create Panel.');
-    setError(null);
-  };
-
   const handleResetForm = () => {
     setNewPanel({...defaultPanelValues});
     setError(null);
@@ -1576,24 +1429,6 @@ const ViewPanelPage = () => {
               className="search-input"
             />
           </div>
-          <div className="view-toggle">
-            <div className="toggle-switch-container">
-              <button 
-                className={`toggle-view-btn ${viewMode === 'table' ? 'active' : ''}`}
-                onClick={() => setViewMode('table')}
-              >
-                <span className="toggle-icon">📋</span>
-                Table View
-              </button>
-              <button 
-                className={`toggle-view-btn ${viewMode === 'grid' ? 'active' : ''}`}
-                onClick={() => setViewMode('grid')}
-              >
-                <span className="toggle-icon">🗂️</span>
-                Grid View
-              </button>
-            </div>
-          </div>
         </div>
 
         <div className="advanced-filters">
@@ -1667,8 +1502,8 @@ const ViewPanelPage = () => {
         <div className="cards-header">
           <div className="header-left-section">
             <h3>
-              <span className="header-icon">{viewMode === 'table' ? '📋' : '🗂️'}</span>
-              {viewMode === 'table' ? 'Panel Table' : 'Panel Grid'} ({filteredPanels.length} of {panels.length})
+              <span className="header-icon">📋</span>
+              Panel Table ({filteredPanels.length} of {panels.length})
             </h3>
             {filteredPanels.length > 0 && (
               <div className="results-info">
@@ -1746,7 +1581,7 @@ const ViewPanelPage = () => {
               Create Your First Panel
             </button>
           </div>
-        ) : viewMode === 'table' ? (
+        ) : (
           <>
             <div className="responsive-table-wrapper">
               <table className="panels-table">
@@ -2040,181 +1875,26 @@ const ViewPanelPage = () => {
                 </tbody>
               </table>
             </div>
-          </>
-        ) : (
-          <div className="panels-grid">
-            {filteredPanels
-              .filter(panel => panel && panel.id)
-              .map(panel => {
-                const panelQty = parseInt(panel.qty) || 0;
-                const balance = panel.balance !== undefined ? panel.balance : panel.qty;
-                const panelLength = parseFloat(panel.length) || 0;
-                const panelWidth = parseFloat(panel.width) || 0;
-                const area = calculateArea(panelWidth, panelLength);
-                const alreadyProduced = panelQty - balance;
-                
-                return (
-                  <div key={panel.id} className="panel-card">
-                    <div className="card-header">
-                      <div className="card-title">
-                        <h3>{panel.job_no || 'N/A'}</h3>
-                        <StatusBadge status={panel.status} />
-                      </div>
-                      <div className="card-meta">
-                        <span className="job-no">
-                          <span className="meta-icon">🏷️</span>
-                          {panel.reference_number}
-                        </span>
-                        <span className="created-date">
-                          <span className="meta-icon">{Icons.Calendar}</span>
-                          {formatDate(panel.created_at)}
-                        </span>
-                      </div>
-                    </div>
-                    
-                    <div className="card-body">
-                      <div className="card-section">
-                        <h4 className="card-section-title">
-                          <span className="section-icon">{Icons.Info}</span>
-                          Panel Details
-                        </h4>
-                        <div className="info-grid">
-                          <div className="info-item">
-                            <span className="info-label">Type</span>
-                            <span className="info-value">{panel.type || 'N/A'}</span>
-                          </div>
-                          <div className="info-item">
-                            <span className="info-label">Thickness</span>
-                            <span className="info-value">{panel.panel_thk || 'N/A'} mm</span>
-                          </div>
-                          <div className="info-item">
-                            <span className="info-label">Joint</span>
-                            <span className="info-value">{panel.joint || 'N/A'}</span>
-                          </div>
-                          <div className="info-item">
-                            <span className="info-label">Dimensions</span>
-                            <span className="info-value">{panel.width || 'N/A'} × {panel.length || 'N/A'} mm</span>
-                          </div>
-                          <div className="info-item">
-                            <span className="info-label">Area</span>
-                            <span className="info-value">{area > 0 ? area.toFixed(3) : '0'} m²</span>
-                          </div>
-                        </div>
-                      </div>
-                      
-                      <div className="card-section">
-                        <h4 className="card-section-title">
-                          <span className="section-icon">{Icons.Surface}</span>
-                          Surface Details
-                        </h4>
-                        <div className="info-grid">
-                          <div className="info-item">
-                            <span className="info-label">Front</span>
-                            <span className="info-value">{panel.surface_front || 'N/A'}</span>
-                          </div>
-                          <div className="info-item">
-                            <span className="info-label">Back</span>
-                            <span className="info-value">{panel.surface_back || 'N/A'}</span>
-                          </div>
-                          <div className="info-item">
-                            <span className="info-label">Surface Type</span>
-                            <span className="info-value">{panel.surface_type || 'N/A'}</span>
-                          </div>
-                        </div>
-                      </div>
-                      
-                      <div className="card-section">
-                        <h4 className="card-section-title">
-                          <span className="section-icon">📊</span>
-                          Production Status
-                        </h4>
-                        <div className="balance-display">
-                          <div className="balance-row">
-                            <span className="balance-label">Quantity</span>
-                            <span className="balance-value">{formatNumber(panel.qty)}</span>
-                          </div>
-                          <div className="balance-row">
-                            <span className="balance-label">Balance</span>
-                            <span className={`balance-value ${balance <= 0 ? 'zero-balance' : ''}`}>
-                              {formatNumber(balance)}
-                            </span>
-                          </div>
-                          <div className="balance-row highlight">
-                            <span className="balance-label">Progress</span>
-                            <span className="balance-value">
-                              {Math.round((alreadyProduced / panelQty) * 100)}%
-                            </span>
-                          </div>
-                          <div className="progress-container">
-                            <div className="progress-bar">
-                              <div 
-                                className="progress" 
-                                style={{ width: `${(alreadyProduced / panelQty) * 100}%` }}
-                              ></div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                      
-                      {panel.notes && (
-                        <div className="card-section">
-                          <h4 className="card-section-title">
-                            <span className="section-icon">📝</span>
-                            Notes
-                          </h4>
-                          <div className="notes-content">
-                            {panel.notes}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                    
-                    <div className="card-footer">
-                      <button
-                        onClick={() => openEditModal(panel)}
-                        className="card-btn edit-btn"
-                      >
-                        <span className="btn-icon">{Icons.Edit}</span>
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => openProductionModal(panel)}
-                        className="card-btn production-btn"
-                      >
-                        <span className="btn-icon">{Icons.Production}</span>
-                        Production
-                      </button>
-                      <button
-                        onClick={() => handleDeletePanel(panel.id)}
-                        className="card-btn delete-btn"
-                      >
-                        <span className="btn-icon">{Icons.Delete}</span>
-                        Delete
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-          </div>
-        )}
 
-        {filteredPanels.length > 0 && (
-          <div className="display-footer">
-            <div className="display-summary">
-              Showing {filteredPanels.length} of {panels.length} panels
-              {filters.search && ` matching "${filters.search}"`}
-              <div className="summary-stats">
-                <span className="stat-item">
-                  <span className="stat-icon">{Icons.Package}</span>
-                  Total Quantity: {formatNumber(filteredPanels.reduce((sum, p) => sum + (parseInt(p.qty) || 0), 0))}
-                </span>
-                <span className="stat-item">
-                  <span className="stat-icon">⚖️</span>
-                  Total Balance: {formatNumber(filteredPanels.reduce((sum, p) => sum + (p.balance || p.qty || 0), 0))}
-                </span>
+            {filteredPanels.length > 0 && (
+              <div className="display-footer">
+                <div className="display-summary">
+                  Showing {filteredPanels.length} of {panels.length} panels
+                  {filters.search && ` matching "${filters.search}"`}
+                  <div className="summary-stats">
+                    <span className="stat-item">
+                      <span className="stat-icon">{Icons.Package}</span>
+                      Total Quantity: {formatNumber(filteredPanels.reduce((sum, p) => sum + (parseInt(p.qty) || 0), 0))}
+                    </span>
+                    <span className="stat-item">
+                      <span className="stat-icon">⚖️</span>
+                      Total Balance: {formatNumber(filteredPanels.reduce((sum, p) => sum + (p.balance || p.qty || 0), 0))}
+                    </span>
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
+            )}
+          </>
         )}
       </div>
 
@@ -2245,11 +1925,6 @@ const ViewPanelPage = () => {
               </button>
             </div>
             <div className="modal-body">
-              <div className="keyboard-hint">
-                <span className="hint-icon">{Icons.Info}</span>
-                Tip: Use <kbd>Ctrl</kbd> + <kbd>D</kbd> to duplicate form values
-              </div>
-              
               <form onSubmit={handleCreatePanel} className="panel-form horizontal-form">
                 {formLayout.map((row, rowIndex) => (
                   <div key={rowIndex} className="form-row">
@@ -2336,14 +2011,6 @@ const ViewPanelPage = () => {
                   <button type="button" className="secondary-btn" onClick={handleResetForm}>
                     <span className="btn-icon">🔄</span>
                     Reset Form
-                  </button>
-                  <button 
-                    type="button" 
-                    className="secondary-btn"
-                    onClick={handleDuplicateInCreateModal}
-                  >
-                    <span className="btn-icon">{Icons.Duplicate}</span>
-                    Duplicate Form
                   </button>
                   <button type="button" className="secondary-btn" onClick={closeCreateModal}>
                     <span className="btn-icon">{Icons.Close}</span>
