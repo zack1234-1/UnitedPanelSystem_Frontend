@@ -2031,6 +2031,11 @@ const ViewPanelPage = () => {
         }
     };
 
+    // Function to handle column selection from the chips
+    const handleColumnChipClick = (columnId) => {
+        toggleColumnVisibility(columnId);
+    };
+
     return (
         <div className="view-panel-container">
             <header className="page-header">
@@ -2297,6 +2302,51 @@ const ViewPanelPage = () => {
             <div className="table-container">
                 {error && <div className="alert alert-danger">{error}</div>}
 
+                {/* Column Selection Chips */}
+                <div className="column-selection-chips">
+                    <div className="chips-header">
+                        <h4>Selected Columns ({visibleColumns.length - 1})</h4>
+                        <div className="chips-controls">
+                            <button 
+                                className="btn btn-sm btn-secondary"
+                                onClick={() => setIsColumnSelectionModalOpen(true)}
+                            >
+                                <span className="chip-icon">⚙️</span> Manage Columns
+                            </button>
+                            <button 
+                                className="btn btn-sm btn-outline"
+                                onClick={selectAllColumns}
+                            >
+                                Select All
+                            </button>
+                            <button 
+                                className="btn btn-sm btn-outline"
+                                onClick={deselectAllColumns}
+                            >
+                                Deselect All
+                            </button>
+                        </div>
+                    </div>
+                    <div className="chips-container">
+                        {columns
+                            .filter(col => !col.alwaysVisible)
+                            .sort((a, b) => a.order - b.order)
+                            .map(column => (
+                                <div 
+                                    key={column.id}
+                                    className={`column-chip ${column.visible ? 'active' : 'inactive'}`}
+                                    onClick={() => handleColumnChipClick(column.id)}
+                                >
+                                    <span className="chip-label">{column.label}</span>
+                                    <span className="chip-indicator">
+                                        {column.visible ? '✓' : '✗'}
+                                    </span>
+                                </div>
+                            ))
+                        }
+                    </div>
+                </div>
+
                 {isLoading ? (
                     <div className="loading-state">
                         <div className="loading-spinner"></div>
@@ -2348,13 +2398,6 @@ const ViewPanelPage = () => {
                                     </button>
                                 </div>
                                 <div className="action-controls">
-                                    <button 
-                                        className="column-select-btn"
-                                        onClick={() => setIsColumnSelectionModalOpen(true)}
-                                        title="Select Columns"
-                                    >
-                                        📊 Columns ({visibleColumns.length - 1})
-                                    </button>
                                     <button 
                                         className="print-btn"
                                         onClick={() => setIsPrintSelectionModalOpen(true)}
