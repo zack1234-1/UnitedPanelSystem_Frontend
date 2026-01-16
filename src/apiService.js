@@ -360,6 +360,8 @@ export const productionAPI = {
         body: productionData,
     }),
 
+    getAll: () => apiRequest('/panels/production-records/all'),
+
     // PUT: Update production record
     update: (panelId, recordId, productionData) => apiRequest(`/panels/${panelId}/production-records/${recordId}`, {
         method: 'PUT',
