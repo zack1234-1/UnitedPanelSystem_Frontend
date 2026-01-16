@@ -2090,3 +2090,14 @@ input[type="number"] {
     color: #333;
 }
 
+.table-scroll-container {
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: visible;
+  -webkit-overflow-scrolling: touch;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  background: white;
+  margin-top: 16px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
