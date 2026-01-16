@@ -2765,181 +2765,276 @@ const ViewPanelPage = () => {
                 />
             )}
 
-             {isCreateModalOpen && (
-                <div className="modal-overlay" onClick={closeCreateModal}>
-                    <div className="modal-content create-modal" onClick={e => e.stopPropagation()} ref={createModalRef}>
-                        <div className="modal-header">
-                            <h2>Create New Panel</h2>
-                            <button type="button" className="close-button" onClick={closeCreateModal}>
-                                ×
-                            </button>
-                        </div>
-                        
-                        <div className="modal-body">
-                            {error && (
-                                <div className="alert alert-danger">
-                                    {error}
-                                </div>
-                            )}
-                            
-                            {success && (
-                                <div className="alert alert-success">
-                                    {success}
-                                </div>
-                            )}
-
-                            <form onSubmit={handleCreatePanel}>
-                                <div className="form-grid">
-                                    {formLayout.map((row, rowIndex) => (
-                                        <div key={rowIndex} className="form-row">
-                                            {row.map((fieldName, colIndex) => {
-                                                if (!fieldName) {
-                                                    return <div key={colIndex} className="form-group"></div>;
-                                                }
-                                                
-                                                const fieldConfig = {
-                                                    job_no: { label: 'Job No *', type: 'text', required: true },
-                                                    application: { label: 'Application', type: 'text' },
-                                                    type: { label: 'Type', type: 'text'  },
-                                                    panel_thk: { label: 'Panel Thickness (mm)', type: 'number' },
-                                                    joint: { label: 'Joint', type: 'text'  },
-                                                    surface_front: { label: 'Surface Front', type: 'text' },
-                                                    surface_back: { label: 'Surface Back', type: 'text' },
-                                                    surface_front_thk: { label: 'Front Thickness (mm)', type: 'number' },
-                                                    surface_back_thk: { label: 'Back Thickness (mm)', type: 'number' },
-                                                    surface_type: { label: 'Surface Type', type: 'text'  },
-                                                    width: { label: 'Width (mm) *', type: 'number', required: true },
-                                                    length: { label: 'Length (mm) *', type: 'number', required: true },
-                                                    qty: { label: 'Quantity', type: 'number' },
-                                                    cutting: { label: 'Cutting', type: 'text' },
-                                                    status: { label: 'Status', type: 'text' },
-                                                    production_meter: { label: 'Production Meter', type: 'number' },
-                                                    salesman: { label: 'Salesman', type: 'text' },
-                                                    brand: { label: 'Brand', type: 'text' },
-                                                    estimated_delivery: { label: 'Estimated Delivery', type: 'date' },
-                                                    created_at: { label: 'Created Date', type: 'date' },
-                                                    notes: { label: 'Notes', type: 'textarea' }
-                                                }[fieldName] || { label: fieldName, type: 'text' };
-                                                
-                                                const isRequired = fieldConfig.required || false;
-                                                const inputId = `create-${fieldName}-${rowIndex}-${colIndex}`;
-                                                
-                                                return (
-                                                    <div key={colIndex} className="form-group">
-                                                        <label htmlFor={inputId}>
-                                                            {fieldConfig.label}
-                                                            {isRequired && <span className="required-star"> *</span>}
-                                                        </label>
-                                                        
-                                                        {fieldConfig.type === 'select' ? (
-                                                            <select
-                                                                id={inputId}
-                                                                name={fieldName}
-                                                                value={newPanel[fieldName] || ''}
-                                                                onChange={handleNewPanelInputChange}
-                                                                className="form-input"
-                                                                onWheel={handleWheel}
-                                                                required={isRequired}
-                                                            >
-                                                                <option value="">Select...</option>
-                                                                {fieldConfig.options.map(option => (
-                                                                    <option key={option} value={option}>
-                                                                        {option}
-                                                                    </option>
-                                                                ))}
-                                                            </select>
-                                                        ) : fieldConfig.type === 'textarea' ? (
-                                                            <textarea
-                                                                id={inputId}
-                                                                name={fieldName}
-                                                                value={newPanel[fieldName] || ''}
-                                                                onChange={handleNewPanelInputChange}
-                                                                onKeyDown={(e) => handleKeyDown(e, rowIndex, colIndex, fieldName)}
-                                                                className="form-input"
-                                                                rows="3"
-                                                                placeholder="Enter notes here..."
-                                                            />
-                                                        ) : (
-                                                            <input
-                                                                id={inputId}
-                                                                type={fieldConfig.type}
-                                                                name={fieldName}
-                                                                value={newPanel[fieldName] || ''}
-                                                                onChange={handleNewPanelInputChange}
-                                                                onKeyDown={(e) => handleKeyDown(e, rowIndex, colIndex, fieldName)}
-                                                                className="form-input"
-                                                                onWheel={handleWheel}
-                                                                required={isRequired}
-                                                                min={fieldConfig.type === 'number' ? "0" : undefined}
-                                                                step={fieldConfig.type === 'number' ? "0.01" : undefined}
-                                                                ref={el => {
-                                                                    if (rowIndex === 0 && colIndex === 0 && el) {
-                                                                        inputRefs.current[0] = el;
-                                                                    }
-                                                                }}
-                                                            />
-                                                        )}
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-                                    ))}
-                                </div>
-                                
-                                <div className="modal-footer">
-                                    <div className="footer-actions">
-                                        <button
-                                            type="button"
-                                            className="btn btn-secondary"
-                                            onClick={handleResetForm}
-                                            onKeyDown={(e) => {
-                                                if (e.key === 'ArrowUp') {
-                                                    e.preventDefault();
-                                                    const notesField = createModalRef.current?.querySelector('[name="notes"]');
-                                                    if (notesField) notesField.focus();
-                                                }
-                                            }}
-                                        >
-                                            Reset Form
-                                        </button>
-                                        <button
-                                            type="button"
-                                            className="btn btn-info"
-                                            onClick={handleDuplicateInCreateModal}
-                                            onKeyDown={(e) => {
-                                                if (e.key === 'ArrowLeft') {
-                                                    e.preventDefault();
-                                                    const resetButton = createModalRef.current?.querySelector('.footer-actions button.btn-secondary');
-                                                    if (resetButton) resetButton.focus();
-                                                } else if (e.key === 'ArrowRight') {
-                                                    e.preventDefault();
-                                                    const createButton = createModalRef.current?.querySelector('.footer-actions button.btn-primary');
-                                                    if (createButton) createButton.focus();
-                                                }
-                                            }}
-                                        >
-                                            Duplicate
-                                        </button>
-                                        <button
-                                            type="submit"
-                                            className="btn btn-primary"
-                                            onKeyDown={(e) => {
-                                                if (e.key === 'ArrowLeft') {
-                                                    e.preventDefault();
-                                                    const duplicateButton = createModalRef.current?.querySelector('.footer-actions button.btn-info');
-                                                    if (duplicateButton) duplicateButton.focus();
-                                                }
-                                            }}
-                                        >
-                                            Create Panel
-                                        </button>
+           {isCreateModalOpen && (
+            <div className="modal-overlay" onClick={closeCreateModal}>
+                <div className="modal-content create-modal" onClick={e => e.stopPropagation()} ref={createModalRef}>
+                    <div className="modal-header">
+                        <h2>Create New Panel</h2>
+                        <button type="button" className="close-button" onClick={closeCreateModal}>
+                            ×
+                        </button>
+                    </div>
+                    <div className="modal-body">
+                        <form id="create-panel-form" className="panel-form" onSubmit={handleCreateSubmit}>
+                            <div className="form-grid-create">
+                                {/* Row 1 */}
+                                <div className="form-row">
+                                    <div className="form-group">
+                                        <label htmlFor="create-jobNo">Job No <span className="required-star">*</span></label>
+                                        <input 
+                                            type="text" 
+                                            id="create-jobNo" 
+                                            className="form-input" 
+                                            value={createFormData.jobNo || ''}
+                                            onChange={handleCreateInputChange}
+                                            required 
+                                        />
+                                    </div>
+                                    <div className="form-group">
+                                        <label htmlFor="create-type">Type</label>
+                                        <input 
+                                            type="text" 
+                                            id="create-type" 
+                                            className="form-input" 
+                                            value={createFormData.type || 'PIR'}
+                                            onChange={handleCreateInputChange}
+                                        />
                                     </div>
                                 </div>
-                            </form>
-                        </div>
+                                
+                                {/* Row 2 */}
+                                <div className="form-row">
+                                    <div className="form-group">
+                                        <label htmlFor="create-application">Application</label>
+                                        <input 
+                                            type="text" 
+                                            id="create-application" 
+                                            className="form-input" 
+                                            value={createFormData.application || 'Clip Joint'}
+                                            onChange={handleCreateInputChange}
+                                        />
+                                    </div>
+                                    <div className="form-group">
+                                        <label htmlFor="create-panelThickness">Panel Thickness (mm)</label>
+                                        <input 
+                                            type="number" 
+                                            id="create-panelThickness" 
+                                            className="form-input" 
+                                            value={createFormData.panelThickness || 100}
+                                            onChange={handleCreateInputChange}
+                                            step="0.1"
+                                        />
+                                    </div>
+                                </div>
+                                
+                                {/* Row 3 */}
+                                <div className="form-row">
+                                    <div className="form-group">
+                                        <label htmlFor="create-surfaceFront">Surface Front</label>
+                                        <input 
+                                            type="text" 
+                                            id="create-surfaceFront" 
+                                            className="form-input" 
+                                            value={createFormData.surfaceFront || 'PPGI'}
+                                            onChange={handleCreateInputChange}
+                                        />
+                                    </div>
+                                    <div className="form-group">
+                                        <label htmlFor="create-surfaceBack">Surface Back</label>
+                                        <input 
+                                            type="text" 
+                                            id="create-surfaceBack" 
+                                            className="form-input" 
+                                            value={createFormData.surfaceBack || 'PPGI'}
+                                            onChange={handleCreateInputChange}
+                                        />
+                                    </div>
+                                </div>
+                                
+                                {/* Row 4 */}
+                                <div className="form-row">
+                                    <div className="form-group">
+                                        <label htmlFor="create-frontThickness">Front Thickness (mm)</label>
+                                        <input 
+                                            type="number" 
+                                            id="create-frontThickness" 
+                                            className="form-input" 
+                                            value={createFormData.frontThickness || 0.5}
+                                            onChange={handleCreateInputChange}
+                                            step="0.1"
+                                        />
+                                    </div>
+                                    <div className="form-group">
+                                        <label htmlFor="create-surfaceType">Surface Type</label>
+                                        <input 
+                                            type="text" 
+                                            id="create-surfaceType" 
+                                            className="form-input" 
+                                            value={createFormData.surfaceType || 'RIB'}
+                                            onChange={handleCreateInputChange}
+                                        />
+                                    </div>
+                                </div>
+                                
+                                {/* Row 5 */}
+                                <div className="form-row">
+                                    <div className="form-group">
+                                        <label htmlFor="create-width">Width (mm)</label>
+                                        <input 
+                                            type="number" 
+                                            id="create-width" 
+                                            className="form-input" 
+                                            value={createFormData.width || 1150}
+                                            onChange={handleCreateInputChange}
+                                        />
+                                    </div>
+                                    <div className="form-group">
+                                        <label htmlFor="create-backThickness">Back Thickness (mm)</label>
+                                        <input 
+                                            type="number" 
+                                            id="create-backThickness" 
+                                            className="form-input" 
+                                            value={createFormData.backThickness || 0.5}
+                                            onChange={handleCreateInputChange}
+                                            step="0.1"
+                                        />
+                                    </div>
+                                </div>
+                                
+                                {/* Row 6 */}
+                                <div className="form-row">
+                                    <div className="form-group">
+                                        <label htmlFor="create-length">Length (mm)</label>
+                                        <input 
+                                            type="number" 
+                                            id="create-length" 
+                                            className="form-input" 
+                                            value={createFormData.length || 3000}
+                                            onChange={handleCreateInputChange}
+                                        />
+                                    </div>
+                                    <div className="form-group">
+                                        <label htmlFor="create-quantity">Quantity</label>
+                                        <input 
+                                            type="text" 
+                                            id="create-quantity" 
+                                            className="form-input" 
+                                            value={createFormData.quantity || 'Cutting'}
+                                            onChange={handleCreateInputChange}
+                                        />
+                                    </div>
+                                </div>
+                                
+                                {/* Row 7 */}
+                                <div className="form-row">
+                                    <div className="form-group">
+                                        <label htmlFor="create-productionMeter">Production Meter</label>
+                                        <input 
+                                            type="text" 
+                                            id="create-productionMeter" 
+                                            className="form-input" 
+                                            value={createFormData.productionMeter || 'Salesman'}
+                                            onChange={handleCreateInputChange}
+                                        />
+                                    </div>
+                                    <div className="form-group">
+                                        <label htmlFor="create-status">Status</label>
+                                        <select 
+                                            id="create-status" 
+                                            className="form-input" 
+                                            value={createFormData.status || 'pending'}
+                                            onChange={handleCreateInputChange}
+                                        >
+                                            <option value="pending">Pending</option>
+                                            <option value="in-progress">In Progress</option>
+                                            <option value="completed">Completed</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                
+                                {/* Row 8 */}
+                                <div className="form-row">
+                                    <div className="form-group">
+                                        <label htmlFor="create-brand">Brand</label>
+                                        <input 
+                                            type="text" 
+                                            id="create-brand" 
+                                            className="form-input" 
+                                            value={createFormData.brand || ''}
+                                            onChange={handleCreateInputChange}
+                                        />
+                                    </div>
+                                    <div className="form-group">
+                                        <label htmlFor="create-estimatedDelivery">Estimated Delivery</label>
+                                        <input 
+                                            type="date" 
+                                            id="create-estimatedDelivery" 
+                                            className="form-input" 
+                                            value={createFormData.estimatedDelivery || ''}
+                                            onChange={handleCreateInputChange}
+                                        />
+                                    </div>
+                                </div>
+                                
+                                {/* Row 9 */}
+                                <div className="form-row">
+                                    <div className="form-group">
+                                        <label htmlFor="create-createdDate">Created Date</label>
+                                        <input 
+                                            type="date" 
+                                            id="create-createdDate" 
+                                            className="form-input" 
+                                            value={createFormData.createdDate || ''}
+                                            onChange={handleCreateInputChange}
+                                        />
+                                    </div>
+                                    <div className="form-group">
+                                        {/* Empty column for alignment */}
+                                    </div>
+                                </div>
+                                
+                                {/* Row 10: Notes (full width) */}
+                                <div className="form-row">
+                                    <div className="form-group full-width">
+                                        <label htmlFor="create-notes">Notes</label>
+                                        <textarea 
+                                            id="create-notes" 
+                                            className="form-input" 
+                                            rows="3"
+                                            value={createFormData.notes || 'Enter notes here...'}
+                                            onChange={handleCreateInputChange}
+                                        ></textarea>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div className="form-actions">
+                                <button 
+                                    type="button" 
+                                    className="secondary-btn" 
+                                    onClick={handleResetCreateForm}
+                                >
+                                    Reset Form
+                                </button>
+                                <button 
+                                    type="button" 
+                                    className="btn-info" 
+                                    onClick={handleDuplicateFromCreate}
+                                >
+                                    Duplicate
+                                </button>
+                                <button 
+                                    type="submit" 
+                                    className="primary-btn"
+                                >
+                                    Create Panel
+                                </button>
+                            </div>
+                        </form>
                     </div>
                 </div>
-            )}
+            </div>
+        )}
 
              {isEditModalOpen && editingPanel && (
                 <div className="modal-overlay" onClick={closeEditModal}>
