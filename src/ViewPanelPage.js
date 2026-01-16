@@ -1681,244 +1681,256 @@ const ViewPanelPage = () => {
         }
     };
 
-   const handleKeyDown = (e, rowIndex, colIndex, fieldName) => {
-        // For create modal (2-column layout)
-        if (e.target.closest('.create-modal')) {
-            // Special handling for textarea (Notes field) - allow new lines with Shift+Enter
-            if (fieldName === 'notes') {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    // Move to the first button (Reset Form)
+const handleKeyDown = (e, rowIndex, colIndex, fieldName) => {
+    // Check if we're in the create modal by checking the modal content
+    const modalContent = e.target.closest('.modal-content');
+    const isCreateModal = modalContent?.classList.contains('create-modal');
+    
+    if (isCreateModal) {
+        // CREATE MODAL LOGIC (2-column layout)
+        
+        // Special handling for textarea (Notes field) - allow new lines with Shift+Enter
+        if (fieldName === 'notes') {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                // Move to the first button (Reset Form)
+                const firstButton = createModalRef.current?.querySelector('.footer-actions button');
+                if (firstButton) {
+                    firstButton.focus();
+                }
+                return;
+            }
+            // Allow Shift+Enter for new lines
+            if (e.key === 'Enter' && e.shiftKey) {
+                return; // Allow default behavior for new lines
+            }
+        }
+        
+        // Define the 2-column layout for create modal
+        const createModalLayout = [
+            ['job_no', 'application'],
+            ['type', 'panel_thk'],
+            ['joint', 'surface_front'],
+            ['surface_back', 'surface_front_thk'],
+            ['surface_back_thk', 'surface_type'],
+            ['width', 'length'],
+            ['qty', 'cutting'],
+            ['status', 'production_meter'],
+            ['salesman', 'brand'],
+            ['estimated_delivery', 'created_at'],
+            ['notes'] // Single column
+        ];
+        
+        const getFieldName = (row, col) => {
+            if (row >= 0 && row < createModalLayout.length && 
+                col >= 0 && col < createModalLayout[row].length) {
+                return createModalLayout[row][col];
+            }
+            return null;
+        };
+        
+        // For non-textarea fields, Enter moves to next field
+        if (e.key === 'Enter' && fieldName !== 'notes') {
+            e.preventDefault();
+            let nextRow = rowIndex;
+            let nextCol = colIndex + 1;
+            
+            // If at the end of the row
+            if (nextCol >= createModalLayout[nextRow].length) {
+                nextRow++;
+                nextCol = 0;
+            }
+            
+            // Find next valid field
+            while (nextRow < createModalLayout.length && !getFieldName(nextRow, nextCol)) {
+                nextCol++;
+                if (nextCol >= createModalLayout[nextRow].length) {
+                    nextRow++;
+                    nextCol = 0;
+                }
+            }
+            
+            if (nextRow < createModalLayout.length) {
+                const nextField = getFieldName(nextRow, nextCol);
+                if (nextField) {
+                    const input = createModalRef.current?.querySelector(`[name="${nextField}"]`);
+                    if (input) input.focus();
+                }
+            } else {
+                // At last field, move to first button
+                const firstButton = createModalRef.current?.querySelector('.footer-actions button');
+                if (firstButton) firstButton.focus();
+            }
+        }
+        
+        switch(e.key) {
+            case 'ArrowUp':
+                e.preventDefault();
+                if (rowIndex > 0) {
+                    let newRow = rowIndex - 1;
+                    let newCol = colIndex;
+                    
+                    // If the row above doesn't have this column (like notes row)
+                    if (newCol >= createModalLayout[newRow].length) {
+                        newCol = createModalLayout[newRow].length - 1; // Move to last available column
+                    }
+                    
+                    // If the row above has no columns (shouldn't happen), move further up
+                    while (newRow >= 0 && newCol < 0) {
+                        newRow--;
+                        if (newRow >= 0) {
+                            newCol = createModalLayout[newRow].length - 1;
+                        }
+                    }
+                    
+                    if (newRow >= 0) {
+                        const nextField = getFieldName(newRow, newCol);
+                        if (nextField) {
+                            const input = createModalRef.current?.querySelector(`[name="${nextField}"]`);
+                            if (input) input.focus();
+                        }
+                    }
+                }
+                break;
+                
+            case 'ArrowDown':
+                e.preventDefault();
+                if (rowIndex < createModalLayout.length - 1) {
+                    let newRow = rowIndex + 1;
+                    let newCol = colIndex;
+                    
+                    // If the row below doesn't have this column (like notes row has only 1 column)
+                    if (newCol >= createModalLayout[newRow].length) {
+                        newCol = 0; // Move to first column
+                    }
+                    
+                    // If the row below has no columns (shouldn't happen), move further down
+                    while (newRow < createModalLayout.length && newCol >= createModalLayout[newRow].length) {
+                        newRow++;
+                        if (newRow < createModalLayout.length) {
+                            newCol = 0;
+                        }
+                    }
+                    
+                    if (newRow < createModalLayout.length) {
+                        const nextField = getFieldName(newRow, newCol);
+                        if (nextField) {
+                            const input = createModalRef.current?.querySelector(`[name="${nextField}"]`);
+                            if (input) input.focus();
+                        }
+                    } else {
+                        // At the last row, move to the buttons
+                        const firstButton = createModalRef.current?.querySelector('.footer-actions button');
+                        if (firstButton) firstButton.focus();
+                    }
+                } else if (rowIndex === createModalLayout.length - 1) {
+                    // If at the last row (Notes field), move to the first button
                     const firstButton = createModalRef.current?.querySelector('.footer-actions button');
                     if (firstButton) {
                         firstButton.focus();
                     }
-                    return;
                 }
-                // Allow Shift+Enter for new lines
-                if (e.key === 'Enter' && e.shiftKey) {
-                    return; // Allow default behavior for new lines
-                }
-            }
-            
-            // For non-textarea fields, Enter moves to next field
-            if (e.key === 'Enter' && fieldName !== 'notes') {
-                e.preventDefault();
-                // Try to move to next field in same row
-                if (colIndex === 0) {
-                    // Move to second column in same row
-                    const secondField = getNextFieldName(rowIndex, 1);
-                    if (secondField) {
-                        const input = createModalRef.current?.querySelector(`[name="${secondField}"]`);
-                        if (input) input.focus();
-                    } else {
-                        // If no second column, move to first column of next row
-                        const nextRowField = getNextFieldName(rowIndex + 1, 0);
-                        if (nextRowField) {
-                            const input = createModalRef.current?.querySelector(`[name="${nextRowField}"]`);
-                            if (input) input.focus();
-                        }
-                    }
-                } else if (colIndex === 1) {
-                    // Move to first column of next row
-                    const nextRowField = getNextFieldName(rowIndex + 1, 0);
-                    if (nextRowField) {
-                        const input = createModalRef.current?.querySelector(`[name="${nextRowField}"]`);
-                        if (input) input.focus();
-                    } else {
-                        // If no next row, move to notes field
-                        const notesField = createModalRef.current?.querySelector('[name="notes"]');
-                        if (notesField) notesField.focus();
-                    }
-                }
-            }
-            
-            // Helper function to get field name based on row and column
-            const getNextFieldName = (row, col) => {
-                // Define the field layout for create modal
-                const createModalLayout = [
-                    ['job_no', 'application'],
-                    ['type', 'panel_thk'],
-                    ['joint', 'surface_front'],
-                    ['surface_back', 'surface_front_thk'],
-                    ['surface_back_thk', 'surface_type'],
-                    ['width', 'length'],
-                    ['qty', 'cutting'],
-                    ['status', 'production_meter'],
-                    ['salesman', 'brand'],
-                    ['estimated_delivery', 'created_at'],
-                    ['notes'] // Single column for notes
-                ];
+                break;
                 
-                if (row >= 0 && row < createModalLayout.length && 
-                    col >= 0 && col < createModalLayout[row].length) {
-                    return createModalLayout[row][col];
+            case 'ArrowLeft':
+                e.preventDefault();
+                if (colIndex > 0) {
+                    // Move to previous column in same row
+                    const prevField = getFieldName(rowIndex, colIndex - 1);
+                    if (prevField) {
+                        const input = createModalRef.current?.querySelector(`[name="${prevField}"]`);
+                        if (input) input.focus();
+                    }
+                } else if (rowIndex > 0) {
+                    // Move to last column of previous row
+                    let newRow = rowIndex - 1;
+                    let newCol = createModalLayout[newRow].length - 1;
+                    
+                    const prevField = getFieldName(newRow, newCol);
+                    if (prevField) {
+                        const input = createModalRef.current?.querySelector(`[name="${prevField}"]`);
+                        if (input) input.focus();
+                    }
                 }
-                return null;
-            };
-            
-            switch(e.key) {
-                case 'ArrowUp':
-                    e.preventDefault();
-                    if (rowIndex > 0) {
-                        const newRow = rowIndex - 1;
-                        // Find a field in the same column position in the previous row
-                        const fieldName = getNextFieldName(newRow, colIndex);
-                        if (fieldName) {
-                            const input = createModalRef.current?.querySelector(`[name="${fieldName}"]`);
-                            if (input) input.focus();
-                        } else if (colIndex === 1) {
-                            // Try column 0 if column 1 doesn't exist in previous row
-                            const fieldName = getNextFieldName(newRow, 0);
-                            if (fieldName) {
-                                const input = createModalRef.current?.querySelector(`[name="${fieldName}"]`);
-                                if (input) input.focus();
-                            }
-                        }
+                break;
+                
+            case 'ArrowRight':
+                e.preventDefault();
+                if (colIndex < createModalLayout[rowIndex].length - 1) {
+                    // Move to next column in same row
+                    const nextField = getFieldName(rowIndex, colIndex + 1);
+                    if (nextField) {
+                        const input = createModalRef.current?.querySelector(`[name="${nextField}"]`);
+                        if (input) input.focus();
                     }
-                    break;
+                } else if (rowIndex < createModalLayout.length - 1) {
+                    // Move to first column of next row
+                    let newRow = rowIndex + 1;
+                    let newCol = 0;
                     
-                case 'ArrowDown':
-                    e.preventDefault();
-                    if (rowIndex < 10) { // 11 rows total (0-10)
-                        const newRow = rowIndex + 1;
-                        // Find a field in the same column position in the next row
-                        const fieldName = getNextFieldName(newRow, colIndex);
-                        if (fieldName) {
-                            const input = createModalRef.current?.querySelector(`[name="${fieldName}"]`);
-                            if (input) input.focus();
-                        } else if (colIndex === 1) {
-                            // Try column 0 if column 1 doesn't exist in next row
-                            const fieldName = getNextFieldName(newRow, 0);
-                            if (fieldName) {
-                                const input = createModalRef.current?.querySelector(`[name="${fieldName}"]`);
-                                if (input) input.focus();
-                            }
-                        }
-                    } else if (rowIndex === 10 && fieldName === 'notes') {
-                        // If at the notes field, move to the first button
-                        const firstButton = createModalRef.current?.querySelector('.footer-actions button');
-                        if (firstButton) {
-                            firstButton.focus();
-                        }
+                    const nextField = getFieldName(newRow, newCol);
+                    if (nextField) {
+                        const input = createModalRef.current?.querySelector(`[name="${nextField}"]`);
+                        if (input) input.focus();
                     }
-                    break;
-                    
-                case 'ArrowLeft':
-                    e.preventDefault();
-                    if (colIndex === 1) {
-                        // Move to first column in same row
-                        const fieldName = getNextFieldName(rowIndex, 0);
-                        if (fieldName) {
-                            const input = createModalRef.current?.querySelector(`[name="${fieldName}"]`);
+                }
+                break;
+                
+            case 'Tab':
+                e.preventDefault();
+                if (e.shiftKey) {
+                    // Shift+Tab - move backward
+                    if (colIndex > 0) {
+                        // Move to previous column in same row
+                        const prevField = getFieldName(rowIndex, colIndex - 1);
+                        if (prevField) {
+                            const input = createModalRef.current?.querySelector(`[name="${prevField}"]`);
                             if (input) input.focus();
                         }
-                    } else if (colIndex === 0 && rowIndex > 0) {
-                        // Move to second column in previous row
-                        const fieldName = getNextFieldName(rowIndex - 1, 1);
-                        if (fieldName) {
-                            const input = createModalRef.current?.querySelector(`[name="${fieldName}"]`);
+                    } else if (rowIndex > 0) {
+                        // Move to last column of previous row
+                        let newRow = rowIndex - 1;
+                        let newCol = createModalLayout[newRow].length - 1;
+                        
+                        const prevField = getFieldName(newRow, newCol);
+                        if (prevField) {
+                            const input = createModalRef.current?.querySelector(`[name="${prevField}"]`);
                             if (input) input.focus();
-                        }
-                    }
-                    break;
-                    
-                case 'ArrowRight':
-                    e.preventDefault();
-                    if (colIndex === 0) {
-                        // Check if there's a second column in this row
-                        const fieldName = getNextFieldName(rowIndex, 1);
-                        if (fieldName) {
-                            const input = createModalRef.current?.querySelector(`[name="${fieldName}"]`);
-                            if (input) input.focus();
-                        } else {
-                            // Move to first column of next row
-                            const fieldName = getNextFieldName(rowIndex + 1, 0);
-                            if (fieldName) {
-                                const input = createModalRef.current?.querySelector(`[name="${fieldName}"]`);
-                                if (input) input.focus();
-                            }
-                        }
-                    } else if (colIndex === 1) {
-                        // Move to first column of next row
-                        const fieldName = getNextFieldName(rowIndex + 1, 0);
-                        if (fieldName) {
-                            const input = createModalRef.current?.querySelector(`[name="${fieldName}"]`);
-                            if (input) input.focus();
-                        }
-                    }
-                    break;
-                    
-                case 'Tab':
-                    if (e.shiftKey) {
-                        // Shift+Tab - move backward
-                        e.preventDefault();
-                        if (colIndex === 0 && rowIndex > 0) {
-                            // Move to second column in previous row
-                            const fieldName = getNextFieldName(rowIndex - 1, 1);
-                            if (fieldName) {
-                                const input = createModalRef.current?.querySelector(`[name="${fieldName}"]`);
-                                if (input) input.focus();
-                            } else {
-                                // Move to first column in previous row
-                                const fieldName = getNextFieldName(rowIndex - 1, 0);
-                                if (fieldName) {
-                                    const input = createModalRef.current?.querySelector(`[name="${fieldName}"]`);
-                                    if (input) input.focus();
-                                }
-                            }
-                        } else if (colIndex === 1) {
-                            // Move to first column in same row
-                            const fieldName = getNextFieldName(rowIndex, 0);
-                            if (fieldName) {
-                                const input = createModalRef.current?.querySelector(`[name="${fieldName}"]`);
-                                if (input) input.focus();
-                            }
-                        } else if (colIndex === 0 && rowIndex === 0) {
-                            // At first field, move to close button
-                            const closeButton = createModalRef.current?.querySelector('.close-button');
-                            if (closeButton) closeButton.focus();
                         }
                     } else {
-                        // Tab - move forward
-                        e.preventDefault();
-                        if (colIndex === 0) {
-                            // Check if there's a second column in this row
-                            const fieldName = getNextFieldName(rowIndex, 1);
-                            if (fieldName) {
-                                const input = createModalRef.current?.querySelector(`[name="${fieldName}"]`);
-                                if (input) input.focus();
-                            } else {
-                                // Move to first column of next row
-                                const fieldName = getNextFieldName(rowIndex + 1, 0);
-                                if (fieldName) {
-                                    const input = createModalRef.current?.querySelector(`[name="${fieldName}"]`);
-                                    if (input) input.focus();
-                                } else if (rowIndex === 10) {
-                                    // At last row, move to first button
-                                    const firstButton = createModalRef.current?.querySelector('.footer-actions button');
-                                    if (firstButton) firstButton.focus();
-                                }
-                            }
-                        } else if (colIndex === 1) {
-                            // Move to first column of next row
-                            const fieldName = getNextFieldName(rowIndex + 1, 0);
-                            if (fieldName) {
-                                const input = createModalRef.current?.querySelector(`[name="${fieldName}"]`);
-                                if (input) input.focus();
-                            } else {
-                                // At last field, move to first button
-                                const firstButton = createModalRef.current?.querySelector('.footer-actions button');
-                                if (firstButton) firstButton.focus();
-                            }
-                        }
+                        // At first field, move to close button
+                        const closeButton = createModalRef.current?.querySelector('.close-button');
+                        if (closeButton) closeButton.focus();
                     }
-                    break;
-            }
-            return;
+                } else {
+                    // Tab - move forward
+                    if (colIndex < createModalLayout[rowIndex].length - 1) {
+                        // Move to next column in same row
+                        const nextField = getFieldName(rowIndex, colIndex + 1);
+                        if (nextField) {
+                            const input = createModalRef.current?.querySelector(`[name="${nextField}"]`);
+                            if (input) input.focus();
+                        }
+                    } else if (rowIndex < createModalLayout.length - 1) {
+                        // Move to first column of next row
+                        let newRow = rowIndex + 1;
+                        let newCol = 0;
+                        
+                        const nextField = getFieldName(newRow, newCol);
+                        if (nextField) {
+                            const input = createModalRef.current?.querySelector(`[name="${nextField}"]`);
+                            if (input) input.focus();
+                        }
+                    } else {
+                        // At last field, move to first button
+                        const firstButton = createModalRef.current?.querySelector('.footer-actions button');
+                        if (firstButton) firstButton.focus();
+                    }
+                }
+                break;
         }
-        
-        // For edit modal (3-column layout) - keep the existing logic
+    } else {
+        // EDIT MODAL LOGIC (3-column layout)
         const rows = formLayout.length;
         const cols = 3;
         
@@ -1926,8 +1938,8 @@ const ViewPanelPage = () => {
         if (fieldName === 'notes') {
             if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
-                // Move to the first button (Reset Form)
-                const firstButton = e.target.closest('.modal-content')?.querySelector('.form-actions button');
+                // Move to the first button
+                const firstButton = modalContent?.querySelector('.form-actions button');
                 if (firstButton) {
                     firstButton.focus();
                 }
@@ -1945,7 +1957,7 @@ const ViewPanelPage = () => {
                     const newRow = rowIndex + 1;
                     const newCol = Math.min(colIndex, formLayout[newRow].length - 1);
                     if (formLayout[newRow][newCol]) {
-                        const input = e.target.closest('.modal-content')?.querySelector(`[name="${formLayout[newRow][newCol]}"]`);
+                        const input = modalContent?.querySelector(`[name="${formLayout[newRow][newCol]}"]`);
                         if (input) input.focus();
                     }
                 }
@@ -1959,7 +1971,7 @@ const ViewPanelPage = () => {
                     const newRow = rowIndex - 1;
                     const newCol = Math.min(colIndex, formLayout[newRow].length - 1);
                     if (formLayout[newRow][newCol]) {
-                        const input = e.target.closest('.modal-content')?.querySelector(`[name="${formLayout[newRow][newCol]}"]`);
+                        const input = modalContent?.querySelector(`[name="${formLayout[newRow][newCol]}"]`);
                         if (input) input.focus();
                     }
                 }
@@ -1971,12 +1983,12 @@ const ViewPanelPage = () => {
                     const newRow = rowIndex + 1;
                     const newCol = Math.min(colIndex, formLayout[newRow].length - 1);
                     if (formLayout[newRow][newCol]) {
-                        const input = e.target.closest('.modal-content')?.querySelector(`[name="${formLayout[newRow][newCol]}"]`);
+                        const input = modalContent?.querySelector(`[name="${formLayout[newRow][newCol]}"]`);
                         if (input) input.focus();
                     }
                 } else if (rowIndex === rows - 1) {
-                    // If at the last row (Notes field), move to the first button
-                    const firstButton = e.target.closest('.modal-content')?.querySelector('.form-actions button');
+                    // If at the last row, move to the first button
+                    const firstButton = modalContent?.querySelector('.form-actions button');
                     if (firstButton) {
                         firstButton.focus();
                     }
@@ -1988,7 +2000,7 @@ const ViewPanelPage = () => {
                 if (colIndex > 0) {
                     const newCol = colIndex - 1;
                     if (formLayout[rowIndex][newCol]) {
-                        const input = e.target.closest('.modal-content')?.querySelector(`[name="${formLayout[rowIndex][newCol]}"]`);
+                        const input = modalContent?.querySelector(`[name="${formLayout[rowIndex][newCol]}"]`);
                         if (input) input.focus();
                     }
                 }
@@ -1999,7 +2011,7 @@ const ViewPanelPage = () => {
                 if (colIndex < cols - 1 && colIndex < formLayout[rowIndex].length - 1) {
                     const newCol = colIndex + 1;
                     if (formLayout[rowIndex][newCol]) {
-                        const input = e.target.closest('.modal-content')?.querySelector(`[name="${formLayout[rowIndex][newCol]}"]`);
+                        const input = modalContent?.querySelector(`[name="${formLayout[rowIndex][newCol]}"]`);
                         if (input) input.focus();
                     }
                 }
@@ -2012,19 +2024,19 @@ const ViewPanelPage = () => {
                     if (colIndex > 0) {
                         const newCol = colIndex - 1;
                         if (formLayout[rowIndex][newCol]) {
-                            const input = e.target.closest('.modal-content')?.querySelector(`[name="${formLayout[rowIndex][newCol]}"]`);
+                            const input = modalContent?.querySelector(`[name="${formLayout[rowIndex][newCol]}"]`);
                             if (input) input.focus();
                         }
                     } else if (rowIndex > 0) {
                         const newRow = rowIndex - 1;
                         const newCol = formLayout[newRow].length - 1;
                         if (formLayout[newRow][newCol]) {
-                            const input = e.target.closest('.modal-content')?.querySelector(`[name="${formLayout[newRow][newCol]}"]`);
+                            const input = modalContent?.querySelector(`[name="${formLayout[newRow][newCol]}"]`);
                             if (input) input.focus();
                         }
                     } else {
                         // At first field, move to close button
-                        const closeButton = e.target.closest('.modal-content')?.querySelector('.close-button');
+                        const closeButton = modalContent?.querySelector('.close-button');
                         if (closeButton) closeButton.focus();
                     }
                 } else {
@@ -2033,24 +2045,25 @@ const ViewPanelPage = () => {
                     if (colIndex < cols - 1 && colIndex < formLayout[rowIndex].length - 1) {
                         const newCol = colIndex + 1;
                         if (formLayout[rowIndex][newCol]) {
-                            const input = e.target.closest('.modal-content')?.querySelector(`[name="${formLayout[rowIndex][newCol]}"]`);
+                            const input = modalContent?.querySelector(`[name="${formLayout[rowIndex][newCol]}"]`);
                             if (input) input.focus();
                         }
                     } else if (rowIndex < rows - 1) {
                         const newRow = rowIndex + 1;
                         if (formLayout[newRow][0]) {
-                            const input = e.target.closest('.modal-content')?.querySelector(`[name="${formLayout[newRow][0]}"]`);
+                            const input = modalContent?.querySelector(`[name="${formLayout[newRow][0]}"]`);
                             if (input) input.focus();
                         }
                     } else {
                         // At last field, move to first button
-                        const firstButton = e.target.closest('.modal-content')?.querySelector('.form-actions button');
+                        const firstButton = modalContent?.querySelector('.form-actions button');
                         if (firstButton) firstButton.focus();
                     }
                 }
                 break;
         }
-    };
+    }
+};
 
     // PRINT FUNCTION
     const handlePrint = (specificPanel = null) => {
