@@ -152,25 +152,8 @@ const ProductionDetailsModal = ({ panel, onClose, updatePanelBalance, formatNumb
     };
 
     const handleWheel = (e) => {
-        // Only prevent wheel on number inputs
-        if (e.target.type === 'number') {
-            e.preventDefault();
-            e.target.blur();
-        }
+        e.target.blur();
     };
-
-// Also add this CSS to your ViewPanelPage.css to help with the issue:
-/*
-input[type="number"]::-webkit-inner-spin-button,
-input[type="number"]::-webkit-outer-spin-button {
-    -webkit-appearance: none;
-    margin: 0;
-}
-
-input[type="number"] {
-    -moz-appearance: textfield;
-}
-*/
 
     const fetchProductionRecords = async () => {
         setIsLoadingRecords(true);
@@ -720,10 +703,6 @@ const ViewPanelPage = () => {
     const [isPrintSelectionModalOpen, setIsPrintSelectionModalOpen] = useState(false);
     const [isColumnSelectionModalOpen, setIsColumnSelectionModalOpen] = useState(false);
 
-    // Add states for production data
-    const [allProductionRecords, setAllProductionRecords] = useState([]);
-    const [productionRefs, setProductionRefs] = useState([]);
-
     // Define all available columns with their display names and default visibility
     const defaultColumns = [
         { id: 'job_no', label: 'Job No', visible: true, order: 1 },
@@ -802,8 +781,7 @@ const ViewPanelPage = () => {
         qty: '',
         cutting: '',
         created_at: '',      
-        estimated_delivery: '',
-        production_reference_number: ''
+        estimated_delivery: ''
     });
 
     const [sortConfig, setSortConfig] = useState({
@@ -828,33 +806,6 @@ const ViewPanelPage = () => {
     useEffect(() => {
         localStorage.setItem('panelTableColumns', JSON.stringify(columns));
     }, [columns]);
-
-    // Fetch all production records and references
-    useEffect(() => {
-        const fetchAllProductionData = async () => {
-            try {
-                const data = await productionAPI.getAll();
-                if (Array.isArray(data)) {
-                    setAllProductionRecords(data);
-                    
-                    // Extract unique production reference numbers
-                    const uniqueRefs = [...new Set(
-                        data
-                            .map(record => record.reference_number)
-                            .filter(ref => ref && ref.trim() !== '')
-                    )].sort();
-                    
-                    setProductionRefs(uniqueRefs);
-                }
-            } catch (err) {
-                console.error('Failed to fetch production data:', err);
-                setAllProductionRecords([]);
-                setProductionRefs([]);
-            }
-        };
-        
-        fetchAllProductionData();
-    }, []);
 
     useEffect(() => {
         fetchPanels();
@@ -1198,74 +1149,6 @@ const ViewPanelPage = () => {
         setError(null);
     };
 
-    const uniqueValues = useMemo(() => {
-        const getUnique = (key, isNumeric = false, isDate = false) => {
-            const values = panels
-                .map(panel => {
-                    const value = panel[key];
-                    if (value === null || value === undefined || value === '') return null;
-                    
-                    if (isNumeric) {
-                        const numValue = parseFloat(value);
-                        return isNaN(numValue) ? null : numValue.toString();
-                    }
-                    
-                    if (isDate) {
-                        try {
-                            const date = new Date(value);
-                            if (isNaN(date.getTime())) return null;
-                            // Format as YYYY-MM-DD for consistent comparison
-                            const year = date.getFullYear();
-                            const month = String(date.getMonth() + 1).padStart(2, '0');
-                            const day = String(date.getDate()).padStart(2, '0');
-                            return `${year}-${month}-${day}`;
-                        } catch (error) {
-                            return null;
-                        }
-                    }
-                    
-                    return value.toString().trim();
-                })
-                .filter(p => p);
-            
-            const unique = [...new Set(values)];
-            
-            if (isNumeric) {
-                return unique.sort((a, b) => parseFloat(a) - parseFloat(b));
-            }
-            
-            if (isDate) {
-                return unique.sort((a, b) => new Date(b) - new Date(a));
-            }
-            
-            return unique.sort();
-        };
-
-        return {
-            jobNos: getUnique('job_no'),
-            types: getUnique('type'),
-            brands: getUnique('brand'),
-            statuses: getUnique('status'),
-            salesmen: getUnique('salesman'),
-            panelThks: getUnique('panel_thk', true),
-            joints: getUnique('joint'),
-            surfaceFronts: getUnique('surface_front'),
-            surfaceBacks: getUnique('surface_back'),
-            surfaceFrontThks: getUnique('surface_front_thk', true),
-            surfaceBackThks: getUnique('surface_back_thk', true),
-            surfaceTypes: getUnique('surface_type'),
-            widths: getUnique('width', true),
-            lengths: getUnique('length', true),
-            qtys: getUnique('qty', true),
-            cuttings: getUnique('cutting'),
-            applications: getUnique('application'),
-            createdDates: getUnique('created_at', false, true), 
-            estimatedDeliveries: getUnique('estimated_delivery', false, true),
-            referenceNumbers: getUnique('reference_number'),
-            productionRefs: productionRefs
-        };
-    }, [panels, productionRefs]);
-
     const filteredPanels = useMemo(() => {
         let filtered = panels.filter(panel => {
             if (!panel || !panel.id) return false;
@@ -1360,22 +1243,6 @@ const ViewPanelPage = () => {
                 }
             }
             
-            // Filter by production reference number
-            if (filters.production_reference_number) {
-                // Find production records for this panel
-                const panelProdRecords = allProductionRecords.filter(record => 
-                    record.panel_id === panel.id
-                );
-                
-                // Check if any production record has the matching reference
-                const hasMatchingProdRef = panelProdRecords.some(record =>
-                    record.reference_number && 
-                    record.reference_number.toLowerCase().includes(filters.production_reference_number.toLowerCase())
-                );
-                
-                if (!hasMatchingProdRef) return false;
-            }
-            
             return true;
         });
 
@@ -1425,7 +1292,7 @@ const ViewPanelPage = () => {
         });
 
         return filtered;
-    }, [panels, filters, sortConfig, allProductionRecords]);
+    }, [panels, filters, sortConfig]);
 
     // Get visible columns sorted by order
     const visibleColumns = useMemo(() => {
@@ -1536,9 +1403,7 @@ const ViewPanelPage = () => {
                 salesman: editingPanel.salesman || null,
                 notes: editingPanel.notes || null,
                 balance: editingPanel.qty ? parseInt(editingPanel.qty) : null,
-                application: editingPanel.application || null,
-                created_at: editingPanel.created_at || null, // Add this
-                estimated_delivery: editingPanel.estimated_delivery || null
+                application: editingPanel.application || null
             };
             
             Object.keys(panelToUpdate).forEach(key => {
@@ -1666,18 +1531,6 @@ const ViewPanelPage = () => {
     };
 
     const openEditModal = (panel) => {
-
-        const formatDateForInput = (dateString) => {
-            if (!dateString) return '';
-            try {
-                const date = new Date(dateString);
-                if (isNaN(date.getTime())) return '';
-                return date.toISOString().split('T')[0];
-            } catch (error) {
-                return '';
-            }
-        };
-    
         setEditingPanel({ 
             ...panel,
             job_no: panel.job_no || '',
@@ -1698,7 +1551,6 @@ const ViewPanelPage = () => {
             production_meter: panel.production_meter || '',
             brand: panel.brand || '',
             estimated_delivery: panel.estimated_delivery || '',
-            created_at: formatDateForInput(panel.created_at),
             salesman: panel.salesman || '',
             notes: panel.notes || ''
         });
@@ -1748,6 +1600,72 @@ const ViewPanelPage = () => {
         return number.toLocaleString('en-US');
     };
 
+    const uniqueValues = useMemo(() => {
+        const getUnique = (key, isNumeric = false, isDate = false) => {
+            const values = panels
+                .map(panel => {
+                    const value = panel[key];
+                    if (value === null || value === undefined || value === '') return null;
+                    
+                    if (isNumeric) {
+                        const numValue = parseFloat(value);
+                        return isNaN(numValue) ? null : numValue.toString();
+                    }
+                    
+                    if (isDate) {
+                        try {
+                            const date = new Date(value);
+                            if (isNaN(date.getTime())) return null;
+                            // Format as YYYY-MM-DD for consistent comparison
+                            const year = date.getFullYear();
+                            const month = String(date.getMonth() + 1).padStart(2, '0');
+                            const day = String(date.getDate()).padStart(2, '0');
+                            return `${year}-${month}-${day}`;
+                        } catch (error) {
+                            return null;
+                        }
+                    }
+                    
+                    return value.toString().trim();
+                })
+                .filter(p => p);
+            
+            const unique = [...new Set(values)];
+            
+            if (isNumeric) {
+                return unique.sort((a, b) => parseFloat(a) - parseFloat(b));
+            }
+            
+            if (isDate) {
+                return unique.sort((a, b) => new Date(b) - new Date(a));
+            }
+            
+            return unique.sort();
+        };
+
+        return {
+            jobNos: getUnique('job_no'),
+            types: getUnique('type'),
+            brands: getUnique('brand'),
+            statuses: getUnique('status'),
+            salesmen: getUnique('salesman'),
+            panelThks: getUnique('panel_thk', true),
+            joints: getUnique('joint'),
+            surfaceFronts: getUnique('surface_front'),
+            surfaceBacks: getUnique('surface_back'),
+            surfaceFrontThks: getUnique('surface_front_thk', true),
+            surfaceBackThks: getUnique('surface_back_thk', true),
+            surfaceTypes: getUnique('surface_type'),
+            widths: getUnique('width', true),
+            lengths: getUnique('length', true),
+            qtys: getUnique('qty', true),
+            cuttings: getUnique('cutting'),
+            applications: getUnique('application'),
+            createdDates: getUnique('created_at', false, true), 
+            estimatedDeliveries: getUnique('estimated_delivery', false, true)
+        };
+    }, [panels]);
+
     const formatDateForFilter = (dateString) => {
         if (!dateString) return 'N/A';
         try {
@@ -1767,61 +1685,39 @@ const ViewPanelPage = () => {
         const rows = formLayout.length;
         const cols = 3;
         
-        // Only handle Enter for form navigation, not for textareas
-        if (e.key === 'Enter' && fieldName !== 'notes') {
-            e.preventDefault();
-            
-            // If Tab or Enter is pressed in the last field of a row
-            if (rowIndex < rows - 1) {
-                const newRow = rowIndex + 1;
-                const newCol = Math.min(colIndex, formLayout[newRow].length - 1);
-                if (formLayout[newRow][newCol]) {
-                    const input = createModalRef.current?.querySelector(`[name="${formLayout[newRow][newCol]}"]`);
-                    if (input) input.focus();
+        // Special handling for textarea (Notes field) - allow new lines with Shift+Enter
+        if (fieldName === 'notes') {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                // Move to the first button (Reset Form)
+                const firstButton = createModalRef.current?.querySelector('.footer-actions button');
+                if (firstButton) {
+                    firstButton.focus();
                 }
-            } else {
-                // If in last row, move to first button
-                const firstButton = createModalRef.current?.querySelector('.footer-actions button');
-                if (firstButton) firstButton.focus();
+                return;
             }
-            return;
-        }
-        
-        // Handle Tab for navigation
-        if (e.key === 'Tab') {
-            // Let default Tab behavior work for most fields
-            if (fieldName === 'notes' && !e.shiftKey) {
-                // For notes field with Tab, move to buttons
+            // Allow Shift+Enter for new lines
+            if (e.key === 'Enter' && e.shiftKey) {
+                return; // Allow default behavior for new lines
+            }
+        } else {
+            // For non-textarea fields, Enter moves to next row
+            if (e.key === 'Enter') {
                 e.preventDefault();
-                const firstButton = createModalRef.current?.querySelector('.footer-actions button');
-                if (firstButton) firstButton.focus();
-            }
-            return;
-        }
-        
-        // For notes field, allow Shift+Enter for new lines
-        if (fieldName === 'notes' && e.key === 'Enter' && e.shiftKey) {
-            // Allow default behavior (new line)
-            return;
-        }
-        
-        // For other arrow keys, only handle if they're not in a text field that needs them
-        if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
-            // Don't prevent default for arrow keys in text fields
-            if (fieldName !== 'notes') {
-                // For non-textarea fields, handle arrow navigation
-                e.preventDefault();
-                handleArrowNavigation(e.key, rowIndex, colIndex);
+                if (rowIndex < rows - 1) {
+                    const newRow = rowIndex + 1;
+                    const newCol = Math.min(colIndex, formLayout[newRow].length - 1);
+                    if (formLayout[newRow][newCol]) {
+                        const input = createModalRef.current?.querySelector(`[name="${formLayout[newRow][newCol]}"]`);
+                        if (input) input.focus();
+                    }
+                }
             }
         }
-    };
-
-    const handleArrowNavigation = (key, rowIndex, colIndex) => {
-        const rows = formLayout.length;
-        const cols = 3;
         
-        switch(key) {
+        switch(e.key) {
             case 'ArrowUp':
+                e.preventDefault();
                 if (rowIndex > 0) {
                     const newRow = rowIndex - 1;
                     const newCol = Math.min(colIndex, formLayout[newRow].length - 1);
@@ -1833,6 +1729,7 @@ const ViewPanelPage = () => {
                 break;
                 
             case 'ArrowDown':
+                e.preventDefault();
                 if (rowIndex < rows - 1) {
                     const newRow = rowIndex + 1;
                     const newCol = Math.min(colIndex, formLayout[newRow].length - 1);
@@ -1840,10 +1737,17 @@ const ViewPanelPage = () => {
                         const input = createModalRef.current?.querySelector(`[name="${formLayout[newRow][newCol]}"]`);
                         if (input) input.focus();
                     }
+                } else if (rowIndex === rows - 1) {
+                    // If at the last row (Notes field), move to the first button
+                    const firstButton = createModalRef.current?.querySelector('.footer-actions button');
+                    if (firstButton) {
+                        firstButton.focus();
+                    }
                 }
                 break;
                 
             case 'ArrowLeft':
+                e.preventDefault();
                 if (colIndex > 0) {
                     const newCol = colIndex - 1;
                     if (formLayout[rowIndex][newCol]) {
@@ -1854,11 +1758,57 @@ const ViewPanelPage = () => {
                 break;
                 
             case 'ArrowRight':
+                e.preventDefault();
                 if (colIndex < cols - 1 && colIndex < formLayout[rowIndex].length - 1) {
                     const newCol = colIndex + 1;
                     if (formLayout[rowIndex][newCol]) {
                         const input = createModalRef.current?.querySelector(`[name="${formLayout[rowIndex][newCol]}"]`);
                         if (input) input.focus();
+                    }
+                }
+                break;
+                
+            case 'Tab':
+                if (e.shiftKey) {
+                    // Shift+Tab - move backward
+                    e.preventDefault();
+                    if (colIndex > 0) {
+                        const newCol = colIndex - 1;
+                        if (formLayout[rowIndex][newCol]) {
+                            const input = createModalRef.current?.querySelector(`[name="${formLayout[rowIndex][newCol]}"]`);
+                            if (input) input.focus();
+                        }
+                    } else if (rowIndex > 0) {
+                        const newRow = rowIndex - 1;
+                        const newCol = formLayout[newRow].length - 1;
+                        if (formLayout[newRow][newCol]) {
+                            const input = createModalRef.current?.querySelector(`[name="${formLayout[newRow][newCol]}"]`);
+                            if (input) input.focus();
+                        }
+                    } else {
+                        // At first field, move to close button
+                        const closeButton = createModalRef.current?.querySelector('.close-button');
+                        if (closeButton) closeButton.focus();
+                    }
+                } else {
+                    // Tab - move forward
+                    e.preventDefault();
+                    if (colIndex < cols - 1 && colIndex < formLayout[rowIndex].length - 1) {
+                        const newCol = colIndex + 1;
+                        if (formLayout[rowIndex][newCol]) {
+                            const input = createModalRef.current?.querySelector(`[name="${formLayout[rowIndex][newCol]}"]`);
+                            if (input) input.focus();
+                        }
+                    } else if (rowIndex < rows - 1) {
+                        const newRow = rowIndex + 1;
+                        if (formLayout[newRow][0]) {
+                            const input = createModalRef.current?.querySelector(`[name="${formLayout[newRow][0]}"]`);
+                            if (input) input.focus();
+                        }
+                    } else {
+                        // At last field, move to first button
+                        const firstButton = createModalRef.current?.querySelector('.footer-actions button');
+                        if (firstButton) firstButton.focus();
                     }
                 }
                 break;
@@ -2159,7 +2109,7 @@ const ViewPanelPage = () => {
                 </div>
             </div>
 
-            <div className="filters-section">
+           <div className="filters-section">
                 <div className="filter-row">
                     <div className="filter-group">
                         <select 
@@ -2347,33 +2297,25 @@ const ViewPanelPage = () => {
                         </select>
                     </div>
                 </div>
-
-                {/* New row for reference number filters */}
                 <div className="filter-row">
                     <div className="filter-group">
-                        <select 
-                            name="reference_number" 
-                            value={filters.reference_number} 
-                            onChange={handleFilterChange} 
-                            className="form-select"
-                        >
-                            <option value="">Panel Reference Number</option>
-                            {uniqueValues.referenceNumbers?.map(ref => (
-                                <option key={ref} value={ref}>{ref}</option>
-                            ))}
-                        </select>
-
-                        <select 
-                            name="production_reference_number" 
-                            value={filters.production_reference_number} 
-                            onChange={handleFilterChange} 
-                            className="form-select"
-                        >
-                            <option value="">Production Record Reference</option>
-                            {uniqueValues.productionRefs?.map(ref => (
-                                <option key={ref} value={ref}>{ref}</option>
-                            ))}
-                        </select>
+                        <input
+                            type="text"
+                            name="reference_number"
+                            value={filters.reference_number}
+                            onChange={handleFilterChange}
+                            className="form-input"
+                            placeholder="Panel Reference Number"
+                        />
+                        
+                        <input
+                            type="text"
+                            name="production_reference_number"
+                            value={filters.production_reference_number}
+                            onChange={handleFilterChange}
+                            className="form-input"
+                            placeholder="Production Record Reference"
+                        />
                     </div>
                 </div>
             </div>
@@ -2765,276 +2707,181 @@ const ViewPanelPage = () => {
                 />
             )}
 
-           {isCreateModalOpen && (
-            <div className="modal-overlay" onClick={closeCreateModal}>
-                <div className="modal-content create-modal" onClick={e => e.stopPropagation()} ref={createModalRef}>
-                    <div className="modal-header">
-                        <h2>Create New Panel</h2>
-                        <button type="button" className="close-button" onClick={closeCreateModal}>
-                            ×
-                        </button>
-                    </div>
-                    <div className="modal-body">
-                        <form id="create-panel-form" className="panel-form" onSubmit={handleCreateSubmit}>
-                            <div className="form-grid-create">
-                                {/* Row 1 */}
-                                <div className="form-row">
-                                    <div className="form-group">
-                                        <label htmlFor="create-jobNo">Job No <span className="required-star">*</span></label>
-                                        <input 
-                                            type="text" 
-                                            id="create-jobNo" 
-                                            className="form-input" 
-                                            value={createFormData.jobNo || ''}
-                                            onChange={handleCreateInputChange}
-                                            required 
-                                        />
-                                    </div>
-                                    <div className="form-group">
-                                        <label htmlFor="create-type">Type</label>
-                                        <input 
-                                            type="text" 
-                                            id="create-type" 
-                                            className="form-input" 
-                                            value={createFormData.type || 'PIR'}
-                                            onChange={handleCreateInputChange}
-                                        />
-                                    </div>
+            {isCreateModalOpen && (
+                <div className="modal-overlay" onClick={closeCreateModal}>
+                    <div className="modal-content create-modal" onClick={e => e.stopPropagation()} ref={createModalRef}>
+                        <div className="modal-header">
+                            <h2>Create New Panel</h2>
+                            <button type="button" className="close-button" onClick={closeCreateModal}>
+                                ×
+                            </button>
+                        </div>
+                        
+                        <div className="modal-body">
+                            {error && (
+                                <div className="alert alert-danger">
+                                    {error}
                                 </div>
-                                
-                                {/* Row 2 */}
-                                <div className="form-row">
-                                    <div className="form-group">
-                                        <label htmlFor="create-application">Application</label>
-                                        <input 
-                                            type="text" 
-                                            id="create-application" 
-                                            className="form-input" 
-                                            value={createFormData.application || 'Clip Joint'}
-                                            onChange={handleCreateInputChange}
-                                        />
-                                    </div>
-                                    <div className="form-group">
-                                        <label htmlFor="create-panelThickness">Panel Thickness (mm)</label>
-                                        <input 
-                                            type="number" 
-                                            id="create-panelThickness" 
-                                            className="form-input" 
-                                            value={createFormData.panelThickness || 100}
-                                            onChange={handleCreateInputChange}
-                                            step="0.1"
-                                        />
-                                    </div>
-                                </div>
-                                
-                                {/* Row 3 */}
-                                <div className="form-row">
-                                    <div className="form-group">
-                                        <label htmlFor="create-surfaceFront">Surface Front</label>
-                                        <input 
-                                            type="text" 
-                                            id="create-surfaceFront" 
-                                            className="form-input" 
-                                            value={createFormData.surfaceFront || 'PPGI'}
-                                            onChange={handleCreateInputChange}
-                                        />
-                                    </div>
-                                    <div className="form-group">
-                                        <label htmlFor="create-surfaceBack">Surface Back</label>
-                                        <input 
-                                            type="text" 
-                                            id="create-surfaceBack" 
-                                            className="form-input" 
-                                            value={createFormData.surfaceBack || 'PPGI'}
-                                            onChange={handleCreateInputChange}
-                                        />
-                                    </div>
-                                </div>
-                                
-                                {/* Row 4 */}
-                                <div className="form-row">
-                                    <div className="form-group">
-                                        <label htmlFor="create-frontThickness">Front Thickness (mm)</label>
-                                        <input 
-                                            type="number" 
-                                            id="create-frontThickness" 
-                                            className="form-input" 
-                                            value={createFormData.frontThickness || 0.5}
-                                            onChange={handleCreateInputChange}
-                                            step="0.1"
-                                        />
-                                    </div>
-                                    <div className="form-group">
-                                        <label htmlFor="create-surfaceType">Surface Type</label>
-                                        <input 
-                                            type="text" 
-                                            id="create-surfaceType" 
-                                            className="form-input" 
-                                            value={createFormData.surfaceType || 'RIB'}
-                                            onChange={handleCreateInputChange}
-                                        />
-                                    </div>
-                                </div>
-                                
-                                {/* Row 5 */}
-                                <div className="form-row">
-                                    <div className="form-group">
-                                        <label htmlFor="create-width">Width (mm)</label>
-                                        <input 
-                                            type="number" 
-                                            id="create-width" 
-                                            className="form-input" 
-                                            value={createFormData.width || 1150}
-                                            onChange={handleCreateInputChange}
-                                        />
-                                    </div>
-                                    <div className="form-group">
-                                        <label htmlFor="create-backThickness">Back Thickness (mm)</label>
-                                        <input 
-                                            type="number" 
-                                            id="create-backThickness" 
-                                            className="form-input" 
-                                            value={createFormData.backThickness || 0.5}
-                                            onChange={handleCreateInputChange}
-                                            step="0.1"
-                                        />
-                                    </div>
-                                </div>
-                                
-                                {/* Row 6 */}
-                                <div className="form-row">
-                                    <div className="form-group">
-                                        <label htmlFor="create-length">Length (mm)</label>
-                                        <input 
-                                            type="number" 
-                                            id="create-length" 
-                                            className="form-input" 
-                                            value={createFormData.length || 3000}
-                                            onChange={handleCreateInputChange}
-                                        />
-                                    </div>
-                                    <div className="form-group">
-                                        <label htmlFor="create-quantity">Quantity</label>
-                                        <input 
-                                            type="text" 
-                                            id="create-quantity" 
-                                            className="form-input" 
-                                            value={createFormData.quantity || 'Cutting'}
-                                            onChange={handleCreateInputChange}
-                                        />
-                                    </div>
-                                </div>
-                                
-                                {/* Row 7 */}
-                                <div className="form-row">
-                                    <div className="form-group">
-                                        <label htmlFor="create-productionMeter">Production Meter</label>
-                                        <input 
-                                            type="text" 
-                                            id="create-productionMeter" 
-                                            className="form-input" 
-                                            value={createFormData.productionMeter || 'Salesman'}
-                                            onChange={handleCreateInputChange}
-                                        />
-                                    </div>
-                                    <div className="form-group">
-                                        <label htmlFor="create-status">Status</label>
-                                        <select 
-                                            id="create-status" 
-                                            className="form-input" 
-                                            value={createFormData.status || 'pending'}
-                                            onChange={handleCreateInputChange}
-                                        >
-                                            <option value="pending">Pending</option>
-                                            <option value="in-progress">In Progress</option>
-                                            <option value="completed">Completed</option>
-                                        </select>
-                                    </div>
-                                </div>
-                                
-                                {/* Row 8 */}
-                                <div className="form-row">
-                                    <div className="form-group">
-                                        <label htmlFor="create-brand">Brand</label>
-                                        <input 
-                                            type="text" 
-                                            id="create-brand" 
-                                            className="form-input" 
-                                            value={createFormData.brand || ''}
-                                            onChange={handleCreateInputChange}
-                                        />
-                                    </div>
-                                    <div className="form-group">
-                                        <label htmlFor="create-estimatedDelivery">Estimated Delivery</label>
-                                        <input 
-                                            type="date" 
-                                            id="create-estimatedDelivery" 
-                                            className="form-input" 
-                                            value={createFormData.estimatedDelivery || ''}
-                                            onChange={handleCreateInputChange}
-                                        />
-                                    </div>
-                                </div>
-                                
-                                {/* Row 9 */}
-                                <div className="form-row">
-                                    <div className="form-group">
-                                        <label htmlFor="create-createdDate">Created Date</label>
-                                        <input 
-                                            type="date" 
-                                            id="create-createdDate" 
-                                            className="form-input" 
-                                            value={createFormData.createdDate || ''}
-                                            onChange={handleCreateInputChange}
-                                        />
-                                    </div>
-                                    <div className="form-group">
-                                        {/* Empty column for alignment */}
-                                    </div>
-                                </div>
-                                
-                                {/* Row 10: Notes (full width) */}
-                                <div className="form-row">
-                                    <div className="form-group full-width">
-                                        <label htmlFor="create-notes">Notes</label>
-                                        <textarea 
-                                            id="create-notes" 
-                                            className="form-input" 
-                                            rows="3"
-                                            value={createFormData.notes || 'Enter notes here...'}
-                                            onChange={handleCreateInputChange}
-                                        ></textarea>
-                                    </div>
-                                </div>
-                            </div>
+                            )}
                             
-                            <div className="form-actions">
-                                <button 
-                                    type="button" 
-                                    className="secondary-btn" 
-                                    onClick={handleResetCreateForm}
-                                >
-                                    Reset Form
-                                </button>
-                                <button 
-                                    type="button" 
-                                    className="btn-info" 
-                                    onClick={handleDuplicateFromCreate}
-                                >
-                                    Duplicate
-                                </button>
-                                <button 
-                                    type="submit" 
-                                    className="primary-btn"
-                                >
-                                    Create Panel
-                                </button>
-                            </div>
-                        </form>
+                            {success && (
+                                <div className="alert alert-success">
+                                    {success}
+                                </div>
+                            )}
+
+                            <form onSubmit={handleCreatePanel}>
+                                <div className="form-grid">
+                                    {formLayout.map((row, rowIndex) => (
+                                        <div key={rowIndex} className="form-row">
+                                            {row.map((fieldName, colIndex) => {
+                                                if (!fieldName) {
+                                                    return <div key={colIndex} className="form-group"></div>;
+                                                }
+                                                
+                                                const fieldConfig = {
+                                                    job_no: { label: 'Job No *', type: 'text', required: true },
+                                                    application: { label: 'Application', type: 'text' },
+                                                    type: { label: 'Type', type: 'text'  },
+                                                    panel_thk: { label: 'Panel Thickness (mm)', type: 'number' },
+                                                    joint: { label: 'Joint', type: 'text'  },
+                                                    surface_front: { label: 'Surface Front', type: 'text' },
+                                                    surface_back: { label: 'Surface Back', type: 'text' },
+                                                    surface_front_thk: { label: 'Front Thickness (mm)', type: 'number' },
+                                                    surface_back_thk: { label: 'Back Thickness (mm)', type: 'number' },
+                                                    surface_type: { label: 'Surface Type', type: 'text'  },
+                                                    width: { label: 'Width (mm) *', type: 'number', required: true },
+                                                    length: { label: 'Length (mm) *', type: 'number', required: true },
+                                                    qty: { label: 'Quantity', type: 'number' },
+                                                    cutting: { label: 'Cutting', type: 'text' },
+                                                    status: { label: 'Status', type: 'text' },
+                                                    production_meter: { label: 'Production Meter', type: 'number' },
+                                                    salesman: { label: 'Salesman', type: 'text' },
+                                                    brand: { label: 'Brand', type: 'text' },
+                                                    estimated_delivery: { label: 'Estimated Delivery', type: 'date' },
+                                                    created_at: { label: 'Created Date', type: 'date' },
+                                                    notes: { label: 'Notes', type: 'textarea' }
+                                                }[fieldName] || { label: fieldName, type: 'text' };
+                                                
+                                                const isRequired = fieldConfig.required || false;
+                                                const inputId = `create-${fieldName}-${rowIndex}-${colIndex}`;
+                                                
+                                                return (
+                                                    <div key={colIndex} className="form-group">
+                                                        <label htmlFor={inputId}>
+                                                            {fieldConfig.label}
+                                                            {isRequired && <span className="required-star"> *</span>}
+                                                        </label>
+                                                        
+                                                        {fieldConfig.type === 'select' ? (
+                                                            <select
+                                                                id={inputId}
+                                                                name={fieldName}
+                                                                value={newPanel[fieldName] || ''}
+                                                                onChange={handleNewPanelInputChange}
+                                                                className="form-input"
+                                                                onWheel={handleWheel}
+                                                                required={isRequired}
+                                                            >
+                                                                <option value="">Select...</option>
+                                                                {fieldConfig.options.map(option => (
+                                                                    <option key={option} value={option}>
+                                                                        {option}
+                                                                    </option>
+                                                                ))}
+                                                            </select>
+                                                        ) : fieldConfig.type === 'textarea' ? (
+                                                            <textarea
+                                                                id={inputId}
+                                                                name={fieldName}
+                                                                value={newPanel[fieldName] || ''}
+                                                                onChange={handleNewPanelInputChange}
+                                                                onKeyDown={(e) => handleKeyDown(e, rowIndex, colIndex, fieldName)}
+                                                                className="form-input"
+                                                                rows="3"
+                                                                placeholder="Enter notes here..."
+                                                            />
+                                                        ) : (
+                                                            <input
+                                                                id={inputId}
+                                                                type={fieldConfig.type}
+                                                                name={fieldName}
+                                                                value={newPanel[fieldName] || ''}
+                                                                onChange={handleNewPanelInputChange}
+                                                                onKeyDown={(e) => handleKeyDown(e, rowIndex, colIndex, fieldName)}
+                                                                className="form-input"
+                                                                onWheel={handleWheel}
+                                                                required={isRequired}
+                                                                min={fieldConfig.type === 'number' ? "0" : undefined}
+                                                                step={fieldConfig.type === 'number' ? "0.01" : undefined}
+                                                                ref={el => {
+                                                                    if (rowIndex === 0 && colIndex === 0 && el) {
+                                                                        inputRefs.current[0] = el;
+                                                                    }
+                                                                }}
+                                                            />
+                                                        )}
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    ))}
+                                </div>
+                                
+                                <div className="modal-footer">
+                                    <div className="footer-actions">
+                                        <button
+                                            type="button"
+                                            className="btn btn-secondary"
+                                            onClick={handleResetForm}
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'ArrowUp') {
+                                                    e.preventDefault();
+                                                    const notesField = createModalRef.current?.querySelector('[name="notes"]');
+                                                    if (notesField) notesField.focus();
+                                                }
+                                            }}
+                                        >
+                                            Reset Form
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className="btn btn-info"
+                                            onClick={handleDuplicateInCreateModal}
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'ArrowLeft') {
+                                                    e.preventDefault();
+                                                    const resetButton = createModalRef.current?.querySelector('.footer-actions button.btn-secondary');
+                                                    if (resetButton) resetButton.focus();
+                                                } else if (e.key === 'ArrowRight') {
+                                                    e.preventDefault();
+                                                    const createButton = createModalRef.current?.querySelector('.footer-actions button.btn-primary');
+                                                    if (createButton) createButton.focus();
+                                                }
+                                            }}
+                                        >
+                                            Duplicate
+                                        </button>
+                                        <button
+                                            type="submit"
+                                            className="btn btn-primary"
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'ArrowLeft') {
+                                                    e.preventDefault();
+                                                    const duplicateButton = createModalRef.current?.querySelector('.footer-actions button.btn-info');
+                                                    if (duplicateButton) duplicateButton.focus();
+                                                }
+                                            }}
+                                        >
+                                            Create Panel
+                                        </button>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
                     </div>
                 </div>
-            </div>
-        )}
+            )}
 
              {isEditModalOpen && editingPanel && (
                 <div className="modal-overlay" onClick={closeEditModal}>
@@ -3289,22 +3136,8 @@ const ViewPanelPage = () => {
                                         />
                                     </div>
                                     <div className="form-group">
-                                        <label htmlFor="edit_created_at">Created Date</label>
-                                        <input
-                                            type="date"
-                                            id="edit_created_at"
-                                            name="created_at"
-                                            value={editingPanel.created_at ? new Date(editingPanel.created_at).toISOString().split('T')[0] : ''}
-                                            onChange={handleEditInputChange}
-                                            className="form-input"
-                                        />
-                                    </div>
-                                    <div className="form-group">
-                                        {/* Empty cell for alignment */}
                                     </div>
                                 </div>
-
-
 
                                 <div className="form-row">
                                     <div className="form-group full-width">
