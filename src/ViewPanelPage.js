@@ -152,8 +152,25 @@ const ProductionDetailsModal = ({ panel, onClose, updatePanelBalance, formatNumb
     };
 
     const handleWheel = (e) => {
-        e.target.blur();
+        // Only prevent wheel on number inputs
+        if (e.target.type === 'number') {
+            e.preventDefault();
+            e.target.blur();
+        }
     };
+
+// Also add this CSS to your ViewPanelPage.css to help with the issue:
+/*
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+input[type="number"] {
+    -moz-appearance: textfield;
+}
+*/
 
     const fetchProductionRecords = async () => {
         setIsLoadingRecords(true);
@@ -1519,7 +1536,9 @@ const ViewPanelPage = () => {
                 salesman: editingPanel.salesman || null,
                 notes: editingPanel.notes || null,
                 balance: editingPanel.qty ? parseInt(editingPanel.qty) : null,
-                application: editingPanel.application || null
+                application: editingPanel.application || null,
+                created_at: editingPanel.created_at || null, // Add this
+                estimated_delivery: editingPanel.estimated_delivery || null
             };
             
             Object.keys(panelToUpdate).forEach(key => {
@@ -1647,6 +1666,18 @@ const ViewPanelPage = () => {
     };
 
     const openEditModal = (panel) => {
+
+        const formatDateForInput = (dateString) => {
+            if (!dateString) return '';
+            try {
+                const date = new Date(dateString);
+                if (isNaN(date.getTime())) return '';
+                return date.toISOString().split('T')[0];
+            } catch (error) {
+                return '';
+            }
+        };
+    
         setEditingPanel({ 
             ...panel,
             job_no: panel.job_no || '',
@@ -1667,6 +1698,7 @@ const ViewPanelPage = () => {
             production_meter: panel.production_meter || '',
             brand: panel.brand || '',
             estimated_delivery: panel.estimated_delivery || '',
+            created_at: formatDateForInput(panel.created_at),
             salesman: panel.salesman || '',
             notes: panel.notes || ''
         });
@@ -1735,39 +1767,61 @@ const ViewPanelPage = () => {
         const rows = formLayout.length;
         const cols = 3;
         
-        // Special handling for textarea (Notes field) - allow new lines with Shift+Enter
-        if (fieldName === 'notes') {
-            if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                // Move to the first button (Reset Form)
+        // Only handle Enter for form navigation, not for textareas
+        if (e.key === 'Enter' && fieldName !== 'notes') {
+            e.preventDefault();
+            
+            // If Tab or Enter is pressed in the last field of a row
+            if (rowIndex < rows - 1) {
+                const newRow = rowIndex + 1;
+                const newCol = Math.min(colIndex, formLayout[newRow].length - 1);
+                if (formLayout[newRow][newCol]) {
+                    const input = createModalRef.current?.querySelector(`[name="${formLayout[newRow][newCol]}"]`);
+                    if (input) input.focus();
+                }
+            } else {
+                // If in last row, move to first button
                 const firstButton = createModalRef.current?.querySelector('.footer-actions button');
-                if (firstButton) {
-                    firstButton.focus();
-                }
-                return;
+                if (firstButton) firstButton.focus();
             }
-            // Allow Shift+Enter for new lines
-            if (e.key === 'Enter' && e.shiftKey) {
-                return; // Allow default behavior for new lines
-            }
-        } else {
-            // For non-textarea fields, Enter moves to next row
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                if (rowIndex < rows - 1) {
-                    const newRow = rowIndex + 1;
-                    const newCol = Math.min(colIndex, formLayout[newRow].length - 1);
-                    if (formLayout[newRow][newCol]) {
-                        const input = createModalRef.current?.querySelector(`[name="${formLayout[newRow][newCol]}"]`);
-                        if (input) input.focus();
-                    }
-                }
-            }
+            return;
         }
         
-        switch(e.key) {
-            case 'ArrowUp':
+        // Handle Tab for navigation
+        if (e.key === 'Tab') {
+            // Let default Tab behavior work for most fields
+            if (fieldName === 'notes' && !e.shiftKey) {
+                // For notes field with Tab, move to buttons
                 e.preventDefault();
+                const firstButton = createModalRef.current?.querySelector('.footer-actions button');
+                if (firstButton) firstButton.focus();
+            }
+            return;
+        }
+        
+        // For notes field, allow Shift+Enter for new lines
+        if (fieldName === 'notes' && e.key === 'Enter' && e.shiftKey) {
+            // Allow default behavior (new line)
+            return;
+        }
+        
+        // For other arrow keys, only handle if they're not in a text field that needs them
+        if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+            // Don't prevent default for arrow keys in text fields
+            if (fieldName !== 'notes') {
+                // For non-textarea fields, handle arrow navigation
+                e.preventDefault();
+                handleArrowNavigation(e.key, rowIndex, colIndex);
+            }
+        }
+    };
+
+    const handleArrowNavigation = (key, rowIndex, colIndex) => {
+        const rows = formLayout.length;
+        const cols = 3;
+        
+        switch(key) {
+            case 'ArrowUp':
                 if (rowIndex > 0) {
                     const newRow = rowIndex - 1;
                     const newCol = Math.min(colIndex, formLayout[newRow].length - 1);
@@ -1779,7 +1833,6 @@ const ViewPanelPage = () => {
                 break;
                 
             case 'ArrowDown':
-                e.preventDefault();
                 if (rowIndex < rows - 1) {
                     const newRow = rowIndex + 1;
                     const newCol = Math.min(colIndex, formLayout[newRow].length - 1);
@@ -1787,17 +1840,10 @@ const ViewPanelPage = () => {
                         const input = createModalRef.current?.querySelector(`[name="${formLayout[newRow][newCol]}"]`);
                         if (input) input.focus();
                     }
-                } else if (rowIndex === rows - 1) {
-                    // If at the last row (Notes field), move to the first button
-                    const firstButton = createModalRef.current?.querySelector('.footer-actions button');
-                    if (firstButton) {
-                        firstButton.focus();
-                    }
                 }
                 break;
                 
             case 'ArrowLeft':
-                e.preventDefault();
                 if (colIndex > 0) {
                     const newCol = colIndex - 1;
                     if (formLayout[rowIndex][newCol]) {
@@ -1808,57 +1854,11 @@ const ViewPanelPage = () => {
                 break;
                 
             case 'ArrowRight':
-                e.preventDefault();
                 if (colIndex < cols - 1 && colIndex < formLayout[rowIndex].length - 1) {
                     const newCol = colIndex + 1;
                     if (formLayout[rowIndex][newCol]) {
                         const input = createModalRef.current?.querySelector(`[name="${formLayout[rowIndex][newCol]}"]`);
                         if (input) input.focus();
-                    }
-                }
-                break;
-                
-            case 'Tab':
-                if (e.shiftKey) {
-                    // Shift+Tab - move backward
-                    e.preventDefault();
-                    if (colIndex > 0) {
-                        const newCol = colIndex - 1;
-                        if (formLayout[rowIndex][newCol]) {
-                            const input = createModalRef.current?.querySelector(`[name="${formLayout[rowIndex][newCol]}"]`);
-                            if (input) input.focus();
-                        }
-                    } else if (rowIndex > 0) {
-                        const newRow = rowIndex - 1;
-                        const newCol = formLayout[newRow].length - 1;
-                        if (formLayout[newRow][newCol]) {
-                            const input = createModalRef.current?.querySelector(`[name="${formLayout[newRow][newCol]}"]`);
-                            if (input) input.focus();
-                        }
-                    } else {
-                        // At first field, move to close button
-                        const closeButton = createModalRef.current?.querySelector('.close-button');
-                        if (closeButton) closeButton.focus();
-                    }
-                } else {
-                    // Tab - move forward
-                    e.preventDefault();
-                    if (colIndex < cols - 1 && colIndex < formLayout[rowIndex].length - 1) {
-                        const newCol = colIndex + 1;
-                        if (formLayout[rowIndex][newCol]) {
-                            const input = createModalRef.current?.querySelector(`[name="${formLayout[rowIndex][newCol]}"]`);
-                            if (input) input.focus();
-                        }
-                    } else if (rowIndex < rows - 1) {
-                        const newRow = rowIndex + 1;
-                        if (formLayout[newRow][0]) {
-                            const input = createModalRef.current?.querySelector(`[name="${formLayout[newRow][0]}"]`);
-                            if (input) input.focus();
-                        }
-                    } else {
-                        // At last field, move to first button
-                        const firstButton = createModalRef.current?.querySelector('.footer-actions button');
-                        if (firstButton) firstButton.focus();
                     }
                 }
                 break;
@@ -3194,8 +3194,22 @@ const ViewPanelPage = () => {
                                         />
                                     </div>
                                     <div className="form-group">
+                                        <label htmlFor="edit_created_at">Created Date</label>
+                                        <input
+                                            type="date"
+                                            id="edit_created_at"
+                                            name="created_at"
+                                            value={editingPanel.created_at ? new Date(editingPanel.created_at).toISOString().split('T')[0] : ''}
+                                            onChange={handleEditInputChange}
+                                            className="form-input"
+                                        />
+                                    </div>
+                                    <div className="form-group">
+                                        {/* Empty cell for alignment */}
                                     </div>
                                 </div>
+
+
 
                                 <div className="form-row">
                                     <div className="form-group full-width">

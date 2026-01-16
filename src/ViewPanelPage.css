@@ -2082,3 +2082,26 @@ input[type="number"] {
 .clear-filter-btn:hover {
     color: #333;
 }
+
+/* Prevent number input scroll */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+input[type="number"] {
+    -moz-appearance: textfield;
+}
+
+/* Focus styling for better UX */
+.form-input:focus {
+    outline: 2px solid #4a90e2;
+    outline-offset: -1px;
+}
+
+/* Better textarea handling */
+textarea.form-input {
+    resize: vertical;
+    min-height: 80px;
+}
