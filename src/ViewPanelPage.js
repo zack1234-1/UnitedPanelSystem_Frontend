@@ -1571,8 +1571,8 @@ const ViewPanelPage = () => {
             qtys: getUnique('qty', true),
             cuttings: getUnique('cutting'),
             applications: getUnique('application'),
-            createdDates: getUnique('created_at', false, true),  // Set isDate to true
-            estimatedDeliveries: getUnique('estimated_delivery', false, true)  // Set isDate to true
+            createdDates: getUnique('created_at', false, true), 
+            estimatedDeliveries: getUnique('estimated_delivery', false, true)
         };
     }, [panels]);
 
@@ -2081,7 +2081,7 @@ const ViewPanelPage = () => {
                                             
                                             const alreadyProduced = panelQty - balance;
                                             const totalProductionMeter = (alreadyProduced * panelLength);
-                                            const area = calculateArea(panelWidth, panelLength);
+                                            const area = calculateArea(panelWidth, panelLength)/1000000;
                                             
                                             return (
                                                 <tr key={panel.id} className="panel-row">
