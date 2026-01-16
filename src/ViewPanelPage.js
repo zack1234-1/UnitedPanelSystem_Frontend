@@ -701,6 +701,39 @@ const ViewPanelPage = () => {
     });
 
     const [isPrintSelectionModalOpen, setIsPrintSelectionModalOpen] = useState(false);
+    const [isColumnSelectionModalOpen, setIsColumnSelectionModalOpen] = useState(false);
+
+    // Define all available columns with their display names and default visibility
+    const defaultColumns = [
+        { id: 'job_no', label: 'Job No', visible: true, order: 1 },
+        { id: 'type', label: 'Type', visible: true, order: 2 },
+        { id: 'panel_thk', label: 'Panel Thk', visible: true, order: 3 },
+        { id: 'joint', label: 'Joint', visible: true, order: 4 },
+        { id: 'surface_front', label: 'Front', visible: true, order: 5 },
+        { id: 'surface_back', label: 'Back', visible: true, order: 6 },
+        { id: 'surface_front_thk', label: 'Front Thk', visible: true, order: 7 },
+        { id: 'surface_back_thk', label: 'Back Thk', visible: true, order: 8 },
+        { id: 'surface_type', label: 'Finishes', visible: true, order: 9 },
+        { id: 'width', label: 'Width(mm)', visible: true, order: 10 },
+        { id: 'length', label: 'Length(mm)', visible: true, order: 11 },
+        { id: 'salesman', label: 'Salesman', visible: true, order: 12 },
+        { id: 'application', label: 'Application', visible: true, order: 13 },
+        { id: 'area', label: 'Area(m2)', visible: true, order: 14 },
+        { id: 'brand', label: 'Brand', visible: true, order: 15 },
+        { id: 'qty', label: 'Qty', visible: true, order: 16 },
+        { id: 'cutting', label: 'Cutting', visible: true, order: 17 },
+        { id: 'balance', label: 'Balance', visible: true, order: 18 },
+        { id: 'production_meter', label: 'Production Meter(mm)', visible: true, order: 19 },
+        { id: 'created_at', label: 'Production Date', visible: true, order: 20 },
+        { id: 'estimated_delivery', label: 'Estimated Delivery', visible: true, order: 21 },
+        { id: 'actions', label: 'Actions', visible: true, order: 22, alwaysVisible: true }
+    ];
+
+    const [columns, setColumns] = useState(() => {
+        // Load from localStorage or use defaults
+        const savedColumns = localStorage.getItem('panelTableColumns');
+        return savedColumns ? JSON.parse(savedColumns) : defaultColumns;
+    });
 
     const defaultPanelValues = {
         job_no: 'UPS.0525.18802',
@@ -768,6 +801,11 @@ const ViewPanelPage = () => {
         ['production_meter', 'salesman', 'brand'],
         ['estimated_delivery','created_at', 'notes', '']
     ], []);
+
+    // Save columns to localStorage whenever they change
+    useEffect(() => {
+        localStorage.setItem('panelTableColumns', JSON.stringify(columns));
+    }, [columns]);
 
     useEffect(() => {
         fetchPanels();
@@ -1255,6 +1293,55 @@ const ViewPanelPage = () => {
 
         return filtered;
     }, [panels, filters, sortConfig]);
+
+    // Get visible columns sorted by order
+    const visibleColumns = useMemo(() => {
+        return columns
+            .filter(col => col.visible || col.alwaysVisible)
+            .sort((a, b) => a.order - b.order);
+    }, [columns]);
+
+    // Handle column visibility toggle
+    const toggleColumnVisibility = (columnId) => {
+        setColumns(prev => prev.map(col => 
+            col.id === columnId ? { ...col, visible: !col.visible } : col
+        ));
+    };
+
+    // Handle column reordering
+    const moveColumn = (columnId, direction) => {
+        setColumns(prev => {
+            const newColumns = [...prev];
+            const index = newColumns.findIndex(col => col.id === columnId);
+            
+            if (direction === 'up' && index > 0) {
+                [newColumns[index], newColumns[index - 1]] = [newColumns[index - 1], newColumns[index]];
+            } else if (direction === 'down' && index < newColumns.length - 1) {
+                [newColumns[index], newColumns[index + 1]] = [newColumns[index + 1], newColumns[index]];
+            }
+            
+            // Update order based on new positions
+            return newColumns.map((col, idx) => ({ ...col, order: idx + 1 }));
+        });
+    };
+
+    // Reset to default columns
+    const resetToDefaultColumns = () => {
+        setColumns(defaultColumns);
+    };
+
+    // Select all columns
+    const selectAllColumns = () => {
+        setColumns(prev => prev.map(col => ({ ...col, visible: true })));
+    };
+
+    // Deselect all columns (except always visible ones)
+    const deselectAllColumns = () => {
+        setColumns(prev => prev.map(col => ({ 
+            ...col, 
+            visible: col.alwaysVisible ? true : false 
+        })));
+    };
 
     const handleEditInputChange = (e) => {
         const { name, value } = e.target;
@@ -2260,7 +2347,14 @@ const ViewPanelPage = () => {
                                         {sortConfig.direction === 'asc' ? '↑ Asc' : '↓ Desc'}
                                     </button>
                                 </div>
-                                <div className="print-controls">
+                                <div className="action-controls">
+                                    <button 
+                                        className="column-select-btn"
+                                        onClick={() => setIsColumnSelectionModalOpen(true)}
+                                        title="Select Columns"
+                                    >
+                                        📊 Columns ({visibleColumns.length - 1})
+                                    </button>
                                     <button 
                                         className="print-btn"
                                         onClick={() => setIsPrintSelectionModalOpen(true)}
@@ -2276,28 +2370,9 @@ const ViewPanelPage = () => {
                             <table className="panels-table">
                                 <thead>
                                     <tr>
-                                        <th>JobNo.</th>
-                                        <th>Type</th>
-                                        <th>Panel Thk</th>
-                                        <th>Joint</th>
-                                        <th>Front</th>
-                                        <th>Back</th>
-                                        <th>Front</th>
-                                        <th>Back</th>
-                                        <th>Finishes</th>
-                                        <th>Width(mm)</th>
-                                        <th>Length(mm)</th>
-                                        <th>Salesman</th>
-                                        <th>Application</th>
-                                        <th>Area(m2)</th>
-                                        <th>Brand</th>
-                                        <th>Qty</th>
-                                        <th>Cutting</th>
-                                        <th>Balance</th>
-                                        <th>Production Meter(mm)</th>
-                                        <th>Production Date</th>
-                                        <th>Estimated Delivery</th>
-                                        <th>Actions</th>
+                                        {visibleColumns.map(column => (
+                                            <th key={column.id}>{column.label}</th>
+                                        ))}
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -2315,166 +2390,239 @@ const ViewPanelPage = () => {
                                             
                                             return (
                                                 <tr key={panel.id} className="panel-row">
-                                                    <td>
-                                                        <div className="job-no-cell">
-                                                            <strong>{panel.job_no || 'N/A'}</strong>
-                                                            <div className="panel-ref">{panel.reference_number}</div>
-                                                        </div>
-                                                    </td>
-                                                    <td>
-                                                        <div className="type-cell">
-                                                            {panel.type || 'N/A'}
-                                                        </div>
-                                                    </td>
-                                                    <td>
-                                                        <div className="panel-thk-cell">
-                                                            {panel.panel_thk ? `${formatNumber(panel.panel_thk)} mm` : 'N/A'}
-                                                        </div>
-                                                    </td>
-                                                    <td>
-                                                        <div className="joint-cell">
-                                                            {panel.joint || 'N/A'}
-                                                        </div>
-                                                    </td>
-                                                    <td>
-                                                        <div className="surface-cell">
-                                                            {panel.surface_front || 'N/A'}
-                                                        </div>
-                                                    </td>
-                                                    <td>
-                                                        <div className="surface-cell">
-                                                            {panel.surface_back || 'N/A'}
-                                                        </div>
-                                                    </td>
-                                                    <td>
-                                                        <div className="surface-thk-cell">
-                                                            {panel.surface_front_thk ? `${formatNumber(panel.surface_front_thk)}` : 'N/A'}
-                                                        </div>
-                                                    </td>
-                                                    <td>
-                                                        <div className="surface-thk-cell">
-                                                            {panel.surface_back_thk ? `${formatNumber(panel.surface_back_thk)}` : 'N/A'}
-                                                        </div>
-                                                    </td>
-                                                    <td>
-                                                        <div className="surface-type-cell">
-                                                            {panel.surface_type || 'N/A'}
-                                                        </div>
-                                                    </td>
-                                                    <td>
-                                                        <div className="dimension-cell">
-                                                            {panel.width ? `${formatNumber(panel.width)}` : 'N/A'}
-                                                        </div>
-                                                    </td>
-                                                    <td>
-                                                        <div className="dimension-cell">
-                                                            {panel.length ? `${formatNumber(panel.length)}` : 'N/A'}
-                                                        </div>
-                                                    </td>
-                                                    <td>
-                                                        <div className="salesman-cell">
-                                                            {panel.salesman || 'N/A'}
-                                                        </div>
-                                                    </td>
-                                                    <td>
-                                                        <div className="application-cell">
-                                                            {panel.application || 'N/A'}
-                                                        </div>
-                                                    </td>
-                                                    <td>
-                                                        <div className="area-cell">
-                                                            <div className="area-value">
-                                                                {area > 0 ? area.toFixed(3) : '0'}
-                                                            </div>
-                                                        </div>
-                                                    </td>
-                                                    <td>
-                                                        <div className="brand-cell">
-                                                            {panel.brand || 'N/A'}
-                                                        </div>
-                                                    </td>
-                                                    <td>
-                                                        <div className="qty-cell">
-                                                            {formatNumber(panel.qty)}
-                                                        </div>
-                                                    </td>
-                                                    <td>
-                                                        <div className="cutting-cell">
-                                                            {panel.cutting || 'N/A'}
-                                                        </div>
-                                                    </td>
-                                                    <td>
-                                                        <div className={`balance-cell ${balance <= 0 ? 'zero' : ''}`}>
-                                                            {formatNumber(balance)}
-                                                        </div>
-                                                    </td>
-                                                    <td>
-                                                        <div className="production-meter-cell">
-                                                            <div className="meter-value">
-                                                                {totalProductionMeter.toFixed(2)}
-                                                            </div>
-                                                            <div className="meter-details">
-                                                                ({alreadyProduced} panels)
-                                                            </div>
-                                                        </div>
-                                                    </td>
-                                                    <td>
-                                                        <div className="created-date-cell">
-                                                            {formatDate(panel.created_at)}
-                                                        </div>
-                                                    </td>
-                                                    <td>
-                                                        <div className="estimated-delivery-cell">
-                                                            {formatDate(panel.estimated_delivery)}
-                                                            {panel.estimated_delivery && (
-                                                                <div className="delivery-status">
-                                                                    {new Date(panel.estimated_delivery) < new Date() ? 
-                                                                        <span className="past-due" title="Past due">⚠️</span> : 
-                                                                        <span className="upcoming" title="Upcoming">📅</span>
-                                                                    }
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                    </td>
-                                                    <td>
-                                                        <div className="actions-cell">
-                                                            <button
-                                                                onClick={() => openEditModal(panel)}
-                                                                className="action-btn edit-btn"
-                                                                title="Edit"
-                                                            >
-                                                                ✏️
-                                                            </button>
-                                                            <button
-                                                                onClick={() => openDuplicateModal(panel)}
-                                                                className="action-btn duplicate-btn"
-                                                                title="Duplicate"
-                                                            >
-                                                                ⎘
-                                                            </button>
-                                                            <button
-                                                                onClick={() => openProductionModal(panel)}
-                                                                className="action-btn production-btn"
-                                                                title="Production"
-                                                            >
-                                                                🏭
-                                                            </button>
-                                                            <button
-                                                                onClick={() => handlePrint(panel)}
-                                                                className="action-btn print-btn"
-                                                                title="Print"
-                                                            >
-                                                                🖨️
-                                                            </button>
-                                                            <button
-                                                                onClick={() => handleDeletePanel(panel.id)}
-                                                                className="action-btn delete-btn"
-                                                                title="Delete"
-                                                            >
-                                                                🗑️
-                                                            </button>
-                                                        </div>
-                                                    </td>
+                                                    {visibleColumns.map(column => {
+                                                        // Render each cell based on column ID
+                                                        switch(column.id) {
+                                                            case 'job_no':
+                                                                return (
+                                                                    <td key={column.id}>
+                                                                        <div className="job-no-cell">
+                                                                            <strong>{panel.job_no || 'N/A'}</strong>
+                                                                            <div className="panel-ref">{panel.reference_number}</div>
+                                                                        </div>
+                                                                    </td>
+                                                                );
+                                                            case 'type':
+                                                                return (
+                                                                    <td key={column.id}>
+                                                                        <div className="type-cell">
+                                                                            {panel.type || 'N/A'}
+                                                                        </div>
+                                                                    </td>
+                                                                );
+                                                            case 'panel_thk':
+                                                                return (
+                                                                    <td key={column.id}>
+                                                                        <div className="panel-thk-cell">
+                                                                            {panel.panel_thk ? `${formatNumber(panel.panel_thk)} mm` : 'N/A'}
+                                                                        </div>
+                                                                    </td>
+                                                                );
+                                                            case 'joint':
+                                                                return (
+                                                                    <td key={column.id}>
+                                                                        <div className="joint-cell">
+                                                                            {panel.joint || 'N/A'}
+                                                                        </div>
+                                                                    </td>
+                                                                );
+                                                            case 'surface_front':
+                                                                return (
+                                                                    <td key={column.id}>
+                                                                        <div className="surface-cell">
+                                                                            {panel.surface_front || 'N/A'}
+                                                                        </div>
+                                                                    </td>
+                                                                );
+                                                            case 'surface_back':
+                                                                return (
+                                                                    <td key={column.id}>
+                                                                        <div className="surface-cell">
+                                                                            {panel.surface_back || 'N/A'}
+                                                                        </div>
+                                                                    </td>
+                                                                );
+                                                            case 'surface_front_thk':
+                                                                return (
+                                                                    <td key={column.id}>
+                                                                        <div className="surface-thk-cell">
+                                                                            {panel.surface_front_thk ? `${formatNumber(panel.surface_front_thk)}` : 'N/A'}
+                                                                        </div>
+                                                                    </td>
+                                                                );
+                                                            case 'surface_back_thk':
+                                                                return (
+                                                                    <td key={column.id}>
+                                                                        <div className="surface-thk-cell">
+                                                                            {panel.surface_back_thk ? `${formatNumber(panel.surface_back_thk)}` : 'N/A'}
+                                                                        </div>
+                                                                    </td>
+                                                                );
+                                                            case 'surface_type':
+                                                                return (
+                                                                    <td key={column.id}>
+                                                                        <div className="surface-type-cell">
+                                                                            {panel.surface_type || 'N/A'}
+                                                                        </div>
+                                                                    </td>
+                                                                );
+                                                            case 'width':
+                                                                return (
+                                                                    <td key={column.id}>
+                                                                        <div className="dimension-cell">
+                                                                            {panel.width ? `${formatNumber(panel.width)}` : 'N/A'}
+                                                                        </div>
+                                                                    </td>
+                                                                );
+                                                            case 'length':
+                                                                return (
+                                                                    <td key={column.id}>
+                                                                        <div className="dimension-cell">
+                                                                            {panel.length ? `${formatNumber(panel.length)}` : 'N/A'}
+                                                                        </div>
+                                                                    </td>
+                                                                );
+                                                            case 'salesman':
+                                                                return (
+                                                                    <td key={column.id}>
+                                                                        <div className="salesman-cell">
+                                                                            {panel.salesman || 'N/A'}
+                                                                        </div>
+                                                                    </td>
+                                                                );
+                                                            case 'application':
+                                                                return (
+                                                                    <td key={column.id}>
+                                                                        <div className="application-cell">
+                                                                            {panel.application || 'N/A'}
+                                                                        </div>
+                                                                    </td>
+                                                                );
+                                                            case 'area':
+                                                                return (
+                                                                    <td key={column.id}>
+                                                                        <div className="area-cell">
+                                                                            <div className="area-value">
+                                                                                {area > 0 ? area.toFixed(3) : '0'}
+                                                                            </div>
+                                                                        </div>
+                                                                    </td>
+                                                                );
+                                                            case 'brand':
+                                                                return (
+                                                                    <td key={column.id}>
+                                                                        <div className="brand-cell">
+                                                                            {panel.brand || 'N/A'}
+                                                                        </div>
+                                                                    </td>
+                                                                );
+                                                            case 'qty':
+                                                                return (
+                                                                    <td key={column.id}>
+                                                                        <div className="qty-cell">
+                                                                            {formatNumber(panel.qty)}
+                                                                        </div>
+                                                                    </td>
+                                                                );
+                                                            case 'cutting':
+                                                                return (
+                                                                    <td key={column.id}>
+                                                                        <div className="cutting-cell">
+                                                                            {panel.cutting || 'N/A'}
+                                                                        </div>
+                                                                    </td>
+                                                                );
+                                                            case 'balance':
+                                                                return (
+                                                                    <td key={column.id}>
+                                                                        <div className={`balance-cell ${balance <= 0 ? 'zero' : ''}`}>
+                                                                            {formatNumber(balance)}
+                                                                        </div>
+                                                                    </td>
+                                                                );
+                                                            case 'production_meter':
+                                                                return (
+                                                                    <td key={column.id}>
+                                                                        <div className="production-meter-cell">
+                                                                            <div className="meter-value">
+                                                                                {totalProductionMeter.toFixed(2)}
+                                                                            </div>
+                                                                            <div className="meter-details">
+                                                                                ({alreadyProduced} panels)
+                                                                            </div>
+                                                                        </div>
+                                                                    </td>
+                                                                );
+                                                            case 'created_at':
+                                                                return (
+                                                                    <td key={column.id}>
+                                                                        <div className="created-date-cell">
+                                                                            {formatDate(panel.created_at)}
+                                                                        </div>
+                                                                    </td>
+                                                                );
+                                                            case 'estimated_delivery':
+                                                                return (
+                                                                    <td key={column.id}>
+                                                                        <div className="estimated-delivery-cell">
+                                                                            {formatDate(panel.estimated_delivery)}
+                                                                            {panel.estimated_delivery && (
+                                                                                <div className="delivery-status">
+                                                                                    {new Date(panel.estimated_delivery) < new Date() ? 
+                                                                                        <span className="past-due" title="Past due">⚠️</span> : 
+                                                                                        <span className="upcoming" title="Upcoming">📅</span>
+                                                                                    }
+                                                                                </div>
+                                                                            )}
+                                                                        </div>
+                                                                    </td>
+                                                                );
+                                                            case 'actions':
+                                                                return (
+                                                                    <td key={column.id}>
+                                                                        <div className="actions-cell">
+                                                                            <button
+                                                                                onClick={() => openEditModal(panel)}
+                                                                                className="action-btn edit-btn"
+                                                                                title="Edit"
+                                                                            >
+                                                                                ✏️
+                                                                            </button>
+                                                                            <button
+                                                                                onClick={() => openDuplicateModal(panel)}
+                                                                                className="action-btn duplicate-btn"
+                                                                                title="Duplicate"
+                                                                            >
+                                                                                ⎘
+                                                                            </button>
+                                                                            <button
+                                                                                onClick={() => openProductionModal(panel)}
+                                                                                className="action-btn production-btn"
+                                                                                title="Production"
+                                                                            >
+                                                                                🏭
+                                                                            </button>
+                                                                            <button
+                                                                                onClick={() => handlePrint(panel)}
+                                                                                className="action-btn print-btn"
+                                                                                title="Print"
+                                                                            >
+                                                                                🖨️
+                                                                            </button>
+                                                                            <button
+                                                                                onClick={() => handleDeletePanel(panel.id)}
+                                                                                className="action-btn delete-btn"
+                                                                                title="Delete"
+                                                                            >
+                                                                                🗑️
+                                                                            </button>
+                                                                        </div>
+                                                                    </td>
+                                                                );
+                                                            default:
+                                                                return <td key={column.id}>N/A</td>;
+                                                        }
+                                                    })}
                                                 </tr>
                                             );
                                         })}
@@ -2489,6 +2637,7 @@ const ViewPanelPage = () => {
                         <div className="table-summary">
                             Showing {filteredPanels.length} of {panels.length} panels
                             {filters.search && ` matching "${filters.search}"`}
+                            <span className="columns-info"> | Visible columns: {visibleColumns.length - 1}</span>
                         </div>
                     </div>
                 )}
@@ -3248,6 +3397,122 @@ const ViewPanelPage = () => {
                                         </div>
                                     </div>
                                 ))}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {isColumnSelectionModalOpen && (
+                <div className="modal-overlay" onClick={() => setIsColumnSelectionModalOpen(false)}>
+                    <div className="modal-content column-selection-modal" onClick={e => e.stopPropagation()}>
+                        <div className="modal-header">
+                            <h2>Select Columns to Display</h2>
+                            <button type="button" className="close-button" onClick={() => setIsColumnSelectionModalOpen(false)}>
+                                ×
+                            </button>
+                        </div>
+                        <div className="modal-body">
+                            <div className="column-selection-content">
+                                <div className="selection-header">
+                                    <p>Select which columns you want to see in the table. Drag to reorder.</p>
+                                    <div className="selection-actions">
+                                        <button 
+                                            className="btn btn-sm btn-secondary"
+                                            onClick={selectAllColumns}
+                                        >
+                                            Select All
+                                        </button>
+                                        <button 
+                                            className="btn btn-sm btn-secondary"
+                                            onClick={deselectAllColumns}
+                                        >
+                                            Deselect All
+                                        </button>
+                                        <button 
+                                            className="btn btn-sm btn-secondary"
+                                            onClick={resetToDefaultColumns}
+                                        >
+                                            Reset to Default
+                                        </button>
+                                    </div>
+                                </div>
+                                
+                                <div className="columns-list">
+                                    {columns
+                                        .filter(col => !col.alwaysVisible)
+                                        .sort((a, b) => a.order - b.order)
+                                        .map(column => (
+                                            <div key={column.id} className="column-item">
+                                                <div className="column-controls">
+                                                    <button 
+                                                        className="move-btn"
+                                                        onClick={() => moveColumn(column.id, 'up')}
+                                                        disabled={column.order === 1}
+                                                        title="Move Up"
+                                                    >
+                                                        ↑
+                                                    </button>
+                                                    <button 
+                                                        className="move-btn"
+                                                        onClick={() => moveColumn(column.id, 'down')}
+                                                        disabled={column.order === columns.length - 1}
+                                                        title="Move Down"
+                                                    >
+                                                        ↓
+                                                    </button>
+                                                </div>
+                                                <div className="column-checkbox">
+                                                    <input
+                                                        type="checkbox"
+                                                        id={`col-${column.id}`}
+                                                        checked={column.visible}
+                                                        onChange={() => toggleColumnVisibility(column.id)}
+                                                    />
+                                                    <label htmlFor={`col-${column.id}`}>
+                                                        {column.label}
+                                                    </label>
+                                                </div>
+                                                <div className="column-info">
+                                                    <span className="column-position">Position: {column.order}</span>
+                                                </div>
+                                            </div>
+                                        ))}
+                                </div>
+                                
+                                <div className="selection-summary">
+                                    <div className="summary-item">
+                                        <span className="summary-label">Total Columns:</span>
+                                        <span className="summary-value">{columns.length - 1}</span>
+                                    </div>
+                                    <div className="summary-item">
+                                        <span className="summary-label">Visible Columns:</span>
+                                        <span className="summary-value">{visibleColumns.length - 1}</span>
+                                    </div>
+                                    <div className="summary-item">
+                                        <span className="summary-label">Hidden Columns:</span>
+                                        <span className="summary-value">{(columns.length - 1) - (visibleColumns.length - 1)}</span>
+                                    </div>
+                                </div>
+                                
+                                <div className="modal-footer">
+                                    <div className="footer-actions">
+                                        <button
+                                            type="button"
+                                            className="btn btn-secondary"
+                                            onClick={() => setIsColumnSelectionModalOpen(false)}
+                                        >
+                                            Close
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className="btn btn-primary"
+                                            onClick={() => setIsColumnSelectionModalOpen(false)}
+                                        >
+                                            Apply Selection
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
