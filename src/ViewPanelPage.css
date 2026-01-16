@@ -1374,25 +1374,35 @@ body {
   padding: 24px;
 }
 
-/* Create Modal */
+/* ============= CREATE MODAL STYLES ============= */
 .modal-content.create-modal {
-  width: 900px;
+  width: 800px;
   max-width: 95vw;
+  max-height: 90vh;
+  overflow-y: auto;
 }
 
-.form-grid-create {
+/* Create Modal - Two columns layout */
+.modal-content.create-modal .form-row {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.modal-content.create-modal .form-group.full-width {
+  grid-column: span 2;
+}
+
+/* Better form spacing in create modal */
+.modal-content.create-modal .panel-form {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 20px;
 }
 
-.form-row {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 16px;
-}
-
-.form-group label {
+/* Better label styling for create modal */
+.modal-content.create-modal .form-group label {
   display: block;
   margin-bottom: 6px;
   font-weight: 500;
@@ -1400,10 +1410,168 @@ body {
   font-size: 0.9rem;
 }
 
-.required-star {
+.modal-content.create-modal .form-group label .required-star {
   color: #dc3545;
+  margin-left: 2px;
 }
 
+/* Input styling for create modal */
+.modal-content.create-modal .form-input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  font-size: 14px;
+  transition: all 0.2s;
+  background: white;
+}
+
+.modal-content.create-modal .form-input:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+}
+
+/* Textarea specific styling */
+.modal-content.create-modal textarea.form-input {
+  resize: vertical;
+  min-height: 80px;
+  line-height: 1.5;
+}
+
+/* Date input styling */
+.modal-content.create-modal input[type="date"].form-input {
+  padding: 9px 12px;
+}
+
+/* Select input styling */
+.modal-content.create-modal select.form-input {
+  padding: 9px 12px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%236c757d' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 16px;
+  padding-right: 40px;
+  cursor: pointer;
+}
+
+/* Number input specific styling */
+.modal-content.create-modal input[type="number"].form-input {
+  padding: 9px 12px;
+}
+
+/* Form group with stepper buttons for numbers */
+.modal-content.create-modal .form-group.with-stepper {
+  position: relative;
+}
+
+.modal-content.create-modal .form-group.with-stepper .form-input {
+  padding-right: 60px;
+}
+
+.modal-content.create-modal .stepper-buttons {
+  position: absolute;
+  right: 2px;
+  top: 30px;
+  display: flex;
+  flex-direction: column;
+  width: 40px;
+  height: calc(100% - 30px);
+}
+
+.modal-content.create-modal .stepper-btn {
+  flex: 1;
+  border: 1px solid #dee2e6;
+  background: #f8f9fa;
+  cursor: pointer;
+  font-size: 1.2rem;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-content.create-modal .stepper-btn:hover:not(:disabled) {
+  background: #e9ecef;
+}
+
+.modal-content.create-modal .stepper-btn:first-child {
+  border-bottom: none;
+  border-radius: 0 4px 0 0;
+}
+
+.modal-content.create-modal .stepper-btn:last-child {
+  border-top: none;
+  border-radius: 0 0 4px 0;
+}
+
+.modal-content.create-modal .stepper-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Add validation styles */
+.modal-content.create-modal .form-group.error .form-input {
+  border-color: #dc3545;
+}
+
+.modal-content.create-modal .form-group.error .form-input:focus {
+  box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.1);
+}
+
+.modal-content.create-modal .error-message {
+  font-size: 0.85rem;
+  color: #dc3545;
+  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Add form section styling for better grouping */
+.modal-content.create-modal .form-section {
+  padding: 20px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  border: 1px solid #dee2e6;
+}
+
+.modal-content.create-modal .form-section h3 {
+  margin-top: 0;
+  margin-bottom: 16px;
+  color: #495057;
+  font-size: 1.1rem;
+  font-weight: 600;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #dee2e6;
+}
+
+/* ============= EDIT MODAL STYLES ============= */
+/* Edit Modal - Three columns layout */
+.modal-content.wide-modal {
+  max-width: 1000px;
+  width: 95%;
+}
+
+.modal-content.wide-modal .form-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.modal-content.wide-modal .form-group.full-width {
+  grid-column: span 3;
+}
+
+.panel-form.horizontal-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* ============= MODAL FOOTER ============= */
 .modal-footer {
   padding: 20px;
   border-top: 1px solid #e5e5e5;
@@ -1415,26 +1583,6 @@ body {
   display: flex;
   justify-content: flex-end;
   gap: 12px;
-}
-
-.btn-info {
-  background-color: #17a2b8;
-  color: white;
-}
-
-.btn-info:hover:not(:disabled) {
-  background-color: #138496;
-}
-
-/* Edit Modal */
-.modal-content.wide-modal {
-  max-width: 1000px;
-}
-
-.panel-form.horizontal-form {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
 }
 
 .form-actions {
@@ -1481,7 +1629,20 @@ body {
   color: white;
 }
 
-/* Duplicate Modal */
+.btn-info {
+  background-color: #17a2b8;
+  color: white;
+}
+
+.btn-info:hover:not(:disabled) {
+  background-color: #138496;
+}
+
+/* ============= DUPLICATE MODAL ============= */
+.modal-content.duplicate-modal {
+  max-width: 500px;
+}
+
 .modal-content.small-modal {
   max-width: 500px;
 }
@@ -1568,10 +1729,6 @@ body {
 }
 
 /* Duplicate Form Modal */
-.modal-content.duplicate-modal {
-  max-width: 500px;
-}
-
 .duplicate-form-content {
   padding: 10px;
 }
@@ -1694,7 +1851,7 @@ body {
   text-align: right;
 }
 
-/* Print Selection Modal */
+/* ============= PRINT SELECTION MODAL ============= */
 .modal-content.print-selection-modal {
   max-width: 500px;
 }
@@ -1732,7 +1889,7 @@ body {
   color: #666;
 }
 
-/* Column Selection Modal */
+/* ============= COLUMN SELECTION MODAL ============= */
 .modal-content.column-selection-modal {
   max-width: 700px;
   max-height: 80vh;
@@ -1876,26 +2033,82 @@ body {
   color: #333;
 }
 
-/* Number input fixes */
+/* ============= UTILITY STYLES ============= */
+.filter-input-wrapper {
+    position: relative;
+    flex: 1;
+}
+
+.clear-filter-btn {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: #999;
+    cursor: pointer;
+    font-size: 16px;
+    padding: 0;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2;
+}
+
+.clear-filter-btn:hover {
+    color: #333;
+}
+
+/* Prevent number input scroll */
 input[type="number"]::-webkit-inner-spin-button,
 input[type="number"]::-webkit-outer-spin-button {
-  -webkit-appearance: none;
-  margin: 0;
+    -webkit-appearance: none;
+    margin: 0;
 }
 
 input[type="number"] {
-  -moz-appearance: textfield;
+    -moz-appearance: textfield;
 }
 
-/* Responsive Design */
+/* Focus styling for better UX */
+.form-input:focus {
+    outline: 2px solid #4a90e2;
+    outline-offset: -1px;
+}
+
+/* Better textarea handling */
+textarea.form-input {
+    resize: vertical;
+    min-height: 80px;
+}
+
+/* ============= RESPONSIVE DESIGN ============= */
 @media (max-width: 1200px) {
-  .form-row {
+  /* For create modal - keep 2 columns */
+  .modal-content.create-modal .form-row {
     grid-template-columns: repeat(2, 1fr);
+  }
+  
+  /* For edit modal - switch to 2 columns */
+  .modal-content.wide-modal .form-row {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .modal-content.wide-modal .form-group.full-width {
+    grid-column: span 2;
   }
   
   .summary-stats-grid,
   .status-breakdown-grid {
     grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .modal-content.create-modal,
+  .modal-content.wide-modal {
+    width: 90%;
   }
 }
 
@@ -1959,9 +2172,16 @@ input[type="number"] {
     justify-content: flex-start;
   }
   
+  /* Modal responsive adjustments */
   .modal-content {
     width: 95%;
     margin: 10px;
+  }
+  
+  .modal-content.create-modal,
+  .modal-content.wide-modal {
+    width: 95%;
+    max-width: 95vw;
   }
   
   .modal-header {
@@ -1972,8 +2192,15 @@ input[type="number"] {
     padding: 20px;
   }
   
-  .form-row {
+  /* Switch to single column for all modals on mobile */
+  .modal-content.create-modal .form-row,
+  .modal-content.wide-modal .form-row {
     grid-template-columns: 1fr;
+  }
+  
+  .modal-content.create-modal .form-group.full-width,
+  .modal-content.wide-modal .form-group.full-width {
+    grid-column: span 1;
   }
   
   .chips-header {
@@ -2006,6 +2233,14 @@ input[type="number"] {
     flex-direction: column;
     align-items: stretch;
   }
+  
+  .footer-actions {
+    flex-direction: column;
+  }
+  
+  .primary-btn, .secondary-btn {
+    width: 100%;
+  }
 }
 
 @media (max-width: 480px) {
@@ -2027,14 +2262,6 @@ input[type="number"] {
     font-size: 11px;
   }
   
-  .footer-actions {
-    flex-direction: column;
-  }
-  
-  .primary-btn, .secondary-btn {
-    width: 100%;
-  }
-  
   .panels-table {
     min-width: 1400px;
   }
@@ -2053,55 +2280,20 @@ input[type="number"] {
     font-size: 10px;
     padding: 1px 4px;
   }
-}
-
-.filter-input-wrapper {
-    position: relative;
-    flex: 1;
-}
-
-.clear-filter-btn {
-    position: absolute;
-    right: 8px;
-    top: 50%;
-    transform: translateY(-50%);
-    background: none;
-    border: none;
-    color: #999;
-    cursor: pointer;
-    font-size: 16px;
-    padding: 0;
-    width: 20px;
-    height: 20px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 2;
-}
-
-.clear-filter-btn:hover {
-    color: #333;
-}
-
-/* Prevent number input scroll */
-input[type="number"]::-webkit-inner-spin-button,
-input[type="number"]::-webkit-outer-spin-button {
-    -webkit-appearance: none;
-    margin: 0;
-}
-
-input[type="number"] {
-    -moz-appearance: textfield;
-}
-
-/* Focus styling for better UX */
-.form-input:focus {
-    outline: 2px solid #4a90e2;
-    outline-offset: -1px;
-}
-
-/* Better textarea handling */
-textarea.form-input {
-    resize: vertical;
-    min-height: 80px;
+  
+  .modal-content.create-modal,
+  .modal-content.wide-modal {
+    width: 100%;
+    margin: 5px;
+  }
+  
+  .modal-header h2 {
+    font-size: 1.2rem;
+  }
+  
+  .primary-btn, .secondary-btn {
+    padding: 10px 16px;
+    font-size: 0.9rem;
+    min-width: auto;
+  }
 }
