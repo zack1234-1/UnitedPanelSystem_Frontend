@@ -700,6 +700,8 @@ const ViewPanelPage = () => {
         panelCount: 0
     });
 
+    const [isPrintSelectionModalOpen, setIsPrintSelectionModalOpen] = useState(false);
+
     const defaultPanelValues = {
         job_no: 'UPS.0525.18802',
         application: '',
@@ -1726,6 +1728,222 @@ const ViewPanelPage = () => {
         }
     };
 
+    // PRINT FUNCTION
+    const handlePrint = (specificPanel = null) => {
+        try {
+            // Create a new window for printing
+            const printWindow = window.open('', '_blank');
+            
+            if (!printWindow) {
+                alert('Please allow popups to print the table');
+                return;
+            }
+
+            // Determine which panels to print
+            let panelsToPrint = filteredPanels;
+            if (specificPanel) {
+                panelsToPrint = [specificPanel];
+            }
+
+            // Create the print HTML content
+            const printContent = `
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>Panels Report - ${new Date().toLocaleDateString()}</title>
+                    <style>
+                        @media print {
+                            @page {
+                                size: landscape;
+                                margin: 10mm;
+                            }
+                            body {
+                                font-family: Arial, sans-serif;
+                                font-size: 10pt;
+                                margin: 0;
+                                padding: 0;
+                            }
+                            table {
+                                width: 100%;
+                                border-collapse: collapse;
+                                table-layout: auto;
+                            }
+                            th, td {
+                                border: 1px solid #000;
+                                padding: 4px 6px;
+                                text-align: left;
+                                font-size: 9pt;
+                                vertical-align: top;
+                                word-wrap: break-word;
+                                max-width: 80px;
+                                overflow-wrap: break-word;
+                            }
+                            th {
+                                background-color: #f2f2f2;
+                                font-weight: bold;
+                            }
+                            .no-print {
+                                display: none !important;
+                            }
+                            .print-header {
+                                text-align: center;
+                                margin-bottom: 15px;
+                                border-bottom: 2px solid #000;
+                                padding-bottom: 10px;
+                            }
+                            .print-title {
+                                font-size: 16pt;
+                                font-weight: bold;
+                                margin-bottom: 5px;
+                            }
+                            .print-subtitle {
+                                font-size: 11pt;
+                                color: #666;
+                                margin-bottom: 10px;
+                            }
+                            .print-summary {
+                                margin-bottom: 15px;
+                                font-size: 10pt;
+                            }
+                            .total-area {
+                                font-weight: bold;
+                                margin-top: 10px;
+                                border-top: 1px solid #000;
+                                padding-top: 5px;
+                            }
+                            .page-break {
+                                page-break-before: always;
+                            }
+                            .panel-row:nth-child(even) {
+                                background-color: #f9f9f9;
+                            }
+                        }
+                        @media screen {
+                            body {
+                                font-family: Arial, sans-serif;
+                                font-size: 12px;
+                                padding: 20px;
+                            }
+                            .no-screen {
+                                display: none;
+                            }
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div class="print-header">
+                        <div class="print-title">Panel Management System - Report</div>
+                        <div class="print-subtitle">Generated on: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}</div>
+                        <div class="print-summary">
+                            Total Panels: ${panelsToPrint.length} | 
+                            Printed: ${specificPanel ? 'Single Panel' : 'Filtered List'} |
+                            Printed by: ${localStorage.getItem('username') || 'System User'}
+                        </div>
+                    </div>
+                    
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Ref No</th>
+                                <th>Job No</th>
+                                <th>Type</th>
+                                <th>Panel Thk (mm)</th>
+                                <th>Joint</th>
+                                <th>Surface Front</th>
+                                <th>Surface Back</th>
+                                <th>Front Thk</th>
+                                <th>Back Thk</th>
+                                <th>Surface Type</th>
+                                <th>Width (mm)</th>
+                                <th>Length (mm)</th>
+                                <th>Salesman</th>
+                                <th>Application</th>
+                                <th>Area (m²)</th>
+                                <th>Brand</th>
+                                <th>Qty</th>
+                                <th>Cutting</th>
+                                <th>Balance</th>
+                                <th>Prod Meter (mm)</th>
+                                <th>Created Date</th>
+                                <th>Est. Delivery</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${panelsToPrint.map((panel, index) => {
+                                const panelQty = parseInt(panel.qty) || 0;
+                                const balance = panel.balance !== undefined ? panel.balance : (panel.qty || 0);
+                                const panelLength = parseFloat(panel.length) || 0;
+                                const panelWidth = parseFloat(panel.width) || 0;
+                                const alreadyProduced = panelQty - balance;
+                                const totalProductionMeter = (alreadyProduced * panelLength);
+                                const area = calculateArea(panelWidth, panelLength, panelQty) / 1000000;
+                                
+                                return `
+                                    <tr class="panel-row">
+                                        <td>${panel.reference_number || 'N/A'}</td>
+                                        <td>${panel.job_no || 'N/A'}</td>
+                                        <td>${panel.type || 'N/A'}</td>
+                                        <td>${panel.panel_thk ? formatNumber(panel.panel_thk) : 'N/A'}</td>
+                                        <td>${panel.joint || 'N/A'}</td>
+                                        <td>${panel.surface_front || 'N/A'}</td>
+                                        <td>${panel.surface_back || 'N/A'}</td>
+                                        <td>${panel.surface_front_thk ? formatNumber(panel.surface_front_thk) : 'N/A'}</td>
+                                        <td>${panel.surface_back_thk ? formatNumber(panel.surface_back_thk) : 'N/A'}</td>
+                                        <td>${panel.surface_type || 'N/A'}</td>
+                                        <td>${panel.width ? formatNumber(panel.width) : 'N/A'}</td>
+                                        <td>${panel.length ? formatNumber(panel.length) : 'N/A'}</td>
+                                        <td>${panel.salesman || 'N/A'}</td>
+                                        <td>${panel.application || 'N/A'}</td>
+                                        <td>${area > 0 ? area.toFixed(3) : '0'}</td>
+                                        <td>${panel.brand || 'N/A'}</td>
+                                        <td>${formatNumber(panel.qty)}</td>
+                                        <td>${panel.cutting || 'N/A'}</td>
+                                        <td>${formatNumber(balance)}</td>
+                                        <td>${totalProductionMeter.toFixed(2)}</td>
+                                        <td>${formatDate(panel.created_at)}</td>
+                                        <td>${formatDate(panel.estimated_delivery)}</td>
+                                    </tr>
+                                `;
+                            }).join('')}
+                        </tbody>
+                    </table>
+                    
+                    <div class="total-area no-print" style="margin-top: 20px; padding-top: 10px; border-top: 1px solid #000;">
+                        <strong>Total Area:</strong> ${panelsToPrint.reduce((sum, panel) => {
+                            const width = parseFloat(panel.width) || 0;
+                            const length = parseFloat(panel.length) || 0;
+                            const qty = parseInt(panel.qty) || 0;
+                            return sum + (width * length * qty) / 1000000;
+                        }, 0).toFixed(3)} m²
+                    </div>
+                    
+                    <div style="text-align: center; margin-top: 20px; font-size: 9pt; color: #666;" class="no-print">
+                        <p>--- End of Report ---</p>
+                        <p>This document is generated from Panel Management System</p>
+                    </div>
+                </body>
+                </html>
+            `;
+
+            // Write the content to the print window
+            printWindow.document.write(printContent);
+            printWindow.document.close();
+            
+            // Wait for content to load then print
+            printWindow.onload = function() {
+                setTimeout(() => {
+                    printWindow.focus();
+                    printWindow.print();
+                    // printWindow.close(); // Uncomment to auto-close after printing
+                }, 500);
+            };
+
+        } catch (error) {
+            console.error('Error printing:', error);
+            alert('Error generating print document. Please try again.');
+        }
+    };
+
     return (
         <div className="view-panel-container">
             <header className="page-header">
@@ -2013,33 +2231,44 @@ const ViewPanelPage = () => {
                     <>
                         <div className="table-header">
                             <h3>Panels ({filteredPanels.length} of {panels.length})</h3>
-                            <div className="sort-controls">
-                                <select 
-                                    value={sortConfig.key}
-                                    onChange={(e) => setSortConfig(prev => ({ ...prev, key: e.target.value }))}
-                                    className="form-select"
-                                >
-                                    <option value="created_at">Date Created</option>
-                                    <option value="reference_number">Reference Number</option>
-                                    <option value="job_no">Job Number</option>
-                                    <option value="type">Type</option>
-                                    <option value="brand">Brand</option>
-                                    <option value="salesman">Salesman</option>
-                                    <option value="application">Application</option>
-                                    <option value="qty">Quantity</option>
-                                    <option value="balance">Balance</option>
-                                    <option value="status">Status</option>
-                                    <option value="production_meter">Production Meter</option>
-                                </select>
-                                <button 
-                                    className="sort-direction-btn"
-                                    onClick={() => setSortConfig(prev => ({ 
-                                        ...prev, 
-                                        direction: prev.direction === 'asc' ? 'desc' : 'asc' 
-                                    }))}
-                                >
-                                    {sortConfig.direction === 'asc' ? '↑ Asc' : '↓ Desc'}
-                                </button>
+                            <div className="table-header-controls">
+                                <div className="sort-controls">
+                                    <select 
+                                        value={sortConfig.key}
+                                        onChange={(e) => setSortConfig(prev => ({ ...prev, key: e.target.value }))}
+                                        className="form-select"
+                                    >
+                                        <option value="created_at">Date Created</option>
+                                        <option value="reference_number">Reference Number</option>
+                                        <option value="job_no">Job Number</option>
+                                        <option value="type">Type</option>
+                                        <option value="brand">Brand</option>
+                                        <option value="salesman">Salesman</option>
+                                        <option value="application">Application</option>
+                                        <option value="qty">Quantity</option>
+                                        <option value="balance">Balance</option>
+                                        <option value="status">Status</option>
+                                        <option value="production_meter">Production Meter</option>
+                                    </select>
+                                    <button 
+                                        className="sort-direction-btn"
+                                        onClick={() => setSortConfig(prev => ({ 
+                                            ...prev, 
+                                            direction: prev.direction === 'asc' ? 'desc' : 'asc' 
+                                        }))}
+                                    >
+                                        {sortConfig.direction === 'asc' ? '↑ Asc' : '↓ Desc'}
+                                    </button>
+                                </div>
+                                <div className="print-controls">
+                                    <button 
+                                        className="print-btn"
+                                        onClick={() => setIsPrintSelectionModalOpen(true)}
+                                        title="Print Panels"
+                                    >
+                                        🖨️ Print
+                                    </button>
+                                </div>
                             </div>
                         </div>
                         
@@ -2229,6 +2458,13 @@ const ViewPanelPage = () => {
                                                                 title="Production"
                                                             >
                                                                 🏭
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handlePrint(panel)}
+                                                                className="action-btn print-btn"
+                                                                title="Print"
+                                                            >
+                                                                🖨️
                                                             </button>
                                                             <button
                                                                 onClick={() => handleDeletePanel(panel.id)}
@@ -2970,6 +3206,48 @@ const ViewPanelPage = () => {
                                         </button>
                                     </div>
                                 </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {isPrintSelectionModalOpen && (
+                <div className="modal-overlay" onClick={() => setIsPrintSelectionModalOpen(false)}>
+                    <div className="modal-content print-selection-modal" onClick={e => e.stopPropagation()}>
+                        <div className="modal-header">
+                            <h2>Print Panels</h2>
+                            <button type="button" className="close-button" onClick={() => setIsPrintSelectionModalOpen(false)}>
+                                ×
+                            </button>
+                        </div>
+                        <div className="modal-body">
+                            <div className="print-options">
+                                <div className="print-option" onClick={() => {
+                                    handlePrint();
+                                    setIsPrintSelectionModalOpen(false);
+                                }}>
+                                    <div className="print-option-content">
+                                        <div className="print-option-title">Print All Visible Panels</div>
+                                        <div className="print-option-details">
+                                            Print all {filteredPanels.length} panels currently visible in the table
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                {filteredPanels.slice(0, 10).map(panel => (
+                                    <div key={panel.id} className="print-option" onClick={() => {
+                                        handlePrint(panel);
+                                        setIsPrintSelectionModalOpen(false);
+                                    }}>
+                                        <div className="print-option-content">
+                                            <div className="print-option-title">{panel.job_no || 'N/A'} - {panel.reference_number}</div>
+                                            <div className="print-option-details">
+                                                {panel.type} | {panel.width}mm × {panel.length}mm | Qty: {panel.qty}
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
                             </div>
                         </div>
                     </div>
