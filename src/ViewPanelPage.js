@@ -2707,181 +2707,263 @@ const ViewPanelPage = () => {
                 />
             )}
 
-            {isCreateModalOpen && (
-                <div className="modal-overlay" onClick={closeCreateModal}>
-                    <div className="modal-content create-modal" onClick={e => e.stopPropagation()} ref={createModalRef}>
-                        <div className="modal-header">
-                            <h2>Create New Panel</h2>
-                            <button type="button" className="close-button" onClick={closeCreateModal}>
-                                ×
+           {isCreateModalOpen && (
+    <div className="modal-overlay" onClick={closeCreateModal}>
+        <div className="modal-content create-modal" onClick={e => e.stopPropagation()} ref={createModalRef}>
+            <div className="modal-header">
+                <h2>Create New Panel</h2>
+                <button type="button" className="close-button" onClick={closeCreateModal}>
+                    ×
+                </button>
+            </div>
+            
+            <div className="modal-body">
+                {error && (
+                    <div className="alert alert-danger">
+                        {error}
+                    </div>
+                )}
+                
+                {success && (
+                    <div className="alert alert-success">
+                        {success}
+                    </div>
+                )}
+
+                <form onSubmit={handleCreatePanel}>
+                    <div className="form-grid">
+                        {formLayout.map((row, rowIndex) => (
+                            <div key={rowIndex} className="form-row">
+                                {/* First field in the row */}
+                                {row[0] && (() => {
+                                    const fieldName = row[0];
+                                    const fieldConfig = {
+                                        job_no: { label: 'Job No *', type: 'text', required: true },
+                                        application: { label: 'Application', type: 'text' },
+                                        type: { label: 'Type', type: 'text' },
+                                        panel_thk: { label: 'Panel Thickness (mm)', type: 'number' },
+                                        joint: { label: 'Joint', type: 'text' },
+                                        surface_front: { label: 'Surface Front', type: 'text' },
+                                        surface_back: { label: 'Surface Back', type: 'text' },
+                                        surface_front_thk: { label: 'Front Thickness (mm)', type: 'number' },
+                                        surface_back_thk: { label: 'Back Thickness (mm)', type: 'number' },
+                                        surface_type: { label: 'Surface Type', type: 'text' },
+                                        width: { label: 'Width (mm) *', type: 'number', required: true },
+                                        length: { label: 'Length (mm) *', type: 'number', required: true },
+                                        qty: { label: 'Quantity', type: 'number' },
+                                        cutting: { label: 'Cutting', type: 'text' },
+                                        status: { label: 'Status', type: 'text' },
+                                        production_meter: { label: 'Production Meter', type: 'number' },
+                                        salesman: { label: 'Salesman', type: 'text' },
+                                        brand: { label: 'Brand', type: 'text' },
+                                        estimated_delivery: { label: 'Estimated Delivery', type: 'date' },
+                                        created_at: { label: 'Created Date', type: 'date' },
+                                        notes: { label: 'Notes', type: 'textarea' }
+                                    }[fieldName] || { label: fieldName, type: 'text' };
+                                    
+                                    const isRequired = fieldConfig.required || false;
+                                    const inputId = `create-${fieldName}-${rowIndex}-0`;
+                                    
+                                    return (
+                                        <div key="0" className="form-group">
+                                            <label htmlFor={inputId}>
+                                                {fieldConfig.label}
+                                                {isRequired && <span className="required-star"> *</span>}
+                                            </label>
+                                            
+                                            {fieldConfig.type === 'select' ? (
+                                                <select
+                                                    id={inputId}
+                                                    name={fieldName}
+                                                    value={newPanel[fieldName] || ''}
+                                                    onChange={handleNewPanelInputChange}
+                                                    className="form-input"
+                                                    onWheel={handleWheel}
+                                                    required={isRequired}
+                                                >
+                                                    <option value="">Select...</option>
+                                                    {fieldConfig.options.map(option => (
+                                                        <option key={option} value={option}>
+                                                            {option}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            ) : fieldConfig.type === 'textarea' ? (
+                                                <textarea
+                                                    id={inputId}
+                                                    name={fieldName}
+                                                    value={newPanel[fieldName] || ''}
+                                                    onChange={handleNewPanelInputChange}
+                                                    onKeyDown={(e) => handleKeyDown(e, rowIndex, 0, fieldName)}
+                                                    className="form-input"
+                                                    rows="3"
+                                                    placeholder="Enter notes here..."
+                                                />
+                                            ) : (
+                                                <input
+                                                    id={inputId}
+                                                    type={fieldConfig.type}
+                                                    name={fieldName}
+                                                    value={newPanel[fieldName] || ''}
+                                                    onChange={handleNewPanelInputChange}
+                                                    onKeyDown={(e) => handleKeyDown(e, rowIndex, 0, fieldName)}
+                                                    className="form-input"
+                                                    onWheel={handleWheel}
+                                                    required={isRequired}
+                                                    min={fieldConfig.type === 'number' ? "0" : undefined}
+                                                    step={fieldConfig.type === 'number' ? "0.01" : undefined}
+                                                    ref={el => {
+                                                        if (rowIndex === 0 && el) {
+                                                            inputRefs.current[0] = el;
+                                                        }
+                                                    }}
+                                                />
+                                            )}
+                                        </div>
+                                    );
+                                })()}
+                                
+                                {/* Second field in the row (if it exists) */}
+                                {row[1] && (() => {
+                                    const fieldName = row[1];
+                                    const fieldConfig = {
+                                        job_no: { label: 'Job No *', type: 'text', required: true },
+                                        application: { label: 'Application', type: 'text' },
+                                        type: { label: 'Type', type: 'text' },
+                                        panel_thk: { label: 'Panel Thickness (mm)', type: 'number' },
+                                        joint: { label: 'Joint', type: 'text' },
+                                        surface_front: { label: 'Surface Front', type: 'text' },
+                                        surface_back: { label: 'Surface Back', type: 'text' },
+                                        surface_front_thk: { label: 'Front Thickness (mm)', type: 'number' },
+                                        surface_back_thk: { label: 'Back Thickness (mm)', type: 'number' },
+                                        surface_type: { label: 'Surface Type', type: 'text' },
+                                        width: { label: 'Width (mm) *', type: 'number', required: true },
+                                        length: { label: 'Length (mm) *', type: 'number', required: true },
+                                        qty: { label: 'Quantity', type: 'number' },
+                                        cutting: { label: 'Cutting', type: 'text' },
+                                        status: { label: 'Status', type: 'text' },
+                                        production_meter: { label: 'Production Meter', type: 'number' },
+                                        salesman: { label: 'Salesman', type: 'text' },
+                                        brand: { label: 'Brand', type: 'text' },
+                                        estimated_delivery: { label: 'Estimated Delivery', type: 'date' },
+                                        created_at: { label: 'Created Date', type: 'date' },
+                                        notes: { label: 'Notes', type: 'textarea' }
+                                    }[fieldName] || { label: fieldName, type: 'text' };
+                                    
+                                    const isRequired = fieldConfig.required || false;
+                                    const inputId = `create-${fieldName}-${rowIndex}-1`;
+                                    
+                                    return (
+                                        <div key="1" className="form-group">
+                                            <label htmlFor={inputId}>
+                                                {fieldConfig.label}
+                                                {isRequired && <span className="required-star"> *</span>}
+                                            </label>
+                                            
+                                            {fieldConfig.type === 'select' ? (
+                                                <select
+                                                    id={inputId}
+                                                    name={fieldName}
+                                                    value={newPanel[fieldName] || ''}
+                                                    onChange={handleNewPanelInputChange}
+                                                    className="form-input"
+                                                    onWheel={handleWheel}
+                                                    required={isRequired}
+                                                >
+                                                    <option value="">Select...</option>
+                                                    {fieldConfig.options.map(option => (
+                                                        <option key={option} value={option}>
+                                                            {option}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            ) : fieldConfig.type === 'textarea' ? (
+                                                <textarea
+                                                    id={inputId}
+                                                    name={fieldName}
+                                                    value={newPanel[fieldName] || ''}
+                                                    onChange={handleNewPanelInputChange}
+                                                    onKeyDown={(e) => handleKeyDown(e, rowIndex, 1, fieldName)}
+                                                    className="form-input"
+                                                    rows="3"
+                                                    placeholder="Enter notes here..."
+                                                />
+                                            ) : (
+                                                <input
+                                                    id={inputId}
+                                                    type={fieldConfig.type}
+                                                    name={fieldName}
+                                                    value={newPanel[fieldName] || ''}
+                                                    onChange={handleNewPanelInputChange}
+                                                    onKeyDown={(e) => handleKeyDown(e, rowIndex, 1, fieldName)}
+                                                    className="form-input"
+                                                    onWheel={handleWheel}
+                                                    required={isRequired}
+                                                    min={fieldConfig.type === 'number' ? "0" : undefined}
+                                                    step={fieldConfig.type === 'number' ? "0.01" : undefined}
+                                                />
+                                            )}
+                                        </div>
+                                    );
+                                })()}
+                            </div>
+                        ))}
+                    </div>
+                    
+                    <div className="modal-footer">
+                        <div className="footer-actions">
+                            <button
+                                type="button"
+                                className="btn btn-secondary"
+                                onClick={handleResetForm}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'ArrowUp') {
+                                        e.preventDefault();
+                                        const notesField = createModalRef.current?.querySelector('[name="notes"]');
+                                        if (notesField) notesField.focus();
+                                    }
+                                }}
+                            >
+                                Reset Form
+                            </button>
+                            <button
+                                type="button"
+                                className="btn btn-info"
+                                onClick={handleDuplicateInCreateModal}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'ArrowLeft') {
+                                        e.preventDefault();
+                                        const resetButton = createModalRef.current?.querySelector('.footer-actions button.btn-secondary');
+                                        if (resetButton) resetButton.focus();
+                                    } else if (e.key === 'ArrowRight') {
+                                        e.preventDefault();
+                                        const createButton = createModalRef.current?.querySelector('.footer-actions button.btn-primary');
+                                        if (createButton) createButton.focus();
+                                    }
+                                }}
+                            >
+                                Duplicate
+                            </button>
+                            <button
+                                type="submit"
+                                className="btn btn-primary"
+                                onKeyDown={(e) => {
+                                    if (e.key === 'ArrowLeft') {
+                                        e.preventDefault();
+                                        const duplicateButton = createModalRef.current?.querySelector('.footer-actions button.btn-info');
+                                        if (duplicateButton) duplicateButton.focus();
+                                    }
+                                }}
+                            >
+                                Create Panel
                             </button>
                         </div>
-                        
-                        <div className="modal-body">
-                            {error && (
-                                <div className="alert alert-danger">
-                                    {error}
-                                </div>
-                            )}
-                            
-                            {success && (
-                                <div className="alert alert-success">
-                                    {success}
-                                </div>
-                            )}
-
-                            <form onSubmit={handleCreatePanel}>
-                                <div className="form-grid">
-                                    {formLayout.map((row, rowIndex) => (
-                                        <div key={rowIndex} className="form-row">
-                                            {row.map((fieldName, colIndex) => {
-                                                if (!fieldName) {
-                                                    return <div key={colIndex} className="form-group"></div>;
-                                                }
-                                                
-                                                const fieldConfig = {
-                                                    job_no: { label: 'Job No *', type: 'text', required: true },
-                                                    application: { label: 'Application', type: 'text' },
-                                                    type: { label: 'Type', type: 'text'  },
-                                                    panel_thk: { label: 'Panel Thickness (mm)', type: 'number' },
-                                                    joint: { label: 'Joint', type: 'text'  },
-                                                    surface_front: { label: 'Surface Front', type: 'text' },
-                                                    surface_back: { label: 'Surface Back', type: 'text' },
-                                                    surface_front_thk: { label: 'Front Thickness (mm)', type: 'number' },
-                                                    surface_back_thk: { label: 'Back Thickness (mm)', type: 'number' },
-                                                    surface_type: { label: 'Surface Type', type: 'text'  },
-                                                    width: { label: 'Width (mm) *', type: 'number', required: true },
-                                                    length: { label: 'Length (mm) *', type: 'number', required: true },
-                                                    qty: { label: 'Quantity', type: 'number' },
-                                                    cutting: { label: 'Cutting', type: 'text' },
-                                                    status: { label: 'Status', type: 'text' },
-                                                    production_meter: { label: 'Production Meter', type: 'number' },
-                                                    salesman: { label: 'Salesman', type: 'text' },
-                                                    brand: { label: 'Brand', type: 'text' },
-                                                    estimated_delivery: { label: 'Estimated Delivery', type: 'date' },
-                                                    created_at: { label: 'Created Date', type: 'date' },
-                                                    notes: { label: 'Notes', type: 'textarea' }
-                                                }[fieldName] || { label: fieldName, type: 'text' };
-                                                
-                                                const isRequired = fieldConfig.required || false;
-                                                const inputId = `create-${fieldName}-${rowIndex}-${colIndex}`;
-                                                
-                                                return (
-                                                    <div key={colIndex} className="form-group">
-                                                        <label htmlFor={inputId}>
-                                                            {fieldConfig.label}
-                                                            {isRequired && <span className="required-star"> *</span>}
-                                                        </label>
-                                                        
-                                                        {fieldConfig.type === 'select' ? (
-                                                            <select
-                                                                id={inputId}
-                                                                name={fieldName}
-                                                                value={newPanel[fieldName] || ''}
-                                                                onChange={handleNewPanelInputChange}
-                                                                className="form-input"
-                                                                onWheel={handleWheel}
-                                                                required={isRequired}
-                                                            >
-                                                                <option value="">Select...</option>
-                                                                {fieldConfig.options.map(option => (
-                                                                    <option key={option} value={option}>
-                                                                        {option}
-                                                                    </option>
-                                                                ))}
-                                                            </select>
-                                                        ) : fieldConfig.type === 'textarea' ? (
-                                                            <textarea
-                                                                id={inputId}
-                                                                name={fieldName}
-                                                                value={newPanel[fieldName] || ''}
-                                                                onChange={handleNewPanelInputChange}
-                                                                onKeyDown={(e) => handleKeyDown(e, rowIndex, colIndex, fieldName)}
-                                                                className="form-input"
-                                                                rows="3"
-                                                                placeholder="Enter notes here..."
-                                                            />
-                                                        ) : (
-                                                            <input
-                                                                id={inputId}
-                                                                type={fieldConfig.type}
-                                                                name={fieldName}
-                                                                value={newPanel[fieldName] || ''}
-                                                                onChange={handleNewPanelInputChange}
-                                                                onKeyDown={(e) => handleKeyDown(e, rowIndex, colIndex, fieldName)}
-                                                                className="form-input"
-                                                                onWheel={handleWheel}
-                                                                required={isRequired}
-                                                                min={fieldConfig.type === 'number' ? "0" : undefined}
-                                                                step={fieldConfig.type === 'number' ? "0.01" : undefined}
-                                                                ref={el => {
-                                                                    if (rowIndex === 0 && colIndex === 0 && el) {
-                                                                        inputRefs.current[0] = el;
-                                                                    }
-                                                                }}
-                                                            />
-                                                        )}
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-                                    ))}
-                                </div>
-                                
-                                <div className="modal-footer">
-                                    <div className="footer-actions">
-                                        <button
-                                            type="button"
-                                            className="btn btn-secondary"
-                                            onClick={handleResetForm}
-                                            onKeyDown={(e) => {
-                                                if (e.key === 'ArrowUp') {
-                                                    e.preventDefault();
-                                                    const notesField = createModalRef.current?.querySelector('[name="notes"]');
-                                                    if (notesField) notesField.focus();
-                                                }
-                                            }}
-                                        >
-                                            Reset Form
-                                        </button>
-                                        <button
-                                            type="button"
-                                            className="btn btn-info"
-                                            onClick={handleDuplicateInCreateModal}
-                                            onKeyDown={(e) => {
-                                                if (e.key === 'ArrowLeft') {
-                                                    e.preventDefault();
-                                                    const resetButton = createModalRef.current?.querySelector('.footer-actions button.btn-secondary');
-                                                    if (resetButton) resetButton.focus();
-                                                } else if (e.key === 'ArrowRight') {
-                                                    e.preventDefault();
-                                                    const createButton = createModalRef.current?.querySelector('.footer-actions button.btn-primary');
-                                                    if (createButton) createButton.focus();
-                                                }
-                                            }}
-                                        >
-                                            Duplicate
-                                        </button>
-                                        <button
-                                            type="submit"
-                                            className="btn btn-primary"
-                                            onKeyDown={(e) => {
-                                                if (e.key === 'ArrowLeft') {
-                                                    e.preventDefault();
-                                                    const duplicateButton = createModalRef.current?.querySelector('.footer-actions button.btn-info');
-                                                    if (duplicateButton) duplicateButton.focus();
-                                                }
-                                            }}
-                                        >
-                                            Create Panel
-                                        </button>
-                                    </div>
-                                </div>
-                            </form>
-                        </div>
                     </div>
-                </div>
-            )}
+                </form>
+            </div>
+        </div>
+    </div>
+)}
 
              {isEditModalOpen && editingPanel && (
                 <div className="modal-overlay" onClick={closeEditModal}>
