@@ -703,6 +703,10 @@ const ViewPanelPage = () => {
     const [isPrintSelectionModalOpen, setIsPrintSelectionModalOpen] = useState(false);
     const [isColumnSelectionModalOpen, setIsColumnSelectionModalOpen] = useState(false);
 
+    // Add states for production data
+    const [allProductionRecords, setAllProductionRecords] = useState([]);
+    const [productionRefs, setProductionRefs] = useState([]);
+
     // Define all available columns with their display names and default visibility
     const defaultColumns = [
         { id: 'job_no', label: 'Job No', visible: true, order: 1 },
@@ -781,7 +785,8 @@ const ViewPanelPage = () => {
         qty: '',
         cutting: '',
         created_at: '',      
-        estimated_delivery: ''
+        estimated_delivery: '',
+        production_reference_number: ''
     });
 
     const [sortConfig, setSortConfig] = useState({
@@ -806,6 +811,33 @@ const ViewPanelPage = () => {
     useEffect(() => {
         localStorage.setItem('panelTableColumns', JSON.stringify(columns));
     }, [columns]);
+
+    // Fetch all production records and references
+    useEffect(() => {
+        const fetchAllProductionData = async () => {
+            try {
+                const data = await productionAPI.getAll();
+                if (Array.isArray(data)) {
+                    setAllProductionRecords(data);
+                    
+                    // Extract unique production reference numbers
+                    const uniqueRefs = [...new Set(
+                        data
+                            .map(record => record.reference_number)
+                            .filter(ref => ref && ref.trim() !== '')
+                    )].sort();
+                    
+                    setProductionRefs(uniqueRefs);
+                }
+            } catch (err) {
+                console.error('Failed to fetch production data:', err);
+                setAllProductionRecords([]);
+                setProductionRefs([]);
+            }
+        };
+        
+        fetchAllProductionData();
+    }, []);
 
     useEffect(() => {
         fetchPanels();
@@ -1149,6 +1181,74 @@ const ViewPanelPage = () => {
         setError(null);
     };
 
+    const uniqueValues = useMemo(() => {
+        const getUnique = (key, isNumeric = false, isDate = false) => {
+            const values = panels
+                .map(panel => {
+                    const value = panel[key];
+                    if (value === null || value === undefined || value === '') return null;
+                    
+                    if (isNumeric) {
+                        const numValue = parseFloat(value);
+                        return isNaN(numValue) ? null : numValue.toString();
+                    }
+                    
+                    if (isDate) {
+                        try {
+                            const date = new Date(value);
+                            if (isNaN(date.getTime())) return null;
+                            // Format as YYYY-MM-DD for consistent comparison
+                            const year = date.getFullYear();
+                            const month = String(date.getMonth() + 1).padStart(2, '0');
+                            const day = String(date.getDate()).padStart(2, '0');
+                            return `${year}-${month}-${day}`;
+                        } catch (error) {
+                            return null;
+                        }
+                    }
+                    
+                    return value.toString().trim();
+                })
+                .filter(p => p);
+            
+            const unique = [...new Set(values)];
+            
+            if (isNumeric) {
+                return unique.sort((a, b) => parseFloat(a) - parseFloat(b));
+            }
+            
+            if (isDate) {
+                return unique.sort((a, b) => new Date(b) - new Date(a));
+            }
+            
+            return unique.sort();
+        };
+
+        return {
+            jobNos: getUnique('job_no'),
+            types: getUnique('type'),
+            brands: getUnique('brand'),
+            statuses: getUnique('status'),
+            salesmen: getUnique('salesman'),
+            panelThks: getUnique('panel_thk', true),
+            joints: getUnique('joint'),
+            surfaceFronts: getUnique('surface_front'),
+            surfaceBacks: getUnique('surface_back'),
+            surfaceFrontThks: getUnique('surface_front_thk', true),
+            surfaceBackThks: getUnique('surface_back_thk', true),
+            surfaceTypes: getUnique('surface_type'),
+            widths: getUnique('width', true),
+            lengths: getUnique('length', true),
+            qtys: getUnique('qty', true),
+            cuttings: getUnique('cutting'),
+            applications: getUnique('application'),
+            createdDates: getUnique('created_at', false, true), 
+            estimatedDeliveries: getUnique('estimated_delivery', false, true),
+            referenceNumbers: getUnique('reference_number'),
+            productionRefs: productionRefs
+        };
+    }, [panels, productionRefs]);
+
     const filteredPanels = useMemo(() => {
         let filtered = panels.filter(panel => {
             if (!panel || !panel.id) return false;
@@ -1243,6 +1343,22 @@ const ViewPanelPage = () => {
                 }
             }
             
+            // Filter by production reference number
+            if (filters.production_reference_number) {
+                // Find production records for this panel
+                const panelProdRecords = allProductionRecords.filter(record => 
+                    record.panel_id === panel.id
+                );
+                
+                // Check if any production record has the matching reference
+                const hasMatchingProdRef = panelProdRecords.some(record =>
+                    record.reference_number && 
+                    record.reference_number.toLowerCase().includes(filters.production_reference_number.toLowerCase())
+                );
+                
+                if (!hasMatchingProdRef) return false;
+            }
+            
             return true;
         });
 
@@ -1292,7 +1408,7 @@ const ViewPanelPage = () => {
         });
 
         return filtered;
-    }, [panels, filters, sortConfig]);
+    }, [panels, filters, sortConfig, allProductionRecords]);
 
     // Get visible columns sorted by order
     const visibleColumns = useMemo(() => {
@@ -1599,72 +1715,6 @@ const ViewPanelPage = () => {
         if (isNaN(number)) return 'N/A';
         return number.toLocaleString('en-US');
     };
-
-    const uniqueValues = useMemo(() => {
-        const getUnique = (key, isNumeric = false, isDate = false) => {
-            const values = panels
-                .map(panel => {
-                    const value = panel[key];
-                    if (value === null || value === undefined || value === '') return null;
-                    
-                    if (isNumeric) {
-                        const numValue = parseFloat(value);
-                        return isNaN(numValue) ? null : numValue.toString();
-                    }
-                    
-                    if (isDate) {
-                        try {
-                            const date = new Date(value);
-                            if (isNaN(date.getTime())) return null;
-                            // Format as YYYY-MM-DD for consistent comparison
-                            const year = date.getFullYear();
-                            const month = String(date.getMonth() + 1).padStart(2, '0');
-                            const day = String(date.getDate()).padStart(2, '0');
-                            return `${year}-${month}-${day}`;
-                        } catch (error) {
-                            return null;
-                        }
-                    }
-                    
-                    return value.toString().trim();
-                })
-                .filter(p => p);
-            
-            const unique = [...new Set(values)];
-            
-            if (isNumeric) {
-                return unique.sort((a, b) => parseFloat(a) - parseFloat(b));
-            }
-            
-            if (isDate) {
-                return unique.sort((a, b) => new Date(b) - new Date(a));
-            }
-            
-            return unique.sort();
-        };
-
-        return {
-            jobNos: getUnique('job_no'),
-            types: getUnique('type'),
-            brands: getUnique('brand'),
-            statuses: getUnique('status'),
-            salesmen: getUnique('salesman'),
-            panelThks: getUnique('panel_thk', true),
-            joints: getUnique('joint'),
-            surfaceFronts: getUnique('surface_front'),
-            surfaceBacks: getUnique('surface_back'),
-            surfaceFrontThks: getUnique('surface_front_thk', true),
-            surfaceBackThks: getUnique('surface_back_thk', true),
-            surfaceTypes: getUnique('surface_type'),
-            widths: getUnique('width', true),
-            lengths: getUnique('length', true),
-            qtys: getUnique('qty', true),
-            cuttings: getUnique('cutting'),
-            applications: getUnique('application'),
-            createdDates: getUnique('created_at', false, true), 
-            estimatedDeliveries: getUnique('estimated_delivery', false, true)
-        };
-    }, [panels]);
 
     const formatDateForFilter = (dateString) => {
         if (!dateString) return 'N/A';
@@ -2109,7 +2159,7 @@ const ViewPanelPage = () => {
                 </div>
             </div>
 
-           <div className="filters-section">
+            <div className="filters-section">
                 <div className="filter-row">
                     <div className="filter-group">
                         <select 
@@ -2297,25 +2347,33 @@ const ViewPanelPage = () => {
                         </select>
                     </div>
                 </div>
+
+                {/* New row for reference number filters */}
                 <div className="filter-row">
                     <div className="filter-group">
-                        <input
-                            type="text"
-                            name="reference_number"
-                            value={filters.reference_number}
-                            onChange={handleFilterChange}
-                            className="form-input"
-                            placeholder="Panel Reference Number"
-                        />
-                        
-                        <input
-                            type="text"
-                            name="production_reference_number"
-                            value={filters.production_reference_number}
-                            onChange={handleFilterChange}
-                            className="form-input"
-                            placeholder="Production Record Reference"
-                        />
+                        <select 
+                            name="reference_number" 
+                            value={filters.reference_number} 
+                            onChange={handleFilterChange} 
+                            className="form-select"
+                        >
+                            <option value="">Panel Reference Number</option>
+                            {uniqueValues.referenceNumbers?.map(ref => (
+                                <option key={ref} value={ref}>{ref}</option>
+                            ))}
+                        </select>
+
+                        <select 
+                            name="production_reference_number" 
+                            value={filters.production_reference_number} 
+                            onChange={handleFilterChange} 
+                            className="form-select"
+                        >
+                            <option value="">Production Record Reference</option>
+                            {uniqueValues.productionRefs?.map(ref => (
+                                <option key={ref} value={ref}>{ref}</option>
+                            ))}
+                        </select>
                     </div>
                 </div>
             </div>
