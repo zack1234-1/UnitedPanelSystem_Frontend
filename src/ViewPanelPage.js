@@ -2707,263 +2707,417 @@ const ViewPanelPage = () => {
                 />
             )}
 
-           {isCreateModalOpen && (
-    <div className="modal-overlay" onClick={closeCreateModal}>
-        <div className="modal-content create-modal" onClick={e => e.stopPropagation()} ref={createModalRef}>
-            <div className="modal-header">
-                <h2>Create New Panel</h2>
-                <button type="button" className="close-button" onClick={closeCreateModal}>
-                    ×
-                </button>
-            </div>
-            
-            <div className="modal-body">
-                {error && (
-                    <div className="alert alert-danger">
-                        {error}
-                    </div>
-                )}
-                
-                {success && (
-                    <div className="alert alert-success">
-                        {success}
-                    </div>
-                )}
-
-                <form onSubmit={handleCreatePanel}>
-                    <div className="form-grid">
-                        {formLayout.map((row, rowIndex) => (
-                            <div key={rowIndex} className="form-row">
-                                {/* First field in the row */}
-                                {row[0] && (() => {
-                                    const fieldName = row[0];
-                                    const fieldConfig = {
-                                        job_no: { label: 'Job No *', type: 'text', required: true },
-                                        application: { label: 'Application', type: 'text' },
-                                        type: { label: 'Type', type: 'text' },
-                                        panel_thk: { label: 'Panel Thickness (mm)', type: 'number' },
-                                        joint: { label: 'Joint', type: 'text' },
-                                        surface_front: { label: 'Surface Front', type: 'text' },
-                                        surface_back: { label: 'Surface Back', type: 'text' },
-                                        surface_front_thk: { label: 'Front Thickness (mm)', type: 'number' },
-                                        surface_back_thk: { label: 'Back Thickness (mm)', type: 'number' },
-                                        surface_type: { label: 'Surface Type', type: 'text' },
-                                        width: { label: 'Width (mm) *', type: 'number', required: true },
-                                        length: { label: 'Length (mm) *', type: 'number', required: true },
-                                        qty: { label: 'Quantity', type: 'number' },
-                                        cutting: { label: 'Cutting', type: 'text' },
-                                        status: { label: 'Status', type: 'text' },
-                                        production_meter: { label: 'Production Meter', type: 'number' },
-                                        salesman: { label: 'Salesman', type: 'text' },
-                                        brand: { label: 'Brand', type: 'text' },
-                                        estimated_delivery: { label: 'Estimated Delivery', type: 'date' },
-                                        created_at: { label: 'Created Date', type: 'date' },
-                                        notes: { label: 'Notes', type: 'textarea' }
-                                    }[fieldName] || { label: fieldName, type: 'text' };
-                                    
-                                    const isRequired = fieldConfig.required || false;
-                                    const inputId = `create-${fieldName}-${rowIndex}-0`;
-                                    
-                                    return (
-                                        <div key="0" className="form-group">
-                                            <label htmlFor={inputId}>
-                                                {fieldConfig.label}
-                                                {isRequired && <span className="required-star"> *</span>}
-                                            </label>
-                                            
-                                            {fieldConfig.type === 'select' ? (
-                                                <select
-                                                    id={inputId}
-                                                    name={fieldName}
-                                                    value={newPanel[fieldName] || ''}
-                                                    onChange={handleNewPanelInputChange}
-                                                    className="form-input"
-                                                    onWheel={handleWheel}
-                                                    required={isRequired}
-                                                >
-                                                    <option value="">Select...</option>
-                                                    {fieldConfig.options.map(option => (
-                                                        <option key={option} value={option}>
-                                                            {option}
-                                                        </option>
-                                                    ))}
-                                                </select>
-                                            ) : fieldConfig.type === 'textarea' ? (
-                                                <textarea
-                                                    id={inputId}
-                                                    name={fieldName}
-                                                    value={newPanel[fieldName] || ''}
-                                                    onChange={handleNewPanelInputChange}
-                                                    onKeyDown={(e) => handleKeyDown(e, rowIndex, 0, fieldName)}
-                                                    className="form-input"
-                                                    rows="3"
-                                                    placeholder="Enter notes here..."
-                                                />
-                                            ) : (
-                                                <input
-                                                    id={inputId}
-                                                    type={fieldConfig.type}
-                                                    name={fieldName}
-                                                    value={newPanel[fieldName] || ''}
-                                                    onChange={handleNewPanelInputChange}
-                                                    onKeyDown={(e) => handleKeyDown(e, rowIndex, 0, fieldName)}
-                                                    className="form-input"
-                                                    onWheel={handleWheel}
-                                                    required={isRequired}
-                                                    min={fieldConfig.type === 'number' ? "0" : undefined}
-                                                    step={fieldConfig.type === 'number' ? "0.01" : undefined}
-                                                    ref={el => {
-                                                        if (rowIndex === 0 && el) {
-                                                            inputRefs.current[0] = el;
-                                                        }
-                                                    }}
-                                                />
-                                            )}
-                                        </div>
-                                    );
-                                })()}
-                                
-                                {/* Second field in the row (if it exists) */}
-                                {row[1] && (() => {
-                                    const fieldName = row[1];
-                                    const fieldConfig = {
-                                        job_no: { label: 'Job No *', type: 'text', required: true },
-                                        application: { label: 'Application', type: 'text' },
-                                        type: { label: 'Type', type: 'text' },
-                                        panel_thk: { label: 'Panel Thickness (mm)', type: 'number' },
-                                        joint: { label: 'Joint', type: 'text' },
-                                        surface_front: { label: 'Surface Front', type: 'text' },
-                                        surface_back: { label: 'Surface Back', type: 'text' },
-                                        surface_front_thk: { label: 'Front Thickness (mm)', type: 'number' },
-                                        surface_back_thk: { label: 'Back Thickness (mm)', type: 'number' },
-                                        surface_type: { label: 'Surface Type', type: 'text' },
-                                        width: { label: 'Width (mm) *', type: 'number', required: true },
-                                        length: { label: 'Length (mm) *', type: 'number', required: true },
-                                        qty: { label: 'Quantity', type: 'number' },
-                                        cutting: { label: 'Cutting', type: 'text' },
-                                        status: { label: 'Status', type: 'text' },
-                                        production_meter: { label: 'Production Meter', type: 'number' },
-                                        salesman: { label: 'Salesman', type: 'text' },
-                                        brand: { label: 'Brand', type: 'text' },
-                                        estimated_delivery: { label: 'Estimated Delivery', type: 'date' },
-                                        created_at: { label: 'Created Date', type: 'date' },
-                                        notes: { label: 'Notes', type: 'textarea' }
-                                    }[fieldName] || { label: fieldName, type: 'text' };
-                                    
-                                    const isRequired = fieldConfig.required || false;
-                                    const inputId = `create-${fieldName}-${rowIndex}-1`;
-                                    
-                                    return (
-                                        <div key="1" className="form-group">
-                                            <label htmlFor={inputId}>
-                                                {fieldConfig.label}
-                                                {isRequired && <span className="required-star"> *</span>}
-                                            </label>
-                                            
-                                            {fieldConfig.type === 'select' ? (
-                                                <select
-                                                    id={inputId}
-                                                    name={fieldName}
-                                                    value={newPanel[fieldName] || ''}
-                                                    onChange={handleNewPanelInputChange}
-                                                    className="form-input"
-                                                    onWheel={handleWheel}
-                                                    required={isRequired}
-                                                >
-                                                    <option value="">Select...</option>
-                                                    {fieldConfig.options.map(option => (
-                                                        <option key={option} value={option}>
-                                                            {option}
-                                                        </option>
-                                                    ))}
-                                                </select>
-                                            ) : fieldConfig.type === 'textarea' ? (
-                                                <textarea
-                                                    id={inputId}
-                                                    name={fieldName}
-                                                    value={newPanel[fieldName] || ''}
-                                                    onChange={handleNewPanelInputChange}
-                                                    onKeyDown={(e) => handleKeyDown(e, rowIndex, 1, fieldName)}
-                                                    className="form-input"
-                                                    rows="3"
-                                                    placeholder="Enter notes here..."
-                                                />
-                                            ) : (
-                                                <input
-                                                    id={inputId}
-                                                    type={fieldConfig.type}
-                                                    name={fieldName}
-                                                    value={newPanel[fieldName] || ''}
-                                                    onChange={handleNewPanelInputChange}
-                                                    onKeyDown={(e) => handleKeyDown(e, rowIndex, 1, fieldName)}
-                                                    className="form-input"
-                                                    onWheel={handleWheel}
-                                                    required={isRequired}
-                                                    min={fieldConfig.type === 'number' ? "0" : undefined}
-                                                    step={fieldConfig.type === 'number' ? "0.01" : undefined}
-                                                />
-                                            )}
-                                        </div>
-                                    );
-                                })()}
-                            </div>
-                        ))}
-                    </div>
-                    
-                    <div className="modal-footer">
-                        <div className="footer-actions">
-                            <button
-                                type="button"
-                                className="btn btn-secondary"
-                                onClick={handleResetForm}
-                                onKeyDown={(e) => {
-                                    if (e.key === 'ArrowUp') {
-                                        e.preventDefault();
-                                        const notesField = createModalRef.current?.querySelector('[name="notes"]');
-                                        if (notesField) notesField.focus();
-                                    }
-                                }}
-                            >
-                                Reset Form
-                            </button>
-                            <button
-                                type="button"
-                                className="btn btn-info"
-                                onClick={handleDuplicateInCreateModal}
-                                onKeyDown={(e) => {
-                                    if (e.key === 'ArrowLeft') {
-                                        e.preventDefault();
-                                        const resetButton = createModalRef.current?.querySelector('.footer-actions button.btn-secondary');
-                                        if (resetButton) resetButton.focus();
-                                    } else if (e.key === 'ArrowRight') {
-                                        e.preventDefault();
-                                        const createButton = createModalRef.current?.querySelector('.footer-actions button.btn-primary');
-                                        if (createButton) createButton.focus();
-                                    }
-                                }}
-                            >
-                                Duplicate
-                            </button>
-                            <button
-                                type="submit"
-                                className="btn btn-primary"
-                                onKeyDown={(e) => {
-                                    if (e.key === 'ArrowLeft') {
-                                        e.preventDefault();
-                                        const duplicateButton = createModalRef.current?.querySelector('.footer-actions button.btn-info');
-                                        if (duplicateButton) duplicateButton.focus();
-                                    }
-                                }}
-                            >
-                                Create Panel
+            {isCreateModalOpen && (
+                <div className="modal-overlay" onClick={closeCreateModal}>
+                    <div className="modal-content create-modal" onClick={e => e.stopPropagation()} ref={createModalRef}>
+                        <div className="modal-header">
+                            <h2>Create New Panel</h2>
+                            <button type="button" className="close-button" onClick={closeCreateModal}>
+                                ×
                             </button>
                         </div>
+                        
+                        <div className="modal-body">
+                            {error && (
+                                <div className="alert alert-danger">
+                                    {error}
+                                </div>
+                            )}
+                            
+                            {success && (
+                                <div className="alert alert-success">
+                                    {success}
+                                </div>
+                            )}
+
+                            <form onSubmit={handleCreatePanel}>
+                                <div className="form-grid">
+                                    {/* Row 1: Job No & Application */}
+                                    <div className="form-row">
+                                        <div className="form-group">
+                                            <label htmlFor="create-job_no">
+                                                Job No <span className="required-star">*</span>
+                                            </label>
+                                            <input
+                                                id="create-job_no"
+                                                type="text"
+                                                name="job_no"
+                                                value={newPanel.job_no || ''}
+                                                onChange={handleNewPanelInputChange}
+                                                onKeyDown={(e) => handleKeyDown(e, 0, 0, 'job_no')}
+                                                className="form-input"
+                                                required
+                                                ref={el => {
+                                                    if (el && inputRefs.current[0] !== el) {
+                                                        inputRefs.current[0] = el;
+                                                    }
+                                                }}
+                                            />
+                                        </div>
+                                        <div className="form-group">
+                                            <label htmlFor="create-application">Application</label>
+                                            <input
+                                                id="create-application"
+                                                type="text"
+                                                name="application"
+                                                value={newPanel.application || ''}
+                                                onChange={handleNewPanelInputChange}
+                                                onKeyDown={(e) => handleKeyDown(e, 0, 1, 'application')}
+                                                className="form-input"
+                                            />
+                                        </div>
+                                    </div>
+                                    
+                                    {/* Row 2: Type & Panel Thickness */}
+                                    <div className="form-row">
+                                        <div className="form-group">
+                                            <label htmlFor="create-type">Type</label>
+                                            <input
+                                                id="create-type"
+                                                type="text"
+                                                name="type"
+                                                value={newPanel.type || ''}
+                                                onChange={handleNewPanelInputChange}
+                                                onKeyDown={(e) => handleKeyDown(e, 1, 0, 'type')}
+                                                className="form-input"
+                                            />
+                                        </div>
+                                        <div className="form-group">
+                                            <label htmlFor="create-panel_thk">Panel Thickness (mm)</label>
+                                            <input
+                                                id="create-panel_thk"
+                                                type="number"
+                                                name="panel_thk"
+                                                value={newPanel.panel_thk || ''}
+                                                onChange={handleNewPanelInputChange}
+                                                onKeyDown={(e) => handleKeyDown(e, 1, 1, 'panel_thk')}
+                                                className="form-input"
+                                                onWheel={handleWheel}
+                                                min="0"
+                                                step="0.01"
+                                            />
+                                        </div>
+                                    </div>
+                                    
+                                    {/* Row 3: Joint & Surface Front */}
+                                    <div className="form-row">
+                                        <div className="form-group">
+                                            <label htmlFor="create-joint">Joint</label>
+                                            <input
+                                                id="create-joint"
+                                                type="text"
+                                                name="joint"
+                                                value={newPanel.joint || ''}
+                                                onChange={handleNewPanelInputChange}
+                                                onKeyDown={(e) => handleKeyDown(e, 2, 0, 'joint')}
+                                                className="form-input"
+                                            />
+                                        </div>
+                                        <div className="form-group">
+                                            <label htmlFor="create-surface_front">Surface Front</label>
+                                            <input
+                                                id="create-surface_front"
+                                                type="text"
+                                                name="surface_front"
+                                                value={newPanel.surface_front || ''}
+                                                onChange={handleNewPanelInputChange}
+                                                onKeyDown={(e) => handleKeyDown(e, 2, 1, 'surface_front')}
+                                                className="form-input"
+                                            />
+                                        </div>
+                                    </div>
+                                    
+                                    {/* Row 4: Surface Back & Surface Front Thickness */}
+                                    <div className="form-row">
+                                        <div className="form-group">
+                                            <label htmlFor="create-surface_back">Surface Back</label>
+                                            <input
+                                                id="create-surface_back"
+                                                type="text"
+                                                name="surface_back"
+                                                value={newPanel.surface_back || ''}
+                                                onChange={handleNewPanelInputChange}
+                                                onKeyDown={(e) => handleKeyDown(e, 3, 0, 'surface_back')}
+                                                className="form-input"
+                                            />
+                                        </div>
+                                        <div className="form-group">
+                                            <label htmlFor="create-surface_front_thk">Front Thickness (mm)</label>
+                                            <input
+                                                id="create-surface_front_thk"
+                                                type="number"
+                                                name="surface_front_thk"
+                                                value={newPanel.surface_front_thk || ''}
+                                                onChange={handleNewPanelInputChange}
+                                                onKeyDown={(e) => handleKeyDown(e, 3, 1, 'surface_front_thk')}
+                                                className="form-input"
+                                                onWheel={handleWheel}
+                                                min="0"
+                                                step="0.01"
+                                            />
+                                        </div>
+                                    </div>
+                                    
+                                    {/* Row 5: Surface Back Thickness & Surface Type */}
+                                    <div className="form-row">
+                                        <div className="form-group">
+                                            <label htmlFor="create-surface_back_thk">Back Thickness (mm)</label>
+                                            <input
+                                                id="create-surface_back_thk"
+                                                type="number"
+                                                name="surface_back_thk"
+                                                value={newPanel.surface_back_thk || ''}
+                                                onChange={handleNewPanelInputChange}
+                                                onKeyDown={(e) => handleKeyDown(e, 4, 0, 'surface_back_thk')}
+                                                className="form-input"
+                                                onWheel={handleWheel}
+                                                min="0"
+                                                step="0.01"
+                                            />
+                                        </div>
+                                        <div className="form-group">
+                                            <label htmlFor="create-surface_type">Surface Type</label>
+                                            <input
+                                                id="create-surface_type"
+                                                type="text"
+                                                name="surface_type"
+                                                value={newPanel.surface_type || ''}
+                                                onChange={handleNewPanelInputChange}
+                                                onKeyDown={(e) => handleKeyDown(e, 4, 1, 'surface_type')}
+                                                className="form-input"
+                                            />
+                                        </div>
+                                    </div>
+                                    
+                                    {/* Row 6: Width & Length */}
+                                    <div className="form-row">
+                                        <div className="form-group">
+                                            <label htmlFor="create-width">
+                                                Width (mm) <span className="required-star">*</span>
+                                            </label>
+                                            <input
+                                                id="create-width"
+                                                type="number"
+                                                name="width"
+                                                value={newPanel.width || ''}
+                                                onChange={handleNewPanelInputChange}
+                                                onKeyDown={(e) => handleKeyDown(e, 5, 0, 'width')}
+                                                className="form-input"
+                                                onWheel={handleWheel}
+                                                required
+                                                min="0"
+                                                step="0.01"
+                                            />
+                                        </div>
+                                        <div className="form-group">
+                                            <label htmlFor="create-length">
+                                                Length (mm) <span className="required-star">*</span>
+                                            </label>
+                                            <input
+                                                id="create-length"
+                                                type="number"
+                                                name="length"
+                                                value={newPanel.length || ''}
+                                                onChange={handleNewPanelInputChange}
+                                                onKeyDown={(e) => handleKeyDown(e, 5, 1, 'length')}
+                                                className="form-input"
+                                                onWheel={handleWheel}
+                                                required
+                                                min="0"
+                                                step="0.01"
+                                            />
+                                        </div>
+                                    </div>
+                                    
+                                    {/* Row 7: Quantity & Cutting */}
+                                    <div className="form-row">
+                                        <div className="form-group">
+                                            <label htmlFor="create-qty">Quantity</label>
+                                            <input
+                                                id="create-qty"
+                                                type="number"
+                                                name="qty"
+                                                value={newPanel.qty || ''}
+                                                onChange={handleNewPanelInputChange}
+                                                onKeyDown={(e) => handleKeyDown(e, 6, 0, 'qty')}
+                                                className="form-input"
+                                                onWheel={handleWheel}
+                                                min="0"
+                                            />
+                                        </div>
+                                        <div className="form-group">
+                                            <label htmlFor="create-cutting">Cutting</label>
+                                            <input
+                                                id="create-cutting"
+                                                type="text"
+                                                name="cutting"
+                                                value={newPanel.cutting || ''}
+                                                onChange={handleNewPanelInputChange}
+                                                onKeyDown={(e) => handleKeyDown(e, 6, 1, 'cutting')}
+                                                className="form-input"
+                                            />
+                                        </div>
+                                    </div>
+                                    
+                                    {/* Row 8: Status & Production Meter */}
+                                    <div className="form-row">
+                                        <div className="form-group">
+                                            <label htmlFor="create-status">Status</label>
+                                            <input
+                                                id="create-status"
+                                                type="text"
+                                                name="status"
+                                                value={newPanel.status || ''}
+                                                onChange={handleNewPanelInputChange}
+                                                onKeyDown={(e) => handleKeyDown(e, 7, 0, 'status')}
+                                                className="form-input"
+                                            />
+                                        </div>
+                                        <div className="form-group">
+                                            <label htmlFor="create-production_meter">Production Meter</label>
+                                            <input
+                                                id="create-production_meter"
+                                                type="number"
+                                                name="production_meter"
+                                                value={newPanel.production_meter || ''}
+                                                onChange={handleNewPanelInputChange}
+                                                onKeyDown={(e) => handleKeyDown(e, 7, 1, 'production_meter')}
+                                                className="form-input"
+                                                onWheel={handleWheel}
+                                                min="0"
+                                                step="0.01"
+                                            />
+                                        </div>
+                                    </div>
+                                    
+                                    {/* Row 9: Salesman & Brand */}
+                                    <div className="form-row">
+                                        <div className="form-group">
+                                            <label htmlFor="create-salesman">Salesman</label>
+                                            <input
+                                                id="create-salesman"
+                                                type="text"
+                                                name="salesman"
+                                                value={newPanel.salesman || ''}
+                                                onChange={handleNewPanelInputChange}
+                                                onKeyDown={(e) => handleKeyDown(e, 8, 0, 'salesman')}
+                                                className="form-input"
+                                            />
+                                        </div>
+                                        <div className="form-group">
+                                            <label htmlFor="create-brand">Brand</label>
+                                            <input
+                                                id="create-brand"
+                                                type="text"
+                                                name="brand"
+                                                value={newPanel.brand || ''}
+                                                onChange={handleNewPanelInputChange}
+                                                onKeyDown={(e) => handleKeyDown(e, 8, 1, 'brand')}
+                                                className="form-input"
+                                            />
+                                        </div>
+                                    </div>
+                                    
+                                    {/* Row 10: Estimated Delivery & Created Date */}
+                                    <div className="form-row">
+                                        <div className="form-group">
+                                            <label htmlFor="create-estimated_delivery">Estimated Delivery</label>
+                                            <input
+                                                id="create-estimated_delivery"
+                                                type="date"
+                                                name="estimated_delivery"
+                                                value={newPanel.estimated_delivery || ''}
+                                                onChange={handleNewPanelInputChange}
+                                                onKeyDown={(e) => handleKeyDown(e, 9, 0, 'estimated_delivery')}
+                                                className="form-input"
+                                            />
+                                        </div>
+                                        <div className="form-group">
+                                            <label htmlFor="create-created_at">Created Date</label>
+                                            <input
+                                                id="create-created_at"
+                                                type="date"
+                                                name="created_at"
+                                                value={newPanel.created_at || ''}
+                                                onChange={handleNewPanelInputChange}
+                                                onKeyDown={(e) => handleKeyDown(e, 9, 1, 'created_at')}
+                                                className="form-input"
+                                            />
+                                        </div>
+                                    </div>
+                                    
+                                    {/* Row 11: Notes (full width) */}
+                                    <div className="form-row">
+                                        <div className="form-group full-width">
+                                            <label htmlFor="create-notes">Notes</label>
+                                            <textarea
+                                                id="create-notes"
+                                                name="notes"
+                                                value={newPanel.notes || ''}
+                                                onChange={handleNewPanelInputChange}
+                                                onKeyDown={(e) => handleKeyDown(e, 10, 0, 'notes')}
+                                                className="form-input"
+                                                rows="3"
+                                                placeholder="Enter notes here..."
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div className="modal-footer">
+                                    <div className="footer-actions">
+                                        <button
+                                            type="button"
+                                            className="btn btn-secondary"
+                                            onClick={handleResetForm}
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'ArrowUp') {
+                                                    e.preventDefault();
+                                                    const notesField = createModalRef.current?.querySelector('[name="notes"]');
+                                                    if (notesField) notesField.focus();
+                                                }
+                                            }}
+                                        >
+                                            Reset Form
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className="btn btn-info"
+                                            onClick={handleDuplicateInCreateModal}
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'ArrowLeft') {
+                                                    e.preventDefault();
+                                                    const resetButton = createModalRef.current?.querySelector('.footer-actions button.btn-secondary');
+                                                    if (resetButton) resetButton.focus();
+                                                } else if (e.key === 'ArrowRight') {
+                                                    e.preventDefault();
+                                                    const createButton = createModalRef.current?.querySelector('.footer-actions button.btn-primary');
+                                                    if (createButton) createButton.focus();
+                                                }
+                                            }}
+                                        >
+                                            Duplicate
+                                        </button>
+                                        <button
+                                            type="submit"
+                                            className="btn btn-primary"
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'ArrowLeft') {
+                                                    e.preventDefault();
+                                                    const duplicateButton = createModalRef.current?.querySelector('.footer-actions button.btn-info');
+                                                    if (duplicateButton) duplicateButton.focus();
+                                                }
+                                            }}
+                                        >
+                                            Create Panel
+                                        </button>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
                     </div>
-                </form>
-            </div>
-        </div>
-    </div>
-)}
+                </div>
+            )}
 
              {isEditModalOpen && editingPanel && (
                 <div className="modal-overlay" onClick={closeEditModal}>
