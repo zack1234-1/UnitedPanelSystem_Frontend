@@ -1511,7 +1511,7 @@ const ViewPanelPage = () => {
     };
 
     const uniqueValues = useMemo(() => {
-        const getUnique = (key, isNumeric = false) => {
+        const getUnique = (key, isNumeric = false, isDate = false) => {
             const values = panels
                 .map(panel => {
                     const value = panel[key];
@@ -1522,6 +1522,20 @@ const ViewPanelPage = () => {
                         return isNaN(numValue) ? null : numValue.toString();
                     }
                     
+                    if (isDate) {
+                        try {
+                            const date = new Date(value);
+                            if (isNaN(date.getTime())) return null;
+                            // Format as YYYY-MM-DD for consistent comparison
+                            const year = date.getFullYear();
+                            const month = String(date.getMonth() + 1).padStart(2, '0');
+                            const day = String(date.getDate()).padStart(2, '0');
+                            return `${year}-${month}-${day}`;
+                        } catch (error) {
+                            return null;
+                        }
+                    }
+                    
                     return value.toString().trim();
                 })
                 .filter(p => p);
@@ -1530,6 +1544,10 @@ const ViewPanelPage = () => {
             
             if (isNumeric) {
                 return unique.sort((a, b) => parseFloat(a) - parseFloat(b));
+            }
+            
+            if (isDate) {
+                return unique.sort((a, b) => new Date(b) - new Date(a));
             }
             
             return unique.sort();
@@ -1553,8 +1571,8 @@ const ViewPanelPage = () => {
             qtys: getUnique('qty', true),
             cuttings: getUnique('cutting'),
             applications: getUnique('application'),
-            createdDates: getUnique('created_at', false, true),
-            estimatedDeliveries: getUnique('estimated_delivery', false, true)
+            createdDates: getUnique('created_at', false, true),  // Set isDate to true
+            estimatedDeliveries: getUnique('estimated_delivery', false, true)  // Set isDate to true
         };
     }, [panels]);
 
@@ -1923,29 +1941,49 @@ const ViewPanelPage = () => {
 
                 <div className="filter-row">
                     <div className="filter-group">
-                    <select 
-                        name="created_at" 
-                        value={filters.created_at} 
-                        onChange={handleFilterChange} 
-                        className="form-select"
-                    >
-                        <option value="">Production Date</option>
-                        {uniqueValues.createdDates.map(date => (
-                        <option key={date} value={date}>{formatDateForFilter(date)}</option>
-                        ))}
-                    </select>
+                        <select 
+                            name="created_at" 
+                            value={filters.created_at} 
+                            onChange={handleFilterChange} 
+                            className="form-select"
+                        >
+                            <option value="">Production Date</option>
+                            {uniqueValues.createdDates.map(date => {
+                                try {
+                                    const dateObj = new Date(date);
+                                    const formattedDate = formatDateForFilter(date);
+                                    return (
+                                        <option key={date} value={date}>
+                                            {formattedDate}
+                                        </option>
+                                    );
+                                } catch (error) {
+                                    return null;
+                                }
+                            })}
+                        </select>
 
-                    <select 
-                        name="estimated_delivery" 
-                        value={filters.estimated_delivery} 
-                        onChange={handleFilterChange} 
-                        className="form-select"
-                    >
-                        <option value="">Est. Delivery</option>
-                        {uniqueValues.estimatedDeliveries.map(date => (
-                        <option key={date} value={date}>{formatDateForFilter(date)}</option>
-                        ))}
-                    </select>
+                        <select 
+                            name="estimated_delivery" 
+                            value={filters.estimated_delivery} 
+                            onChange={handleFilterChange} 
+                            className="form-select"
+                        >
+                            <option value="">Est. Delivery</option>
+                            {uniqueValues.estimatedDeliveries.map(date => {
+                                try {
+                                    const dateObj = new Date(date);
+                                    const formattedDate = formatDateForFilter(date);
+                                    return (
+                                        <option key={date} value={date}>
+                                            {formattedDate}
+                                        </option>
+                                    );
+                                } catch (error) {
+                                    return null;
+                                }
+                            })}
+                        </select>
                     </div>
                 </div>
                 </div>
