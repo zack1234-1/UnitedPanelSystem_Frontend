@@ -986,11 +986,12 @@ const ViewPanelPage = () => {
         }
     };
 
-    const calculateArea = (width, length) => {
+    const calculateArea = (width, length,quantity) => {
         const w = parseFloat(width) || 0;
         const l = parseFloat(length) || 0;
+        const q = parseInt(quantity) || 0;
         if (w <= 0 || l <= 0) return 0;
-        return (w * l);
+        return (w * l * q);
     };
 
     const handleDuplicateFromCreateForm = async () => {
@@ -2081,7 +2082,7 @@ const ViewPanelPage = () => {
                                             
                                             const alreadyProduced = panelQty - balance;
                                             const totalProductionMeter = (alreadyProduced * panelLength);
-                                            const area = calculateArea(panelWidth, panelLength)/1000000;
+                                            const area = calculateArea(panelWidth, panelLength,panelQty)/1000000;
                                             
                                             return (
                                                 <tr key={panel.id} className="panel-row">
