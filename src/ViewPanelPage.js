@@ -1929,7 +1929,7 @@ const ViewPanelPage = () => {
                         onChange={handleFilterChange} 
                         className="form-select"
                     >
-                        <option value="">Created Date</option>
+                        <option value="">Production Date</option>
                         {uniqueValues.createdDates.map(date => (
                         <option key={date} value={date}>{formatDateForFilter(date)}</option>
                         ))}
@@ -2014,9 +2014,9 @@ const ViewPanelPage = () => {
                                         <th>Joint</th>
                                         <th>Front</th>
                                         <th>Back</th>
-                                        <th>Front Thk(mm)</th>
-                                        <th>Back Thk(mm)</th>
-                                        <th>Finishes(mm)</th>
+                                        <th>Front</th>
+                                        <th>Back</th>
+                                        <th>Finishes</th>
                                         <th>Width(mm)</th>
                                         <th>Length(mm)</th>
                                         <th>Salesman</th>
@@ -2027,7 +2027,7 @@ const ViewPanelPage = () => {
                                         <th>Cutting</th>
                                         <th>Balance</th>
                                         <th>Production Meter(mm)</th>
-                                        <th>Created Date</th>
+                                        <th>Production Date</th>
                                         <th>Estimated Delivery</th>
                                         <th>Actions</th>
                                     </tr>
