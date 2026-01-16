@@ -2054,3 +2054,31 @@ input[type="number"] {
     padding: 1px 4px;
   }
 }
+
+.filter-input-wrapper {
+    position: relative;
+    flex: 1;
+}
+
+.clear-filter-btn {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: #999;
+    cursor: pointer;
+    font-size: 16px;
+    padding: 0;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2;
+}
+
+.clear-filter-btn:hover {
+    color: #333;
+}

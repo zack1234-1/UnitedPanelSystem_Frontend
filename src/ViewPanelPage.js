@@ -2112,29 +2112,29 @@ const ViewPanelPage = () => {
            <div className="filters-section">
                 <div className="filter-row">
                     <div className="filter-group">
-                    <select 
-                        name="job_no" 
-                        value={filters.job_no} 
-                        onChange={handleFilterChange} 
-                        className="form-select"
-                    >
-                        <option value="">All Job Numbers</option>
-                        {uniqueValues.jobNos.map(jobNo => (
-                        <option key={jobNo} value={jobNo}>{jobNo}</option>
-                        ))}
-                    </select>
+                        <select 
+                            name="job_no" 
+                            value={filters.job_no} 
+                            onChange={handleFilterChange} 
+                            className="form-select"
+                        >
+                            <option value="">All Job Numbers</option>
+                            {uniqueValues.jobNos.map(jobNo => (
+                            <option key={jobNo} value={jobNo}>{jobNo}</option>
+                            ))}
+                        </select>
 
-                    <select 
-                        name="type" 
-                        value={filters.type} 
-                        onChange={handleFilterChange} 
-                        className="form-select"
-                    >
-                        <option value="">All Types</option>
-                        {uniqueValues.types.map(type => (
-                        <option key={type} value={type}>{type}</option>
-                        ))}
-                    </select>
+                        <select 
+                            name="type" 
+                            value={filters.type} 
+                            onChange={handleFilterChange} 
+                            className="form-select"
+                        >
+                            <option value="">All Types</option>
+                            {uniqueValues.types.map(type => (
+                            <option key={type} value={type}>{type}</option>
+                            ))}
+                        </select>
                     </div>
                 </div>
 
@@ -2297,7 +2297,28 @@ const ViewPanelPage = () => {
                         </select>
                     </div>
                 </div>
+                <div className="filter-row">
+                    <div className="filter-group">
+                        <input
+                            type="text"
+                            name="reference_number"
+                            value={filters.reference_number}
+                            onChange={handleFilterChange}
+                            className="form-input"
+                            placeholder="Panel Reference Number"
+                        />
+                        
+                        <input
+                            type="text"
+                            name="production_reference_number"
+                            value={filters.production_reference_number}
+                            onChange={handleFilterChange}
+                            className="form-input"
+                            placeholder="Production Record Reference"
+                        />
+                    </div>
                 </div>
+            </div>
 
             <div className="table-container">
                 {error && <div className="alert alert-danger">{error}</div>}
