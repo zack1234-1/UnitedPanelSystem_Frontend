@@ -4875,6 +4875,120 @@ input[type="number"] {
     gap: 10px;
 }
 
+/* Column Selection Chips */
+.column-selection-chips {
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 20px;
+}
+
+.chips-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.chips-header h4 {
+    margin: 0;
+    font-size: 16px;
+    color: #333;
+}
+
+.chips-controls {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.chip-icon {
+    margin-right: 4px;
+}
+
+.chips-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    max-height: 120px;
+    overflow-y: auto;
+    padding: 5px;
+}
+
+.column-chip {
+    display: flex;
+    align-items: center;
+    padding: 6px 12px;
+    border-radius: 20px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    user-select: none;
+    border: 2px solid transparent;
+}
+
+.column-chip.active {
+    background-color: #007bff;
+    color: white;
+    border-color: #0056b3;
+}
+
+.column-chip.inactive {
+    background-color: #e9ecef;
+    color: #6c757d;
+    border-color: #dee2e6;
+}
+
+.column-chip:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.column-chip.active:hover {
+    background-color: #0056b3;
+}
+
+.column-chip.inactive:hover {
+    background-color: #dee2e6;
+}
+
+.chip-label {
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.chip-indicator {
+    margin-left: 6px;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.column-chip.active .chip-indicator {
+    color: #cce5ff;
+}
+
+.column-chip.inactive .chip-indicator {
+    color: #adb5bd;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .chips-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+    
+    .chips-controls {
+        width: 100%;
+        justify-content: flex-start;
+    }
+    
+    .chips-container {
+        max-height: 100px;
+    }
+}
+
 /* Column Selection Modal */
 .column-selection-modal {
     max-width: 700px;

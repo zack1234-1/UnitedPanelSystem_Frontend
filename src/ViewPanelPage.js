@@ -2674,16 +2674,6 @@ const ViewPanelPage = () => {
                         </div>
                     </>
                 )}
-
-                {filteredPanels.length > 0 && (
-                    <div className="table-footer">
-                        <div className="table-summary">
-                            Showing {filteredPanels.length} of {panels.length} panels
-                            {filters.search && ` matching "${filters.search}"`}
-                            <span className="columns-info"> | Visible columns: {visibleColumns.length - 1}</span>
-                        </div>
-                    </div>
-                )}
             </div>
 
             {selectedPanelForProduction && (
