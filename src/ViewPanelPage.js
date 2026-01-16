@@ -2765,7 +2765,7 @@ const ViewPanelPage = () => {
                 />
             )}
 
-            {isCreateModalOpen && (
+             {isCreateModalOpen && (
                 <div className="modal-overlay" onClick={closeCreateModal}>
                     <div className="modal-content create-modal" onClick={e => e.stopPropagation()} ref={createModalRef}>
                         <div className="modal-header">
