@@ -1,4 +1,4 @@
-const BASE_URL = 'https://unitedpanelsystem-backend-1.onrender.com/api';
+const BASE_URL = 'http://localhost:5000/api';
 
 // Helper to handle standard API responses
 const handleResponse = async (response) => {
@@ -359,6 +359,8 @@ export const productionAPI = {
         method: 'POST',
         body: productionData,
     }),
+
+    getAll: () => apiRequest('/panels/production-records/all'),
 
     // PUT: Update production record
     update: (panelId, recordId, productionData) => apiRequest(`/panels/${panelId}/production-records/${recordId}`, {
