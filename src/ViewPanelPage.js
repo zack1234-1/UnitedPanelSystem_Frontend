@@ -2440,42 +2440,137 @@ const ViewPanelPage = () => {
                 </div>
             </div>
 
-           <div className="filters-section">
-                <div className="filter-row">
-                    <div className="filter-group">
-                        <select 
-                            name="job_no" 
-                            value={filters.job_no} 
-                            onChange={handleFilterChange} 
-                            className="form-select"
-                        >
-                            <option value="">All Job Numbers</option>
-                            {uniqueValues.jobNos.map(jobNo => (
-                            <option key={jobNo} value={jobNo}>{jobNo}</option>
-                            ))}
-                        </select>
+           {/* Add active filters summary */}
+<div className="filter-chips-container">
+    <div className="active-filters-title">
+        <span className="filter-indicator-dot"></span>
+        <strong>Active Filters:</strong>
+        <span className="filter-summary-badge">
+            {Object.keys(filters).filter(key => filters[key] && key !== 'search').length} applied
+        </span>
+    </div>
+    
+    {/* Clear all button */}
+    {Object.keys(filters).some(key => filters[key] && key !== 'search') && (
+        <button
+            className="filter-chip active"
+            onClick={() => {
+                setFilters({
+                    reference_number: '',
+                    job_no: '',
+                    type: '',
+                    brand: '',
+                    status: '',
+                    balance_status: '',
+                    search: filters.search, // Keep search
+                    panel_thk: '',
+                    joint: '',
+                    surface_front: '',
+                    surface_back: '',
+                    surface_front_thk: '',
+                    surface_back_thk: '',
+                    surface_type: '',
+                    width: '',
+                    length: '',
+                    qty: '',
+                    cutting: '',
+                    created_at: '',
+                    estimated_delivery: ''
+                });
+            }}
+        >
+            Clear All ×
+        </button>
+    )}
+    
+    {/* Display active filters as chips */}
+    {Object.entries(filters).map(([key, value]) => {
+        if (value && value.trim() !== '' && key !== 'search') {
+            const getDisplayValue = (key, value) => {
+                if (key.includes('date') || key === 'created_at' || key === 'estimated_delivery') {
+                    return formatDateForFilter(value);
+                }
+                return value;
+            };
 
-                        <select 
-                            name="type" 
-                            value={filters.type} 
-                            onChange={handleFilterChange} 
-                            className="form-select"
-                        >
-                            <option value="">All Types</option>
-                            {uniqueValues.types.map(type => (
-                            <option key={type} value={type}>{type}</option>
-                            ))}
-                        </select>
-                    </div>
+            const getDisplayName = (key) => {
+                const names = {
+                    job_no: 'Job No',
+                    type: 'Type',
+                    brand: 'Brand',
+                    status: 'Status',
+                    panel_thk: 'Panel Thk',
+                    joint: 'Joint',
+                    surface_front: 'Surface Front',
+                    surface_back: 'Surface Back',
+                    surface_front_thk: 'Front Thk',
+                    surface_back_thk: 'Back Thk',
+                    surface_type: 'Surface Type',
+                    width: 'Width',
+                    length: 'Length',
+                    qty: 'Quantity',
+                    cutting: 'Cutting',
+                    created_at: 'Production Date',
+                    estimated_delivery: 'Est. Delivery',
+                    reference_number: 'Panel Ref'
+                };
+                return names[key] || key;
+            };
+
+            return (
+                <div key={key} className="filter-chip active">
+                    <span>{getDisplayName(key)}: {getDisplayValue(key, value)}</span>
+                    <button
+                        className="remove-btn"
+                        onClick={() => setFilters(prev => ({ ...prev, [key]: '' }))}
+                        title="Remove filter"
+                    >
+                        ×
+                    </button>
                 </div>
+            );
+        }
+        return null;
+    })}
+</div>
 
-                <div className="filter-row">
-                    <div className="filter-group">
+        <div className="filters-section">
+            {/* Search bar */}
+            <div className="filter-row">
+                <div className="filter-group">
+                    <select 
+                        name="job_no" 
+                        value={filters.job_no} 
+                        onChange={handleFilterChange} 
+                        className={`form-select ${filters.job_no ? 'filter-active' : ''}`}
+                    >
+                        <option value="">All Job Numbers</option>
+                        {uniqueValues.jobNos.map(jobNo => (
+                        <option key={jobNo} value={jobNo}>{jobNo}</option>
+                        ))}
+                    </select>
+
+                    <select 
+                        name="type" 
+                        value={filters.type} 
+                        onChange={handleFilterChange} 
+                        className={`form-select ${filters.type ? 'filter-active' : ''}`}
+                    >
+                        <option value="">All Types</option>
+                        {uniqueValues.types.map(type => (
+                        <option key={type} value={type}>{type}</option>
+                        ))}
+                    </select>
+                </div>
+            </div>
+
+            <div className="filter-row">
+                <div className="filter-group">
                     <select 
                         name="brand" 
                         value={filters.brand} 
                         onChange={handleFilterChange} 
-                        className="form-select"
+                        className={`form-select ${filters.brand ? 'filter-active' : ''}`}
                     >
                         <option value="">All Brands</option>
                         {uniqueValues.brands.map(brand => (
@@ -2487,23 +2582,23 @@ const ViewPanelPage = () => {
                         name="status" 
                         value={filters.status} 
                         onChange={handleFilterChange} 
-                        className="form-select"
+                        className={`form-select ${filters.status ? 'filter-active' : ''}`}
                     >
                         <option value="">All Status</option>
                         {uniqueValues.statuses.map(status => (
                         <option key={status} value={status}>{status}</option>
                         ))}
                     </select>
-                    </div>
                 </div>
+            </div>
 
-                <div className="filter-row">
-                    <div className="filter-group">
+            <div className="filter-row">
+                <div className="filter-group">
                     <select 
                         name="panel_thk" 
                         value={filters.panel_thk} 
                         onChange={handleFilterChange} 
-                        className="form-select"
+                        className={`form-select ${filters.panel_thk ? 'filter-active' : ''}`}
                     >
                         <option value="">Panel Thickness</option>
                         {uniqueValues.panelThks.map(thk => (
@@ -2515,23 +2610,23 @@ const ViewPanelPage = () => {
                         name="joint" 
                         value={filters.joint} 
                         onChange={handleFilterChange} 
-                        className="form-select"
+                        className={`form-select ${filters.joint ? 'filter-active' : ''}`}
                     >
                         <option value="">Joint</option>
                         {uniqueValues.joints.map(joint => (
                         <option key={joint} value={joint}>{joint}</option>
                         ))}
                     </select>
-                    </div>
                 </div>
+            </div>
 
-                <div className="filter-row">
-                    <div className="filter-group">
+            <div className="filter-row">
+                <div className="filter-group">
                     <select 
                         name="surface_front" 
                         value={filters.surface_front} 
                         onChange={handleFilterChange} 
-                        className="form-select"
+                        className={`form-select ${filters.surface_front ? 'filter-active' : ''}`}
                     >
                         <option value="">Surface Front</option>
                         {uniqueValues.surfaceFronts.map(surface => (
@@ -2543,23 +2638,23 @@ const ViewPanelPage = () => {
                         name="surface_back" 
                         value={filters.surface_back} 
                         onChange={handleFilterChange} 
-                        className="form-select"
+                        className={`form-select ${filters.surface_back ? 'filter-active' : ''}`}
                     >
                         <option value="">Surface Back</option>
                         {uniqueValues.surfaceBacks.map(surface => (
                         <option key={surface} value={surface}>{surface}</option>
                         ))}
                     </select>
-                    </div>
                 </div>
+            </div>
 
-                <div className="filter-row">
-                    <div className="filter-group">
+            <div className="filter-row">
+                <div className="filter-group">
                     <select 
                         name="surface_front_thk" 
                         value={filters.surface_front_thk} 
                         onChange={handleFilterChange} 
-                        className="form-select"
+                        className={`form-select ${filters.surface_front_thk ? 'filter-active' : ''}`}
                     >
                         <option value="">Front Thickness</option>
                         {uniqueValues.surfaceFrontThks.map(thk => (
@@ -2571,82 +2666,177 @@ const ViewPanelPage = () => {
                         name="surface_back_thk" 
                         value={filters.surface_back_thk} 
                         onChange={handleFilterChange} 
-                        className="form-select"
+                        className={`form-select ${filters.surface_back_thk ? 'filter-active' : ''}`}
                     >
                         <option value="">Back Thickness</option>
                         {uniqueValues.surfaceBackThks.map(thk => (
                         <option key={thk} value={thk}>{thk} mm</option>
                         ))}
                     </select>
-                    </div>
-                </div>
-
-                <div className="filter-row">
-                    <div className="filter-group">
-                        <select 
-                            name="created_at" 
-                            value={filters.created_at} 
-                            onChange={handleFilterChange} 
-                            className="form-select"
-                        >
-                            <option value="">Production Date</option>
-                            {uniqueValues.createdDates.map(date => {
-                                try {
-                                    const dateObj = new Date(date);
-                                    const formattedDate = formatDateForFilter(date);
-                                    return (
-                                        <option key={date} value={date}>
-                                            {formattedDate}
-                                        </option>
-                                    );
-                                } catch (error) {
-                                    return null;
-                                }
-                            })}
-                        </select>
-
-                        <select 
-                            name="estimated_delivery" 
-                            value={filters.estimated_delivery} 
-                            onChange={handleFilterChange} 
-                            className="form-select"
-                        >
-                            <option value="">Est. Delivery</option>
-                            {uniqueValues.estimatedDeliveries.map(date => {
-                                try {
-                                    const dateObj = new Date(date);
-                                    const formattedDate = formatDateForFilter(date);
-                                    return (
-                                        <option key={date} value={date}>
-                                            {formattedDate}
-                                        </option>
-                                    );
-                                } catch (error) {
-                                    return null;
-                                }
-                            })}
-                        </select>
-                    </div>
-                </div>
-                
-                {/* Updated filter row with dropdowns for reference numbers */}
-                <div className="filter-row">
-                    <div className="filter-group">
-                        <select 
-                            name="reference_number" 
-                            value={filters.reference_number} 
-                            onChange={handleFilterChange} 
-                            className="form-select"
-                        >
-                            <option value="">All Panel References</option>
-                            {uniqueValues.referenceNumbers.map(ref => (
-                                <option key={ref} value={ref}>{ref}</option>
-                            ))}
-                        </select>
-                        
-                    </div>
                 </div>
             </div>
+
+            <div className="filter-row">
+                <div className="filter-group">
+                    <select 
+                        name="surface_type" 
+                        value={filters.surface_type} 
+                        onChange={handleFilterChange} 
+                        className={`form-select ${filters.surface_type ? 'filter-active' : ''}`}
+                    >
+                        <option value="">Surface Type</option>
+                        {uniqueValues.surfaceTypes.map(type => (
+                        <option key={type} value={type}>{type}</option>
+                        ))}
+                    </select>
+
+                    <select 
+                        name="cutting" 
+                        value={filters.cutting} 
+                        onChange={handleFilterChange} 
+                        className={`form-select ${filters.cutting ? 'filter-active' : ''}`}
+                    >
+                        <option value="">Cutting</option>
+                        {uniqueValues.cuttings.map(cutting => (
+                        <option key={cutting} value={cutting}>{cutting}</option>
+                        ))}
+                    </select>
+                </div>
+            </div>
+
+            <div className="filter-row">
+                <div className="filter-group">
+                    <select 
+                        name="width" 
+                        value={filters.width} 
+                        onChange={handleFilterChange} 
+                        className={`form-select ${filters.width ? 'filter-active' : ''}`}
+                    >
+                        <option value="">Width</option>
+                        {uniqueValues.widths.map(width => (
+                        <option key={width} value={width}>{width} mm</option>
+                        ))}
+                    </select>
+
+                    <select 
+                        name="length" 
+                        value={filters.length} 
+                        onChange={handleFilterChange} 
+                        className={`form-select ${filters.length ? 'filter-active' : ''}`}
+                    >
+                        <option value="">Length</option>
+                        {uniqueValues.lengths.map(length => (
+                        <option key={length} value={length}>{length} mm</option>
+                        ))}
+                    </select>
+                </div>
+            </div>
+
+            <div className="filter-row">
+                <div className="filter-group">
+                    <select 
+                        name="qty" 
+                        value={filters.qty} 
+                        onChange={handleFilterChange} 
+                        className={`form-select ${filters.qty ? 'filter-active' : ''}`}
+                    >
+                        <option value="">Quantity</option>
+                        {uniqueValues.qtys.map(qty => (
+                        <option key={qty} value={qty}>{qty}</option>
+                        ))}
+                    </select>
+
+                    <select 
+                        name="balance_status" 
+                        value={filters.balance_status} 
+                        onChange={handleFilterChange} 
+                        className={`form-select ${filters.balance_status ? 'filter-active' : ''}`}
+                    >
+                        <option value="">Balance Status</option>
+                        <option value="positive">Positive Balance</option>
+                        <option value="zero">Zero Balance</option>
+                        <option value="negative">Negative Balance</option>
+                        <option value="low">Low Balance (&lt;10%)</option>
+                    </select>
+                </div>
+            </div>
+
+            <div className="filter-row">
+                <div className="filter-group">
+                    <select 
+                        name="created_at" 
+                        value={filters.created_at} 
+                        onChange={handleFilterChange} 
+                        className={`form-select ${filters.created_at ? 'filter-active' : ''}`}
+                    >
+                        <option value="">Production Date</option>
+                        {uniqueValues.createdDates.map(date => {
+                            try {
+                                const dateObj = new Date(date);
+                                const formattedDate = formatDateForFilter(date);
+                                return (
+                                    <option key={date} value={date}>
+                                        {formattedDate}
+                                    </option>
+                                );
+                            } catch (error) {
+                                return null;
+                            }
+                        })}
+                    </select>
+
+                    <select 
+                        name="estimated_delivery" 
+                        value={filters.estimated_delivery} 
+                        onChange={handleFilterChange} 
+                        className={`form-select ${filters.estimated_delivery ? 'filter-active' : ''}`}
+                    >
+                        <option value="">Est. Delivery</option>
+                        {uniqueValues.estimatedDeliveries.map(date => {
+                            try {
+                                const dateObj = new Date(date);
+                                const formattedDate = formatDateForFilter(date);
+                                return (
+                                    <option key={date} value={date}>
+                                        {formattedDate}
+                                    </option>
+                                );
+                            } catch (error) {
+                                return null;
+                            }
+                        })}
+                    </select>
+                </div>
+            </div>
+            
+            <div className="filter-row">
+                <div className="filter-group">
+                    <select 
+                        name="reference_number" 
+                        value={filters.reference_number} 
+                        onChange={handleFilterChange} 
+                        className={`form-select ${filters.reference_number ? 'filter-active' : ''}`}
+                    >
+                        <option value="">All Panel References</option>
+                        {uniqueValues.referenceNumbers.map(ref => (
+                            <option key={ref} value={ref}>{ref}</option>
+                        ))}
+                    </select>
+                    
+                    <select 
+                        name="application" 
+                        value={filters.application} 
+                        onChange={handleFilterChange} 
+                        className={`form-select ${filters.application ? 'filter-active' : ''}`}
+                    >
+                        <option value="">Application</option>
+                        {uniqueValues.applications.map(app => (
+                            <option key={app} value={app}>{app}</option>
+                        ))}
+                    </select>
+                </div>
+            </div>
+        </div>
 
             <div className="table-container">
                 {error && <div className="alert alert-danger">{error}</div>}
@@ -3291,15 +3481,17 @@ const ViewPanelPage = () => {
                                     <div className="form-row">
                                         <div className="form-group">
                                             <label htmlFor="create-status">Status</label>
-                                            <input
-                                                id="create-status"
-                                                type="text"
-                                                name="status"
-                                                value={newPanel.status || ''}
-                                                onChange={handleNewPanelInputChange}
-                                                onKeyDown={(e) => handleKeyDown(e, 7, 0, 'status')}
-                                                className="form-input"
-                                            />
+                                            <select
+                                                    id="create_status"
+                                                    name="status"
+                                                    value={newPanel.status}
+                                                    onChange={handleNewPanelInputChange}
+                                                    className="form-input"
+                                                >
+                                                    <option value="pending">Pending</option>
+                                                    <option value="in_progress">In Progress</option>
+                                                    <option value="completed">Completed</option>
+                                                </select>
                                         </div>
                                         <div className="form-group">
                                             <label htmlFor="create-production_meter">Production Meter</label>
