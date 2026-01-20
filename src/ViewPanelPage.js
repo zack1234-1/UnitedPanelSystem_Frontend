@@ -39,6 +39,7 @@ const ProductionDetailsModal = ({ panel, onClose, updatePanelBalance, formatNumb
     const balance = currentPanel.balance !== undefined ? currentPanel.balance : (currentPanel.qty || 0);
     const panelQty = parseInt(currentPanel.qty) || 0;
     const panelLength = parseFloat(currentPanel.length) || 0;
+    const [brand, setBrand] = useState('');
 
     const generateProductionReferenceNumber = (date, existingRecords = []) => {
         if (!date) return '';
@@ -72,6 +73,12 @@ const ProductionDetailsModal = ({ panel, onClose, updatePanelBalance, formatNumb
         
         return `${datePrefix}-${String(sequence).padStart(3, '0')}`;
     };
+
+    useEffect(() => {
+        if (panel) {
+            setBrand(panel.brand || '');
+        }
+    }, [panel]);
 
     const productionTotals = useMemo(() => {
         let totalPanels = 0;
@@ -232,7 +239,8 @@ const ProductionDetailsModal = ({ panel, onClose, updatePanelBalance, formatNumb
                 notes: `Production for job ${currentPanel.job_no} - Panel: ${currentPanel.reference_number}`,
                 job_no: currentPanel.job_no,
                 length: panelLength,
-                width: parseFloat(currentPanel.width) || 0
+                width: parseFloat(currentPanel.width) || 0,
+                brand: brand
             };
 
             const result = await viewPanelAPI.createProductionWithBalance(panel.id, productionRecordData);
@@ -251,6 +259,7 @@ const ProductionDetailsModal = ({ panel, onClose, updatePanelBalance, formatNumb
                 
                 setProductionDate('');
                 setProductionStatus('pending');
+                setBrand(currentPanel.brand || '');
                 
                 const newBalance = result.updated_balance || balance - panelsToProduce;
                 if (newBalance > 0) {
@@ -521,6 +530,17 @@ const ProductionDetailsModal = ({ panel, onClose, updatePanelBalance, formatNumb
                                     )}
                                 </div>
                                 <div className="form-group">
+                                    <label>Brand</label>
+                                    <input 
+                                        type="text"
+                                        className="form-input"
+                                        value={brand}
+                                        onChange={(e) => setBrand(e.target.value)}
+                                        placeholder="Enter brand for this production"
+                                        disabled={isSaving}
+                                    />
+                                </div>
+                                <div className="form-group">
                                     <button
                                         className={`btn btn-primary full-width ${balance <= 0 ? 'disabled' : ''}`}
                                         onClick={handleCreateProductionRecord}
@@ -601,6 +621,7 @@ const ProductionDetailsModal = ({ panel, onClose, updatePanelBalance, formatNumb
                                                 <tr>
                                                     <th>Production Ref</th>
                                                     <th>Panels</th>
+                                                    <th>Brand</th> 
                                                     <th>Status</th>
                                                     <th>Actions</th>
                                                 </tr>
@@ -628,6 +649,11 @@ const ProductionDetailsModal = ({ panel, onClose, updatePanelBalance, formatNumb
                                                             <td>
                                                                 <div className="panels-count">
                                                                     {record.number_of_panels || 1}
+                                                                </div>
+                                                            </td>
+                                                            <td>
+                                                                <div className="brand-cell">
+                                                                    {record.brand || 'N/A'}
                                                                 </div>
                                                             </td>
                                                             <td>
@@ -3534,41 +3560,23 @@ const ViewPanelPage = () => {
                                         </div>
                                     </div>
                                     
-                                    {/* Row 8: Status & Production Meter */}
+                                    {/* Row 8: Status & Salesman */}
                                     <div className="form-row">
                                         <div className="form-group">
                                             <label htmlFor="create-status">Status</label>
                                             <select
-                                                    id="create_status"
-                                                    name="status"
-                                                    value={newPanel.status}
-                                                    onChange={handleNewPanelInputChange}
-                                                    className="form-input"
-                                                >
-                                                    <option value="pending">Pending</option>
-                                                    <option value="in_progress">In Progress</option>
-                                                    <option value="completed">Completed</option>
-                                                </select>
-                                        </div>
-                                        <div className="form-group">
-                                            <label htmlFor="create-production_meter">Production Meter</label>
-                                            <input
-                                                id="create-production_meter"
-                                                type="number"
-                                                name="production_meter"
-                                                value={newPanel.production_meter || ''}
+                                                id="create_status"
+                                                name="status"
+                                                value={newPanel.status}
                                                 onChange={handleNewPanelInputChange}
-                                                onKeyDown={(e) => handleKeyDown(e, 7, 1, 'production_meter')}
                                                 className="form-input"
-                                                onWheel={handleWheel}
-                                                min="0"
-                                                step="0.01"
-                                            />
+                                                onKeyDown={(e) => handleKeyDown(e, 7, 0, 'status')}
+                                            >
+                                                <option value="pending">Pending</option>
+                                                <option value="in_progress">In Progress</option>
+                                                <option value="completed">Completed</option>
+                                            </select>
                                         </div>
-                                    </div>
-                                    
-                                    {/* Row 9: Salesman & Brand */}
-                                    <div className="form-row">
                                         <div className="form-group">
                                             <label htmlFor="create-salesman">Salesman</label>
                                             <input
@@ -3577,25 +3585,13 @@ const ViewPanelPage = () => {
                                                 name="salesman"
                                                 value={newPanel.salesman || ''}
                                                 onChange={handleNewPanelInputChange}
-                                                onKeyDown={(e) => handleKeyDown(e, 8, 0, 'salesman')}
-                                                className="form-input"
-                                            />
-                                        </div>
-                                        <div className="form-group">
-                                            <label htmlFor="create-brand">Brand</label>
-                                            <input
-                                                id="create-brand"
-                                                type="text"
-                                                name="brand"
-                                                value={newPanel.brand || ''}
-                                                onChange={handleNewPanelInputChange}
-                                                onKeyDown={(e) => handleKeyDown(e, 8, 1, 'brand')}
+                                                onKeyDown={(e) => handleKeyDown(e, 7, 1, 'salesman')}
                                                 className="form-input"
                                             />
                                         </div>
                                     </div>
                                     
-                                    {/* Row 10: Estimated Delivery & Created Date */}
+                                    {/* Row 9: Estimated Delivery & Production Date */}
                                     <div className="form-row">
                                         <div className="form-group">
                                             <label htmlFor="create-estimated_delivery">Estimated Delivery</label>
@@ -3605,7 +3601,7 @@ const ViewPanelPage = () => {
                                                 name="estimated_delivery"
                                                 value={newPanel.estimated_delivery || ''}
                                                 onChange={handleNewPanelInputChange}
-                                                onKeyDown={(e) => handleKeyDown(e, 9, 0, 'estimated_delivery')}
+                                                onKeyDown={(e) => handleKeyDown(e, 8, 0, 'estimated_delivery')}
                                                 className="form-input"
                                             />
                                         </div>
@@ -3617,13 +3613,13 @@ const ViewPanelPage = () => {
                                                 name="created_at"
                                                 value={newPanel.created_at || ''}
                                                 onChange={handleNewPanelInputChange}
-                                                onKeyDown={(e) => handleKeyDown(e, 9, 1, 'created_at')}
+                                                onKeyDown={(e) => handleKeyDown(e, 8, 1, 'created_at')}
                                                 className="form-input"
                                             />
                                         </div>
                                     </div>
                                     
-                                    {/* Row 11: Notes (full width) */}
+                                    {/* Row 10: Notes (full width) */}
                                     <div className="form-row">
                                         <div className="form-group full-width">
                                             <label htmlFor="create-notes">Notes</label>
@@ -3632,7 +3628,7 @@ const ViewPanelPage = () => {
                                                 name="notes"
                                                 value={newPanel.notes || ''}
                                                 onChange={handleNewPanelInputChange}
-                                                onKeyDown={(e) => handleKeyDown(e, 10, 0, 'notes')}
+                                                onKeyDown={(e) => handleKeyDown(e, 9, 0, 'notes')}
                                                 className="form-input"
                                                 rows="3"
                                                 placeholder="Enter notes here..."
@@ -3901,18 +3897,6 @@ const ViewPanelPage = () => {
 
                                 <div className="form-row">
                                     <div className="form-group">
-                                        <label htmlFor="edit_production_meter">Production Meter (m)</label>
-                                        <input
-                                            type="number"
-                                            id="edit_production_meter"
-                                            name="production_meter"
-                                            value={editingPanel.production_meter}
-                                            onChange={handleEditInputChange}
-                                            onWheel={handleWheel}
-                                            className="form-input"
-                                        />
-                                    </div>
-                                    <div className="form-group">
                                         <label htmlFor="edit_salesman">Salesman</label>
                                         <input
                                             type="text"
@@ -3923,20 +3907,6 @@ const ViewPanelPage = () => {
                                             className="form-input"
                                         />
                                     </div>
-                                    <div className="form-group">
-                                        <label htmlFor="edit_brand">Brand</label>
-                                        <input
-                                            type="text"
-                                            id="edit_brand"
-                                            name="brand"
-                                            value={editingPanel.brand}
-                                            onChange={handleEditInputChange}
-                                            className="form-input"
-                                        />
-                                    </div>
-                                </div>
-
-                                <div className="form-row">
                                     <div className="form-group">
                                         <label htmlFor="edit_estimated_delivery">Est. Delivery</label>
                                         <input
