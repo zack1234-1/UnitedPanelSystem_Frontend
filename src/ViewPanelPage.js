@@ -39,6 +39,7 @@ const ProductionDetailsModal = ({ panel, onClose, updatePanelBalance, formatNumb
     const balance = currentPanel.balance !== undefined ? currentPanel.balance : (currentPanel.qty || 0);
     const panelQty = parseInt(currentPanel.qty) || 0;
     const panelLength = parseFloat(currentPanel.length) || 0;
+    const [brand, setBrand] = useState('');
 
     const generateProductionReferenceNumber = (date, existingRecords = []) => {
         if (!date) return '';
@@ -72,6 +73,12 @@ const ProductionDetailsModal = ({ panel, onClose, updatePanelBalance, formatNumb
         
         return `${datePrefix}-${String(sequence).padStart(3, '0')}`;
     };
+
+    useEffect(() => {
+        if (panel) {
+            setBrand(panel.brand || '');
+        }
+    }, [panel]);
 
     const productionTotals = useMemo(() => {
         let totalPanels = 0;
@@ -232,7 +239,8 @@ const ProductionDetailsModal = ({ panel, onClose, updatePanelBalance, formatNumb
                 notes: `Production for job ${currentPanel.job_no} - Panel: ${currentPanel.reference_number}`,
                 job_no: currentPanel.job_no,
                 length: panelLength,
-                width: parseFloat(currentPanel.width) || 0
+                width: parseFloat(currentPanel.width) || 0,
+                brand: brand
             };
 
             const result = await viewPanelAPI.createProductionWithBalance(panel.id, productionRecordData);
@@ -251,6 +259,7 @@ const ProductionDetailsModal = ({ panel, onClose, updatePanelBalance, formatNumb
                 
                 setProductionDate('');
                 setProductionStatus('pending');
+                setBrand(currentPanel.brand || '');
                 
                 const newBalance = result.updated_balance || balance - panelsToProduce;
                 if (newBalance > 0) {
@@ -521,6 +530,17 @@ const ProductionDetailsModal = ({ panel, onClose, updatePanelBalance, formatNumb
                                     )}
                                 </div>
                                 <div className="form-group">
+                                    <label>Brand</label>
+                                    <input 
+                                        type="text"
+                                        className="form-input"
+                                        value={brand}
+                                        onChange={(e) => setBrand(e.target.value)}
+                                        placeholder="Enter brand for this production"
+                                        disabled={isSaving}
+                                    />
+                                </div>
+                                <div className="form-group">
                                     <button
                                         className={`btn btn-primary full-width ${balance <= 0 ? 'disabled' : ''}`}
                                         onClick={handleCreateProductionRecord}
@@ -601,6 +621,7 @@ const ProductionDetailsModal = ({ panel, onClose, updatePanelBalance, formatNumb
                                                 <tr>
                                                     <th>Production Ref</th>
                                                     <th>Panels</th>
+                                                    <th>Brand</th> 
                                                     <th>Status</th>
                                                     <th>Actions</th>
                                                 </tr>
@@ -628,6 +649,11 @@ const ProductionDetailsModal = ({ panel, onClose, updatePanelBalance, formatNumb
                                                             <td>
                                                                 <div className="panels-count">
                                                                     {record.number_of_panels || 1}
+                                                                </div>
+                                                            </td>
+                                                            <td>
+                                                                <div className="brand-cell">
+                                                                    {record.brand || 'N/A'}
                                                                 </div>
                                                             </td>
                                                             <td>
@@ -757,6 +783,7 @@ const ViewPanelPage = () => {
         salesman: '',
         brand: '',
         estimated_delivery: '',
+        created_at: '',
         notes: ''
     };
 
@@ -829,6 +856,48 @@ const ViewPanelPage = () => {
         ['production_meter', 'salesman', 'brand'],
         ['estimated_delivery','created_at', 'notes', '']
     ], []);
+
+    // Helper function to format date for input (yyyy-MM-dd)
+    const formatDateForInput = (timestamp) => {
+        if (!timestamp) return '';
+        // If it's already in yyyy-MM-dd format, return as-is
+        if (typeof timestamp === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(timestamp)) {
+            return timestamp;
+        }
+        // If it's a full timestamp, extract date portion
+        if (typeof timestamp === 'string' && timestamp.includes('T')) {
+            return timestamp.split('T')[0];
+        }
+        // If it's a Date object
+        if (timestamp instanceof Date) {
+            return timestamp.toISOString().split('T')[0];
+        }
+        return timestamp || '';
+    };
+
+    // Helper function to convert date string to ISO format for backend
+    const convertToISOString = (dateString) => {
+        if (!dateString) return null;
+        try {
+            // If it's already an ISO string, return as-is
+            if (dateString.includes('T')) {
+                return dateString;
+            }
+            // If it's in yyyy-MM-dd format, convert to ISO
+            if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+                return new Date(dateString + 'T00:00:00.000Z').toISOString();
+            }
+            // Try to parse as date
+            const date = new Date(dateString);
+            if (!isNaN(date.getTime())) {
+                return date.toISOString();
+            }
+            return null;
+        } catch (error) {
+            console.error('Error converting date to ISO:', error);
+            return null;
+        }
+    };
 
     // Save columns to localStorage whenever they change
     useEffect(() => {
@@ -1108,6 +1177,12 @@ const ViewPanelPage = () => {
                     }
                 }
                 
+                // Format created_at for duplication
+                let formattedCreatedAt = null;
+                if (panel.created_at) {
+                    formattedCreatedAt = formatDateForInput(panel.created_at);
+                }
+                
                 const panelData = {
                     job_no: newJobNo,
                     application: panel.application || null,
@@ -1130,7 +1205,8 @@ const ViewPanelPage = () => {
                     notes: newNotes,
                     reference_number: referenceNumbers[i],
                     brand: panel.brand || null,
-                    estimated_delivery: formattedEstimatedDelivery
+                    estimated_delivery: formattedEstimatedDelivery,
+                    created_at: formattedCreatedAt
                 };
                 
                 Object.keys(panelData).forEach(key => {
@@ -1162,7 +1238,7 @@ const ViewPanelPage = () => {
         }
     };
 
-    const calculateArea = (width, length,quantity) => {
+    const calculateArea = (width, length, quantity) => {
         const w = parseFloat(width) || 0;
         const l = parseFloat(length) || 0;
         const q = parseInt(quantity) || 0;
@@ -1242,7 +1318,8 @@ const ViewPanelPage = () => {
                     notes: newNotes,
                     reference_number: referenceNumbers[i],
                     brand: newPanel.brand || null,
-                    estimated_delivery: newPanel.estimated_delivery || null
+                    estimated_delivery: newPanel.estimated_delivery || null,
+                    created_at: newPanel.created_at || null
                 };
                 
                 Object.keys(panelData).forEach(key => {
@@ -1539,7 +1616,10 @@ const ViewPanelPage = () => {
                 salesman: editingPanel.salesman || null,
                 notes: editingPanel.notes || null,
                 balance: editingPanel.qty ? parseInt(editingPanel.qty) : null,
-                application: editingPanel.application || null
+                application: editingPanel.application || null,
+                // Convert dates to ISO format for backend
+                estimated_delivery: convertToISOString(editingPanel.estimated_delivery),
+                created_at: convertToISOString(editingPanel.created_at)
             };
             
             Object.keys(panelToUpdate).forEach(key => {
@@ -1597,7 +1677,9 @@ const ViewPanelPage = () => {
                 salesman: newPanel.salesman || null,
                 notes: newPanel.notes || null,
                 brand: newPanel.brand || null,
-                estimated_delivery: newPanel.estimated_delivery || null,
+                // Convert dates to ISO format for backend
+                estimated_delivery: convertToISOString(newPanel.estimated_delivery),
+                created_at: convertToISOString(newPanel.created_at),
                 application: newPanel.application || null
             };
             
@@ -1686,7 +1768,8 @@ const ViewPanelPage = () => {
             status: panel.status || 'pending',
             production_meter: panel.production_meter || '',
             brand: panel.brand || '',
-            estimated_delivery: panel.estimated_delivery || '',
+            estimated_delivery: formatDateForInput(panel.estimated_delivery) || '',
+            created_at: formatDateForInput(panel.created_at) || '',
             salesman: panel.salesman || '',
             notes: panel.notes || ''
         });
@@ -3477,41 +3560,23 @@ const ViewPanelPage = () => {
                                         </div>
                                     </div>
                                     
-                                    {/* Row 8: Status & Production Meter */}
+                                    {/* Row 8: Status & Salesman */}
                                     <div className="form-row">
                                         <div className="form-group">
                                             <label htmlFor="create-status">Status</label>
                                             <select
-                                                    id="create_status"
-                                                    name="status"
-                                                    value={newPanel.status}
-                                                    onChange={handleNewPanelInputChange}
-                                                    className="form-input"
-                                                >
-                                                    <option value="pending">Pending</option>
-                                                    <option value="in_progress">In Progress</option>
-                                                    <option value="completed">Completed</option>
-                                                </select>
-                                        </div>
-                                        <div className="form-group">
-                                            <label htmlFor="create-production_meter">Production Meter</label>
-                                            <input
-                                                id="create-production_meter"
-                                                type="number"
-                                                name="production_meter"
-                                                value={newPanel.production_meter || ''}
+                                                id="create_status"
+                                                name="status"
+                                                value={newPanel.status}
                                                 onChange={handleNewPanelInputChange}
-                                                onKeyDown={(e) => handleKeyDown(e, 7, 1, 'production_meter')}
                                                 className="form-input"
-                                                onWheel={handleWheel}
-                                                min="0"
-                                                step="0.01"
-                                            />
+                                                onKeyDown={(e) => handleKeyDown(e, 7, 0, 'status')}
+                                            >
+                                                <option value="pending">Pending</option>
+                                                <option value="in_progress">In Progress</option>
+                                                <option value="completed">Completed</option>
+                                            </select>
                                         </div>
-                                    </div>
-                                    
-                                    {/* Row 9: Salesman & Brand */}
-                                    <div className="form-row">
                                         <div className="form-group">
                                             <label htmlFor="create-salesman">Salesman</label>
                                             <input
@@ -3520,25 +3585,13 @@ const ViewPanelPage = () => {
                                                 name="salesman"
                                                 value={newPanel.salesman || ''}
                                                 onChange={handleNewPanelInputChange}
-                                                onKeyDown={(e) => handleKeyDown(e, 8, 0, 'salesman')}
-                                                className="form-input"
-                                            />
-                                        </div>
-                                        <div className="form-group">
-                                            <label htmlFor="create-brand">Brand</label>
-                                            <input
-                                                id="create-brand"
-                                                type="text"
-                                                name="brand"
-                                                value={newPanel.brand || ''}
-                                                onChange={handleNewPanelInputChange}
-                                                onKeyDown={(e) => handleKeyDown(e, 8, 1, 'brand')}
+                                                onKeyDown={(e) => handleKeyDown(e, 7, 1, 'salesman')}
                                                 className="form-input"
                                             />
                                         </div>
                                     </div>
                                     
-                                    {/* Row 10: Estimated Delivery & Created Date */}
+                                    {/* Row 9: Estimated Delivery & Production Date */}
                                     <div className="form-row">
                                         <div className="form-group">
                                             <label htmlFor="create-estimated_delivery">Estimated Delivery</label>
@@ -3548,25 +3601,25 @@ const ViewPanelPage = () => {
                                                 name="estimated_delivery"
                                                 value={newPanel.estimated_delivery || ''}
                                                 onChange={handleNewPanelInputChange}
-                                                onKeyDown={(e) => handleKeyDown(e, 9, 0, 'estimated_delivery')}
+                                                onKeyDown={(e) => handleKeyDown(e, 8, 0, 'estimated_delivery')}
                                                 className="form-input"
                                             />
                                         </div>
                                         <div className="form-group">
-                                            <label htmlFor="create-created_at">Created Date</label>
+                                            <label htmlFor="create-created_at">Production Date</label>
                                             <input
                                                 id="create-created_at"
                                                 type="date"
                                                 name="created_at"
                                                 value={newPanel.created_at || ''}
                                                 onChange={handleNewPanelInputChange}
-                                                onKeyDown={(e) => handleKeyDown(e, 9, 1, 'created_at')}
+                                                onKeyDown={(e) => handleKeyDown(e, 8, 1, 'created_at')}
                                                 className="form-input"
                                             />
                                         </div>
                                     </div>
                                     
-                                    {/* Row 11: Notes (full width) */}
+                                    {/* Row 10: Notes (full width) */}
                                     <div className="form-row">
                                         <div className="form-group full-width">
                                             <label htmlFor="create-notes">Notes</label>
@@ -3575,7 +3628,7 @@ const ViewPanelPage = () => {
                                                 name="notes"
                                                 value={newPanel.notes || ''}
                                                 onChange={handleNewPanelInputChange}
-                                                onKeyDown={(e) => handleKeyDown(e, 10, 0, 'notes')}
+                                                onKeyDown={(e) => handleKeyDown(e, 9, 0, 'notes')}
                                                 className="form-input"
                                                 rows="3"
                                                 placeholder="Enter notes here..."
@@ -3844,18 +3897,6 @@ const ViewPanelPage = () => {
 
                                 <div className="form-row">
                                     <div className="form-group">
-                                        <label htmlFor="edit_production_meter">Production Meter (m)</label>
-                                        <input
-                                            type="number"
-                                            id="edit_production_meter"
-                                            name="production_meter"
-                                            value={editingPanel.production_meter}
-                                            onChange={handleEditInputChange}
-                                            onWheel={handleWheel}
-                                            className="form-input"
-                                        />
-                                    </div>
-                                    <div className="form-group">
                                         <label htmlFor="edit_salesman">Salesman</label>
                                         <input
                                             type="text"
@@ -3867,26 +3908,23 @@ const ViewPanelPage = () => {
                                         />
                                     </div>
                                     <div className="form-group">
-                                        <label htmlFor="edit_brand">Brand</label>
-                                        <input
-                                            type="text"
-                                            id="edit_brand"
-                                            name="brand"
-                                            value={editingPanel.brand}
-                                            onChange={handleEditInputChange}
-                                            className="form-input"
-                                        />
-                                    </div>
-                                </div>
-
-                                <div className="form-row">
-                                    <div className="form-group">
                                         <label htmlFor="edit_estimated_delivery">Est. Delivery</label>
                                         <input
                                             type="date"
                                             id="edit_estimated_delivery"
                                             name="estimated_delivery"
                                             value={editingPanel.estimated_delivery}
+                                            onChange={handleEditInputChange}
+                                            className="form-input"
+                                        />
+                                    </div>
+                                    <div className="form-group">
+                                        <label htmlFor="edit_created_at">Production Date</label>
+                                        <input
+                                            type="date"
+                                            id="edit_created_at"
+                                            name="created_at"
+                                            value={editingPanel.created_at || ''}
                                             onChange={handleEditInputChange}
                                             className="form-input"
                                         />
