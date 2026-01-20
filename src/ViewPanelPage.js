@@ -47,7 +47,7 @@ const ProductionDetailsModal = ({ panel, onClose, updatePanelBalance, formatNumb
         const month = String(prodDate.getMonth() + 1).padStart(2, '0');
         const day = String(prodDate.getDate()).padStart(2, '0');
         
-        const datePrefix = `PROD-${year}${month}${day}`;
+        const datePrefix = `PRF-${year}${month}${day}`;
         
         const sameDateRecords = existingRecords.filter(record => {
             if (!record.date) return false;
@@ -702,6 +702,7 @@ const ViewPanelPage = () => {
 
     const [isPrintSelectionModalOpen, setIsPrintSelectionModalOpen] = useState(false);
     const [isColumnSelectionModalOpen, setIsColumnSelectionModalOpen] = useState(false);
+    const [estimatedRunningSpeed, setEstimatedRunningSpeed] = useState(4.8);
 
     // Define all available columns with their display names and default visibility
     const defaultColumns = [
@@ -789,6 +790,33 @@ const ViewPanelPage = () => {
         direction: 'desc'
     });
 
+    // State for unique values from database
+    const [uniqueValues, setUniqueValues] = useState({
+        jobNos: [],
+        types: [],
+        brands: [],
+        statuses: [],
+        salesmen: [],
+        panelThks: [],
+        joints: [],
+        surfaceFronts: [],
+        surfaceBacks: [],
+        surfaceFrontThks: [],
+        surfaceBackThks: [],
+        surfaceTypes: [],
+        widths: [],
+        lengths: [],
+        qtys: [],
+        cuttings: [],
+        applications: [],
+        createdDates: [],
+        estimatedDeliveries: [],
+        referenceNumbers: []
+    });
+
+    // State for production reference numbers
+    const [productionRefs, setProductionRefs] = useState([]);
+
     const createModalRef = useRef(null);
     const inputRefs = useRef([]);
     
@@ -809,6 +837,7 @@ const ViewPanelPage = () => {
 
     useEffect(() => {
         fetchPanels();
+        fetchProductionReferences();
     }, []);
 
     useEffect(() => {
@@ -817,10 +846,98 @@ const ViewPanelPage = () => {
         } else {
             setDailyProductionMeter({
                 totalMeter: 0,
-                panelCount: 0
+                panelCount: 0,
+                totalMeterInMeters: 0,
+                estimatedTimeMinutes: 0,
+                estimatedTimeHours: 0,
+                estimatedTimeRemainingMinutes: 0
             });
         }
-    }, [productionMeterDate, panels]);
+    }, [productionMeterDate, panels, estimatedRunningSpeed]);
+
+    // Update unique values when panels change
+    useEffect(() => {
+        const getUnique = (key, isNumeric = false, isDate = false) => {
+            const values = panels
+                .map(panel => {
+                    const value = panel[key];
+                    if (value === null || value === undefined || value === '') return null;
+                    
+                    if (isNumeric) {
+                        const numValue = parseFloat(value);
+                        return isNaN(numValue) ? null : numValue.toString();
+                    }
+                    
+                    if (isDate) {
+                        try {
+                            const date = new Date(value);
+                            if (isNaN(date.getTime())) return null;
+                            const year = date.getFullYear();
+                            const month = String(date.getMonth() + 1).padStart(2, '0');
+                            const day = String(date.getDate()).padStart(2, '0');
+                            return `${year}-${month}-${day}`;
+                        } catch (error) {
+                            return null;
+                        }
+                    }
+                    
+                    return value.toString().trim();
+                })
+                .filter(p => p);
+            
+            const unique = [...new Set(values)];
+            
+            if (isNumeric) {
+                return unique.sort((a, b) => parseFloat(a) - parseFloat(b));
+            }
+            
+            if (isDate) {
+                return unique.sort((a, b) => new Date(b) - new Date(a));
+            }
+            
+            return unique.sort();
+        };
+
+        setUniqueValues(prev => ({
+            ...prev,
+            jobNos: getUnique('job_no'),
+            types: getUnique('type'),
+            brands: getUnique('brand'),
+            statuses: getUnique('status'),
+            salesmen: getUnique('salesman'),
+            panelThks: getUnique('panel_thk', true),
+            joints: getUnique('joint'),
+            surfaceFronts: getUnique('surface_front'),
+            surfaceBacks: getUnique('surface_back'),
+            surfaceFrontThks: getUnique('surface_front_thk', true),
+            surfaceBackThks: getUnique('surface_back_thk', true),
+            surfaceTypes: getUnique('surface_type'),
+            widths: getUnique('width', true),
+            lengths: getUnique('length', true),
+            qtys: getUnique('qty', true),
+            cuttings: getUnique('cutting'),
+            applications: getUnique('application'),
+            createdDates: getUnique('created_at', false, true),
+            estimatedDeliveries: getUnique('estimated_delivery', false, true),
+            referenceNumbers: getUnique('reference_number')
+        }));
+    }, [panels]);
+
+    // Fetch production reference numbers
+    const fetchProductionReferences = async () => {
+        try {
+            const data = await productionAPI.getAll();
+            if (Array.isArray(data)) {
+                const refs = data
+                    .map(record => record.reference_number)
+                    .filter(ref => ref && ref.trim() !== '');
+                const uniqueRefs = [...new Set(refs)].sort();
+                setProductionRefs(uniqueRefs);
+            }
+        } catch (err) {
+            console.error('Failed to fetch production references:', err);
+        }
+    };
 
     const handleWheel = (e) => {
         e.target.blur();
@@ -853,7 +970,7 @@ const ViewPanelPage = () => {
         }
     };
 
-    const calculateDailyProductionMeter = () => {
+     const calculateDailyProductionMeter = () => {
         if (!productionMeterDate) return;
         
         try {
@@ -883,16 +1000,35 @@ const ViewPanelPage = () => {
                 panelCount+=panelcount;
             });
             
+            // Convert total meter from mm to meters
+            const totalMeterInMeters = totalMeter;
+            
+            // Calculate estimated time to complete in minutes
+            const estimatedTimeMinutes = estimatedRunningSpeed > 0 ? 
+                totalMeterInMeters / estimatedRunningSpeed : 0;
+            
+            // Convert estimated time to hours and minutes
+            const estimatedTimeHours = Math.floor(estimatedTimeMinutes / 60);
+            const estimatedTimeRemainingMinutes = Math.round(estimatedTimeMinutes % 60);
+            
             setDailyProductionMeter({
                 totalMeter,
-                panelCount
+                panelCount,
+                totalMeterInMeters,
+                estimatedTimeMinutes,
+                estimatedTimeHours,
+                estimatedTimeRemainingMinutes
             });
             
         } catch (err) {
             console.error('Failed to calculate daily production meter:', err);
             setDailyProductionMeter({
                 totalMeter: 0,
-                panelCount: 0
+                panelCount: 0,
+                totalMeterInMeters: 0,
+                estimatedTimeMinutes: 0,
+                estimatedTimeHours: 0,
+                estimatedTimeRemainingMinutes: 0
             });
         }
     };
@@ -1600,72 +1736,6 @@ const ViewPanelPage = () => {
         return number.toLocaleString('en-US');
     };
 
-    const uniqueValues = useMemo(() => {
-        const getUnique = (key, isNumeric = false, isDate = false) => {
-            const values = panels
-                .map(panel => {
-                    const value = panel[key];
-                    if (value === null || value === undefined || value === '') return null;
-                    
-                    if (isNumeric) {
-                        const numValue = parseFloat(value);
-                        return isNaN(numValue) ? null : numValue.toString();
-                    }
-                    
-                    if (isDate) {
-                        try {
-                            const date = new Date(value);
-                            if (isNaN(date.getTime())) return null;
-                            // Format as YYYY-MM-DD for consistent comparison
-                            const year = date.getFullYear();
-                            const month = String(date.getMonth() + 1).padStart(2, '0');
-                            const day = String(date.getDate()).padStart(2, '0');
-                            return `${year}-${month}-${day}`;
-                        } catch (error) {
-                            return null;
-                        }
-                    }
-                    
-                    return value.toString().trim();
-                })
-                .filter(p => p);
-            
-            const unique = [...new Set(values)];
-            
-            if (isNumeric) {
-                return unique.sort((a, b) => parseFloat(a) - parseFloat(b));
-            }
-            
-            if (isDate) {
-                return unique.sort((a, b) => new Date(b) - new Date(a));
-            }
-            
-            return unique.sort();
-        };
-
-        return {
-            jobNos: getUnique('job_no'),
-            types: getUnique('type'),
-            brands: getUnique('brand'),
-            statuses: getUnique('status'),
-            salesmen: getUnique('salesman'),
-            panelThks: getUnique('panel_thk', true),
-            joints: getUnique('joint'),
-            surfaceFronts: getUnique('surface_front'),
-            surfaceBacks: getUnique('surface_back'),
-            surfaceFrontThks: getUnique('surface_front_thk', true),
-            surfaceBackThks: getUnique('surface_back_thk', true),
-            surfaceTypes: getUnique('surface_type'),
-            widths: getUnique('width', true),
-            lengths: getUnique('length', true),
-            qtys: getUnique('qty', true),
-            cuttings: getUnique('cutting'),
-            applications: getUnique('application'),
-            createdDates: getUnique('created_at', false, true), 
-            estimatedDeliveries: getUnique('estimated_delivery', false, true)
-        };
-    }, [panels]);
-
     const formatDateForFilter = (dateString) => {
         if (!dateString) return 'N/A';
         try {
@@ -2245,15 +2315,6 @@ const ViewPanelPage = () => {
                         </tbody>
                     </table>
                     
-                    <div class="total-area no-print" style="margin-top: 20px; padding-top: 10px; border-top: 1px solid #000;">
-                        <strong>Total Area:</strong> ${panelsToPrint.reduce((sum, panel) => {
-                            const width = parseFloat(panel.width) || 0;
-                            const length = parseFloat(panel.length) || 0;
-                            const qty = parseInt(panel.qty) || 0;
-                            return sum + (width * length * qty) / 1000000;
-                        }, 0).toFixed(3)} m²
-                    </div>
-                    
                     <div style="text-align: center; margin-top: 20px; font-size: 9pt; color: #666;" class="no-print">
                         <p>--- End of Report ---</p>
                         <p>This document is generated from Panel Management System</p>
@@ -2351,6 +2412,26 @@ const ViewPanelPage = () => {
                                                 ? (dailyProductionMeter.totalMeter / dailyProductionMeter.panelCount).toFixed(2) 
                                                 : '0'} mm
                                         </span>
+                                        <div className="stat-subtext">
+                                            ({dailyProductionMeter.panelCount > 0 
+                                                ? (dailyProductionMeter.totalMeterInMeters / dailyProductionMeter.panelCount).toFixed(2) 
+                                                : '0'} meters)
+                                        </div>
+                                    </div>
+                                    <div className="daily-stat">
+                                        <span className="stat-label">Estimated Running Speed:</span>
+                                        <span className="stat-value">{estimatedRunningSpeed.toFixed(1)} M/Minutes</span>
+                                    </div>
+                                    <div className="daily-stat highlight">
+                                        <span className="stat-label">Estimated Time to Complete:</span>
+                                        <span className="stat-value">
+                                            {dailyProductionMeter.estimatedTimeHours > 0 ? 
+                                                `${dailyProductionMeter.estimatedTimeHours} hours ` : ''}
+                                            {dailyProductionMeter.estimatedTimeRemainingMinutes} minutes
+                                        </span>
+                                        <div className="stat-subtext">
+                                            ({dailyProductionMeter.estimatedTimeMinutes.toFixed(1)} total minutes)
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -2547,25 +2628,22 @@ const ViewPanelPage = () => {
                         </select>
                     </div>
                 </div>
+                
+                {/* Updated filter row with dropdowns for reference numbers */}
                 <div className="filter-row">
                     <div className="filter-group">
-                        <input
-                            type="text"
-                            name="reference_number"
-                            value={filters.reference_number}
-                            onChange={handleFilterChange}
-                            className="form-input"
-                            placeholder="Panel Reference Number"
-                        />
+                        <select 
+                            name="reference_number" 
+                            value={filters.reference_number} 
+                            onChange={handleFilterChange} 
+                            className="form-select"
+                        >
+                            <option value="">All Panel References</option>
+                            {uniqueValues.referenceNumbers.map(ref => (
+                                <option key={ref} value={ref}>{ref}</option>
+                            ))}
+                        </select>
                         
-                        <input
-                            type="text"
-                            name="production_reference_number"
-                            value={filters.production_reference_number}
-                            onChange={handleFilterChange}
-                            className="form-input"
-                            placeholder="Production Record Reference"
-                        />
                     </div>
                 </div>
             </div>
@@ -2680,8 +2758,7 @@ const ViewPanelPage = () => {
                             </div>
                         </div>
                         
-                        {/* HORIZONTAL SCROLL CONTAINER */}
-                        <div className="table-scroll-container">
+                        <div className="responsive-table-wrapper">
                             <table className="panels-table">
                                 <thead>
                                     <tr>
