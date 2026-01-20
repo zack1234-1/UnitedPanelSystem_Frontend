@@ -4002,7 +4002,8 @@ const ViewPanelPage = () => {
                                     </div>
                                 </div>
                                 
-                                {filteredPanels.slice(0, 10).map(panel => (
+                               <div className="print-options-list">
+                                {filteredPanels.map(panel => (
                                     <div key={panel.id} className="print-option" onClick={() => {
                                         handlePrint(panel);
                                         setIsPrintSelectionModalOpen(false);
@@ -4016,6 +4017,7 @@ const ViewPanelPage = () => {
                                     </div>
                                 ))}
                             </div>
+                         </div>
                         </div>
                     </div>
                 </div>
