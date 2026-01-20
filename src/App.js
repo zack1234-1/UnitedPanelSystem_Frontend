@@ -16,7 +16,7 @@ import ReportGenerator from './ReportGenerator';
 // 1. REAL API Service Implementation
 // =========================================================
 
-const API_BASE = 'https://unitedpanelsystem-backend-1.onrender.com/api';
+const API_BASE = 'http://localhost:5000/api';
 
 // Helper function for API calls
 const apiCall = async (endpoint, options = {}) => {
