@@ -757,6 +757,7 @@ const ViewPanelPage = () => {
         salesman: '',
         brand: '',
         estimated_delivery: '',
+        created_at: '',
         notes: ''
     };
 
@@ -829,6 +830,48 @@ const ViewPanelPage = () => {
         ['production_meter', 'salesman', 'brand'],
         ['estimated_delivery','created_at', 'notes', '']
     ], []);
+
+    // Helper function to format date for input (yyyy-MM-dd)
+    const formatDateForInput = (timestamp) => {
+        if (!timestamp) return '';
+        // If it's already in yyyy-MM-dd format, return as-is
+        if (typeof timestamp === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(timestamp)) {
+            return timestamp;
+        }
+        // If it's a full timestamp, extract date portion
+        if (typeof timestamp === 'string' && timestamp.includes('T')) {
+            return timestamp.split('T')[0];
+        }
+        // If it's a Date object
+        if (timestamp instanceof Date) {
+            return timestamp.toISOString().split('T')[0];
+        }
+        return timestamp || '';
+    };
+
+    // Helper function to convert date string to ISO format for backend
+    const convertToISOString = (dateString) => {
+        if (!dateString) return null;
+        try {
+            // If it's already an ISO string, return as-is
+            if (dateString.includes('T')) {
+                return dateString;
+            }
+            // If it's in yyyy-MM-dd format, convert to ISO
+            if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+                return new Date(dateString + 'T00:00:00.000Z').toISOString();
+            }
+            // Try to parse as date
+            const date = new Date(dateString);
+            if (!isNaN(date.getTime())) {
+                return date.toISOString();
+            }
+            return null;
+        } catch (error) {
+            console.error('Error converting date to ISO:', error);
+            return null;
+        }
+    };
 
     // Save columns to localStorage whenever they change
     useEffect(() => {
@@ -1108,6 +1151,12 @@ const ViewPanelPage = () => {
                     }
                 }
                 
+                // Format created_at for duplication
+                let formattedCreatedAt = null;
+                if (panel.created_at) {
+                    formattedCreatedAt = formatDateForInput(panel.created_at);
+                }
+                
                 const panelData = {
                     job_no: newJobNo,
                     application: panel.application || null,
@@ -1130,7 +1179,8 @@ const ViewPanelPage = () => {
                     notes: newNotes,
                     reference_number: referenceNumbers[i],
                     brand: panel.brand || null,
-                    estimated_delivery: formattedEstimatedDelivery
+                    estimated_delivery: formattedEstimatedDelivery,
+                    created_at: formattedCreatedAt
                 };
                 
                 Object.keys(panelData).forEach(key => {
@@ -1162,7 +1212,7 @@ const ViewPanelPage = () => {
         }
     };
 
-    const calculateArea = (width, length,quantity) => {
+    const calculateArea = (width, length, quantity) => {
         const w = parseFloat(width) || 0;
         const l = parseFloat(length) || 0;
         const q = parseInt(quantity) || 0;
@@ -1242,7 +1292,8 @@ const ViewPanelPage = () => {
                     notes: newNotes,
                     reference_number: referenceNumbers[i],
                     brand: newPanel.brand || null,
-                    estimated_delivery: newPanel.estimated_delivery || null
+                    estimated_delivery: newPanel.estimated_delivery || null,
+                    created_at: newPanel.created_at || null
                 };
                 
                 Object.keys(panelData).forEach(key => {
@@ -1539,7 +1590,10 @@ const ViewPanelPage = () => {
                 salesman: editingPanel.salesman || null,
                 notes: editingPanel.notes || null,
                 balance: editingPanel.qty ? parseInt(editingPanel.qty) : null,
-                application: editingPanel.application || null
+                application: editingPanel.application || null,
+                // Convert dates to ISO format for backend
+                estimated_delivery: convertToISOString(editingPanel.estimated_delivery),
+                created_at: convertToISOString(editingPanel.created_at)
             };
             
             Object.keys(panelToUpdate).forEach(key => {
@@ -1597,7 +1651,9 @@ const ViewPanelPage = () => {
                 salesman: newPanel.salesman || null,
                 notes: newPanel.notes || null,
                 brand: newPanel.brand || null,
-                estimated_delivery: newPanel.estimated_delivery || null,
+                // Convert dates to ISO format for backend
+                estimated_delivery: convertToISOString(newPanel.estimated_delivery),
+                created_at: convertToISOString(newPanel.created_at),
                 application: newPanel.application || null
             };
             
@@ -1686,7 +1742,8 @@ const ViewPanelPage = () => {
             status: panel.status || 'pending',
             production_meter: panel.production_meter || '',
             brand: panel.brand || '',
-            estimated_delivery: panel.estimated_delivery || '',
+            estimated_delivery: formatDateForInput(panel.estimated_delivery) || '',
+            created_at: formatDateForInput(panel.created_at) || '',
             salesman: panel.salesman || '',
             notes: panel.notes || ''
         });
@@ -3553,7 +3610,7 @@ const ViewPanelPage = () => {
                                             />
                                         </div>
                                         <div className="form-group">
-                                            <label htmlFor="create-created_at">Created Date</label>
+                                            <label htmlFor="create-created_at">Production Date</label>
                                             <input
                                                 id="create-created_at"
                                                 type="date"
@@ -3887,6 +3944,17 @@ const ViewPanelPage = () => {
                                             id="edit_estimated_delivery"
                                             name="estimated_delivery"
                                             value={editingPanel.estimated_delivery}
+                                            onChange={handleEditInputChange}
+                                            className="form-input"
+                                        />
+                                    </div>
+                                    <div className="form-group">
+                                        <label htmlFor="edit_created_at">Production Date</label>
+                                        <input
+                                            type="date"
+                                            id="edit_created_at"
+                                            name="created_at"
+                                            value={editingPanel.created_at || ''}
                                             onChange={handleEditInputChange}
                                             className="form-input"
                                         />
