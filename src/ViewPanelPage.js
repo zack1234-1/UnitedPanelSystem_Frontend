@@ -746,7 +746,6 @@ const ViewPanelPage = () => {
         { id: 'salesman', label: 'Salesman', visible: true, order: 12 },
         { id: 'application', label: 'Application', visible: true, order: 13 },
         { id: 'area', label: 'Area(m2)', visible: true, order: 14 },
-        { id: 'brand', label: 'Brand', visible: true, order: 15 },
         { id: 'qty', label: 'Qty', visible: true, order: 16 },
         { id: 'cutting', label: 'Cutting', visible: true, order: 17 },
         { id: 'balance', label: 'Balance', visible: true, order: 18 },
@@ -759,7 +758,18 @@ const ViewPanelPage = () => {
     const [columns, setColumns] = useState(() => {
         // Load from localStorage or use defaults
         const savedColumns = localStorage.getItem('panelTableColumns');
-        return savedColumns ? JSON.parse(savedColumns) : defaultColumns;
+        if (savedColumns) {
+            const parsedColumns = JSON.parse(savedColumns);
+            // Filter out any brand column if it exists
+            const filteredColumns = parsedColumns.filter(col => col.id !== 'brand');
+            if (filteredColumns.length !== parsedColumns.length) {
+                // Save back without brand column
+                localStorage.setItem('panelTableColumns', JSON.stringify(filteredColumns));
+                return filteredColumns;
+            }
+            return parsedColumns;
+        }
+        return defaultColumns;
     });
 
     const defaultPanelValues = {
@@ -781,7 +791,6 @@ const ViewPanelPage = () => {
         production_meter: '',
         balance: '',
         salesman: '',
-        brand: '',
         estimated_delivery: '',
         created_at: '',
         notes: ''
@@ -793,7 +802,6 @@ const ViewPanelPage = () => {
         reference_number: '',
         job_no: '',
         type: '',
-        brand: '',
         status: '',
         balance_status: '',
         search: '',
@@ -821,7 +829,6 @@ const ViewPanelPage = () => {
     const [uniqueValues, setUniqueValues] = useState({
         jobNos: [],
         types: [],
-        brands: [],
         statuses: [],
         salesmen: [],
         panelThks: [],
@@ -853,7 +860,7 @@ const ViewPanelPage = () => {
         ['surface_back', 'surface_front_thk', 'surface_back_thk'],
         ['surface_type', 'width', 'length'],
         ['qty', 'cutting', 'status'],
-        ['production_meter', 'salesman', 'brand'],
+        ['production_meter', 'salesman'],
         ['estimated_delivery','created_at', 'notes', '']
     ], []);
 
@@ -971,7 +978,6 @@ const ViewPanelPage = () => {
             ...prev,
             jobNos: getUnique('job_no'),
             types: getUnique('type'),
-            brands: getUnique('brand'),
             statuses: getUnique('status'),
             salesmen: getUnique('salesman'),
             panelThks: getUnique('panel_thk', true),
@@ -1372,7 +1378,6 @@ const ViewPanelPage = () => {
                     panel.reference_number,
                     panel.job_no?.toString(),
                     panel.type,
-                    panel.brand,
                     panel.salesman,
                     panel.joint,
                     panel.surface_front,
@@ -2349,7 +2354,6 @@ const ViewPanelPage = () => {
                                 <th>Salesman</th>
                                 <th>Application</th>
                                 <th>Area (m²)</th>
-                                <th>Brand</th>
                                 <th>Qty</th>
                                 <th>Cutting</th>
                                 <th>Balance</th>
@@ -2385,7 +2389,6 @@ const ViewPanelPage = () => {
                                         <td>${panel.salesman || 'N/A'}</td>
                                         <td>${panel.application || 'N/A'}</td>
                                         <td>${area > 0 ? area.toFixed(3) : '0'}</td>
-                                        <td>${panel.brand || 'N/A'}</td>
                                         <td>${formatNumber(panel.qty)}</td>
                                         <td>${panel.cutting || 'N/A'}</td>
                                         <td>${formatNumber(balance)}</td>
@@ -2542,7 +2545,6 @@ const ViewPanelPage = () => {
                     reference_number: '',
                     job_no: '',
                     type: '',
-                    brand: '',
                     status: '',
                     balance_status: '',
                     search: filters.search, // Keep search
@@ -2580,7 +2582,6 @@ const ViewPanelPage = () => {
                 const names = {
                     job_no: 'Job No',
                     type: 'Type',
-                    brand: 'Brand',
                     status: 'Status',
                     panel_thk: 'Panel Thk',
                     joint: 'Joint',
@@ -2642,34 +2643,6 @@ const ViewPanelPage = () => {
                         <option value="">All Types</option>
                         {uniqueValues.types.map(type => (
                         <option key={type} value={type}>{type}</option>
-                        ))}
-                    </select>
-                </div>
-            </div>
-
-            <div className="filter-row">
-                <div className="filter-group">
-                    <select 
-                        name="brand" 
-                        value={filters.brand} 
-                        onChange={handleFilterChange} 
-                        className={`form-select ${filters.brand ? 'filter-active' : ''}`}
-                    >
-                        <option value="">All Brands</option>
-                        {uniqueValues.brands.map(brand => (
-                        <option key={brand} value={brand}>{brand}</option>
-                        ))}
-                    </select>
-
-                    <select 
-                        name="status" 
-                        value={filters.status} 
-                        onChange={handleFilterChange} 
-                        className={`form-select ${filters.status ? 'filter-active' : ''}`}
-                    >
-                        <option value="">All Status</option>
-                        {uniqueValues.statuses.map(status => (
-                        <option key={status} value={status}>{status}</option>
                         ))}
                     </select>
                 </div>
@@ -2907,14 +2880,14 @@ const ViewPanelPage = () => {
                     </select>
                     
                     <select 
-                        name="application" 
-                        value={filters.application} 
+                        name="status" 
+                        value={filters.status} 
                         onChange={handleFilterChange} 
-                        className={`form-select ${filters.application ? 'filter-active' : ''}`}
+                        className={`form-select ${filters.status ? 'filter-active' : ''}`}
                     >
-                        <option value="">Application</option>
-                        {uniqueValues.applications.map(app => (
-                            <option key={app} value={app}>{app}</option>
+                        <option value="">All Status</option>
+                        {uniqueValues.statuses.map(status => (
+                        <option key={status} value={status}>{status}</option>
                         ))}
                     </select>
                 </div>
@@ -3001,7 +2974,6 @@ const ViewPanelPage = () => {
                                         <option value="reference_number">Reference Number</option>
                                         <option value="job_no">Job Number</option>
                                         <option value="type">Type</option>
-                                        <option value="brand">Brand</option>
                                         <option value="salesman">Salesman</option>
                                         <option value="application">Application</option>
                                         <option value="qty">Quantity</option>
@@ -3170,14 +3142,6 @@ const ViewPanelPage = () => {
                                                                             <div className="area-value">
                                                                                 {area > 0 ? area.toFixed(3) : '0'}
                                                                             </div>
-                                                                        </div>
-                                                                    </td>
-                                                                );
-                                                            case 'brand':
-                                                                return (
-                                                                    <td key={column.id}>
-                                                                        <div className="brand-cell">
-                                                                            {panel.brand || 'N/A'}
                                                                         </div>
                                                                     </td>
                                                                 );
