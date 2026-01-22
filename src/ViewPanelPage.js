@@ -1210,9 +1210,8 @@ const ViewPanelPage = () => {
                     salesman: panel.salesman || null,
                     notes: newNotes,
                     reference_number: referenceNumbers[i],
-                    brand: panel.brand || null,
                     estimated_delivery: formattedEstimatedDelivery,
-                    created_at: formattedCreatedAt
+                    created_at: formattedCreatedAt ? convertToISOString(formattedCreatedAt) : null
                 };
                 
                 Object.keys(panelData).forEach(key => {
@@ -1323,9 +1322,8 @@ const ViewPanelPage = () => {
                     salesman: newPanel.salesman || null,
                     notes: newNotes,
                     reference_number: referenceNumbers[i],
-                    brand: newPanel.brand || null,
                     estimated_delivery: newPanel.estimated_delivery || null,
-                    created_at: newPanel.created_at || null
+                    created_at: newPanel.created_at ? convertToISOString(newPanel.created_at) : null
                 };
                 
                 Object.keys(panelData).forEach(key => {
@@ -1624,7 +1622,7 @@ const ViewPanelPage = () => {
                 application: editingPanel.application || null,
                 // Convert dates to ISO format for backend
                 estimated_delivery: convertToISOString(editingPanel.estimated_delivery),
-                created_at: convertToISOString(editingPanel.created_at)
+                created_at: editingPanel.created_at ? convertToISOString(editingPanel.created_at) : null
             };
             
             Object.keys(panelToUpdate).forEach(key => {
@@ -1681,10 +1679,9 @@ const ViewPanelPage = () => {
                 production_meter: newPanel.production_meter ? parseFloat(newPanel.production_meter) : null,
                 salesman: newPanel.salesman || null,
                 notes: newPanel.notes || null,
-                brand: newPanel.brand || null,
                 // Convert dates to ISO format for backend
                 estimated_delivery: convertToISOString(newPanel.estimated_delivery),
-                created_at: convertToISOString(newPanel.created_at),
+                created_at: newPanel.created_at ? convertToISOString(newPanel.created_at) : null,
                 application: newPanel.application || null
             };
             
