@@ -314,7 +314,6 @@ const EnhancedCategorySelection = ({
         { id: 'strip_curtain', label: 'Strip Curtain', icon: '🎪' },
         { id: 'accessories', label: 'Accessories', icon: '🔧' },
         { id: 'system', label: 'Refrigeration System', icon: '⚙️' },
-        { id: 'quotation', label: 'Quotation', icon: '📋' }
     ];
 
     const [dragActiveCategory, setDragActiveCategory] = useState(null);
@@ -1315,7 +1314,6 @@ function App() {
                 strip_curtain: 'Strip Curtain',
                 accessories: 'Accessories',
                 system: 'Refrigeration System',
-                quotation: 'Quotation'
             };
             
             const categoryList = selectedCategories.map(cat => categoryNames[cat]).join(', ');
@@ -1401,7 +1399,6 @@ function App() {
         { key: 'stripCurtain', label: 'Strip Curtain' },
         { key: 'accessories', label: 'Accessories' },
         { key: 'system', label: 'Refrigeration System' },
-        { key: 'quotation', label: 'Quotation' }
     ];
 
     const formatDateForDisplay = (dateString) => {
