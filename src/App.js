@@ -314,6 +314,7 @@ const EnhancedCategorySelection = ({
         { id: 'strip_curtain', label: 'Strip Curtain', icon: '🎪' },
         { id: 'accessories', label: 'Accessories', icon: '🔧' },
         { id: 'system', label: 'Refrigeration System', icon: '⚙️' },
+        { id: 'quotation', label: 'Quotation', icon: '📋' }
     ];
 
     const [dragActiveCategory, setDragActiveCategory] = useState(null);
