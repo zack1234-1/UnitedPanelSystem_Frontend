@@ -16,7 +16,7 @@ import ReportGenerator from './ReportGenerator';
 // 1. REAL API Service Implementation
 // =========================================================
 
-const API_BASE = 'https://unitedpanelsystem-backend-1.onrender.com/api';
+const API_BASE = 'http://localhost:5000/api';
 
 // Helper function for API calls
 const apiCall = async (endpoint, options = {}) => {
@@ -1680,8 +1680,8 @@ function App() {
                         </span>
                     </p>
                     <p>
-                        <strong>Project Name:</strong> 
-                        <span className="date-value">{project.projectName}</span>
+                        <strong>Project No:</strong> 
+                        <span className="date-value">{project.projectNo}</span>
                     </p>
                     <p>
                         <strong>Salesman:</strong> 
