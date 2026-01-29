@@ -1049,8 +1049,8 @@ function App() {
                         total: project.total_door || 0 
                     },
                     stripCurtain: { 
-                        completed: project.completed_strip_cuttain || 0, 
-                        total: project.total_strip_cuttain || 0 
+                        completed: project.completed_strip_curtain || 0, 
+                        total: project.total_strip_curtain || 0 
                     },
                     accessories: { 
                         completed: project.completed_accessories || 0, 
