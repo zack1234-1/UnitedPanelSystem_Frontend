@@ -1677,8 +1677,8 @@ function App() {
                         </span>
                     </p>
                     <p>
-                        <strong>Project No:</strong> 
-                        <span className="date-value">{project.projectNo}</span>
+                        <strong>Project Name:</strong> 
+                        <span className="date-value">{project.projectName}</span>
                     </p>
                     <p>
                         <strong>Salesman:</strong> 
