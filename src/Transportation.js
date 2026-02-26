@@ -1,8 +1,10 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { transportationTasksAPI, projectsAPI } from './apiService'; 
 import './PanelSlab.css';
 
-// Move modal components outside the main component
+// =========================================================
+// Create Task Modal (unchanged)
+// =========================================================
 const CreateTaskModal = ({ 
     isOpen, 
     onClose, 
@@ -120,6 +122,9 @@ const CreateTaskModal = ({
     );
 };
 
+// =========================================================
+// Edit Task Modal (unchanged)
+// =========================================================
 const EditTaskModal = ({ 
     isOpen, 
     onClose, 
@@ -238,15 +243,237 @@ const EditTaskModal = ({
     );
 };
 
+// =========================================================
+// Upload Media Modal (Signature + Image) – with existing media loading
+// =========================================================
+const UploadMediaModal = ({ 
+    isOpen, 
+    onClose, 
+    task, 
+    onUpload, 
+    isUploading, 
+    error 
+}) => {
+    const canvasRef = useRef(null);
+    const [isDrawing, setIsDrawing] = useState(false);
+    const [imageFile, setImageFile] = useState(null);
+    const [imagePreview, setImagePreview] = useState(null);
+    const fileInputRef = useRef(null);
+
+    // Load existing signature and image when modal opens
+    useEffect(() => {
+        if (isOpen && task) {
+            const canvas = canvasRef.current;
+            const ctx = canvas.getContext('2d');
+
+            if (task.signatureUrl) {
+                const img = new Image();
+                img.crossOrigin = 'anonymous';
+                img.onload = () => {
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    const scale = Math.min(canvas.width / img.width, canvas.height / img.height);
+                    const x = (canvas.width - img.width * scale) / 2;
+                    const y = (canvas.height - img.height * scale) / 2;
+                    ctx.drawImage(img, x, y, img.width * scale, img.height * scale);
+                };
+                img.onerror = () => {
+                    ctx.fillStyle = '#fff';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                };
+                img.src = task.signatureUrl;
+            } else {
+                ctx.fillStyle = '#fff';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+            }
+
+            if (task.imageUrl) {
+                setImagePreview(task.imageUrl);
+            } else {
+                setImagePreview(null);
+            }
+
+            setImageFile(null);
+            if (fileInputRef.current) {
+                fileInputRef.current.value = '';
+            }
+        }
+    }, [isOpen, task]);
+
+    const startDrawing = (e) => {
+        const canvas = canvasRef.current;
+        const ctx = canvas.getContext('2d');
+        const rect = canvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        setIsDrawing(true);
+    };
+
+    const draw = (e) => {
+        if (!isDrawing) return;
+        const canvas = canvasRef.current;
+        const ctx = canvas.getContext('2d');
+        const rect = canvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        ctx.lineTo(x, y);
+        ctx.stroke();
+    };
+
+    const stopDrawing = () => {
+        setIsDrawing(false);
+    };
+
+    const clearSignature = () => {
+        const canvas = canvasRef.current;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+    };
+
+    const handleImageChange = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            setImageFile(file);
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setImagePreview(reader.result);
+            };
+            reader.readAsDataURL(file);
+        } else {
+            setImageFile(null);
+            setImagePreview(task?.imageUrl || null);
+        }
+    };
+
+    const clearImage = () => {
+        setImageFile(null);
+        setImagePreview(task?.imageUrl || null);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+    };
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+
+        const canvas = canvasRef.current;
+        let signatureBlob = null;
+
+        const ctx = canvas.getContext('2d');
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const data = imageData.data;
+        let hasDrawing = false;
+        for (let i = 0; i < data.length; i += 4) {
+            if (data[i] < 250 || data[i + 1] < 250 || data[i + 2] < 250) {
+                hasDrawing = true;
+                break;
+            }
+        }
+
+        if (hasDrawing) {
+            signatureBlob = await new Promise(resolve => {
+                canvas.toBlob(resolve, 'image/png');
+            });
+        }
+
+        if (!signatureBlob && !imageFile) {
+            alert('Please draw a signature or select an image.');
+            return;
+        }
+
+        const formData = new FormData();
+        if (signatureBlob) {
+            formData.append('signature', signatureBlob, 'signature.png');
+        }
+        if (imageFile) {
+            formData.append('image', imageFile);
+        }
+
+        onUpload(formData);
+    };
+
+    if (!isOpen) return null;
+
+    return (
+        <div className="modal-overlay" onClick={onClose}>
+            <div className="modal-content modal-lg" onClick={e => e.stopPropagation()}>
+                <div className="modal-header">
+                    <h2>📎 Upload Media for Task: {task?.title}</h2>
+                    <button type="button" className="close-button" onClick={onClose}>
+                        &times;
+                    </button>
+                </div>
+
+                <div className="modal-body">
+                    <form onSubmit={handleSubmit} className="upload-media-form">
+                        <div className="form-group">
+                            <label>Draw Signature</label>
+                            <div className="signature-canvas-container">
+                                <canvas
+                                    ref={canvasRef}
+                                    width={500}
+                                    height={200}
+                                    style={{ border: '1px solid #ccc', background: '#fff', cursor: 'crosshair' }}
+                                    onMouseDown={startDrawing}
+                                    onMouseMove={draw}
+                                    onMouseUp={stopDrawing}
+                                    onMouseLeave={stopDrawing}
+                                />
+                            </div>
+                            <button type="button" className="secondary small" onClick={clearSignature}>
+                                🧹 Clear Signature
+                            </button>
+                        </div>
+
+                        <div className="form-group">
+                            <label>Upload Image (Photo)</label>
+                            <input
+                                type="file"
+                                accept="image/*"
+                                onChange={handleImageChange}
+                                ref={fileInputRef}
+                                className="file-input"
+                            />
+                            {imagePreview && (
+                                <div className="image-preview-container">
+                                    <img src={imagePreview} alt="Preview" className="image-preview" />
+                                </div>
+                            )}
+                        </div>
+
+                        {error && <div className="alert alert-danger">{error}</div>}
+
+                        <div className="modal-actions">
+                            <button type="button" className="secondary" onClick={onClose} disabled={isUploading}>
+                                Cancel
+                            </button>
+                            <button type="submit" className="primary" disabled={isUploading}>
+                                {isUploading ? 'Uploading...' : 'Upload Media'}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+// =========================================================
+// Main Transportation Component
+// =========================================================
 const Transportation = ({ navigate }) => {
     const [tasks, setTasks] = useState([]);
     const [projects, setProjects] = useState([]);
     const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [isMediaUploadModalOpen, setIsMediaUploadModalOpen] = useState(false);
+    const [uploadingTask, setUploadingTask] = useState(null);
+    const [isUploadingMedia, setIsUploadingMedia] = useState(false);
     const [editingTask, setEditingTask] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isProjectsLoading, setIsProjectsLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [uploadMediaError, setUploadMediaError] = useState(null);
     
     const [filters, setFilters] = useState({ 
         priority: 'all', 
@@ -279,7 +506,14 @@ const Transportation = ({ navigate }) => {
         setError(null);
         try {
             const data = await transportationTasksAPI.getAll();
-            setTasks(data);
+            console.log('Tasks API response:', data);
+            if (Array.isArray(data)) {
+                setTasks(data);
+            } else {
+                console.error('API did not return an array:', data);
+                setTasks([]);
+                setError('Received invalid data format from server.');
+            }
         } catch (err) {
             console.error('Failed to fetch tasks:', err);
             setError('Failed to load tasks. Please ensure the backend is running.');
@@ -308,19 +542,9 @@ const Transportation = ({ navigate }) => {
 
     const filteredTasks = useMemo(() => {
         let filtered = tasks.filter(task => {
-            // Priority filter
-            if (filters.priority !== 'all' && task.priority !== filters.priority) {
-                return false;
-            }
-            // Status filter
-            if (filters.status !== 'all' && task.status !== filters.status) {
-                return false;
-            }
-            // Project No filter
-            if (filters.projectNo !== 'all' && task.projectNo !== filters.projectNo) {
-                return false;
-            }
-            // Search filter
+            if (filters.priority !== 'all' && task.priority !== filters.priority) return false;
+            if (filters.status !== 'all' && task.status !== filters.status) return false;
+            if (filters.projectNo !== 'all' && task.projectNo !== filters.projectNo) return false;
             if (filters.search) {
                 const searchLower = filters.search.toLowerCase();
                 return (
@@ -332,19 +556,16 @@ const Transportation = ({ navigate }) => {
             return true;
         });
 
-        // Sorting
         if (sortConfig.key) {
             filtered.sort((a, b) => {
                 let aValue = a[sortConfig.key];
                 let bValue = b[sortConfig.key];
 
-                // Handle dates
                 if (sortConfig.key.includes('Date') || sortConfig.key === 'createdAt' || sortConfig.key === 'updatedAt') {
                     aValue = new Date(aValue || 0);
                     bValue = new Date(bValue || 0);
                 }
 
-                // Handle strings
                 if (typeof aValue === 'string') {
                     aValue = aValue.toLowerCase();
                     bValue = bValue.toLowerCase();
@@ -401,6 +622,53 @@ const Transportation = ({ navigate }) => {
         setIsEditModalOpen(false);
         setEditingTask(null);
         setError(null);
+    };
+
+    // Media upload handlers
+    const openUploadModal = (task) => {
+        setUploadingTask(task);
+        setUploadMediaError(null);
+        setIsMediaUploadModalOpen(true);
+    };
+
+    const closeUploadModal = () => {
+        setIsMediaUploadModalOpen(false);
+        setUploadingTask(null);
+        setUploadMediaError(null);
+    };
+
+    const handleUploadMedia = async (formData) => {
+        if (!uploadingTask) return;
+
+        setIsUploadingMedia(true);
+        setUploadMediaError(null);
+
+        try {
+            console.log('FormData contents:', Array.from(formData.entries()));
+            await transportationTasksAPI.uploadMedia(uploadingTask.id, formData);
+            await fetchTasks(); // Refresh tasks to get updated media URLs
+            closeUploadModal();
+        } catch (err) {
+            console.error('Failed to upload media:', err);
+            setUploadMediaError('Failed to upload: ' + (err.message || 'Please try again.'));
+        } finally {
+            setIsUploadingMedia(false);
+        }
+    };
+
+    const handleDeleteImage = async (taskId) => {
+        if (!window.confirm('Are you sure you want to delete the image?')) return;
+
+        try {
+            await transportationTasksAPI.deleteImage(taskId);
+            // Update local state to remove imageUrl
+            setTasks(prev => prev.map(task => 
+                task.id === taskId ? { ...task, imageUrl: null, imageDate: null } : task
+            ));
+        } catch (err) {
+            console.error('Failed to delete image:', err);
+            setError('Failed to delete image. Please try again.');
+        }
     };
 
     const handleCreateTask = async (e) => {
@@ -531,15 +799,6 @@ const Transportation = ({ navigate }) => {
             case 'in-progress': return '#17a2b8';
             case 'pending': return '#ffc107';
             default: return '#6c757d';
-        }
-    };
-
-    const getStatusIcon = (status) => {
-        switch (status) {
-            case 'completed': return '✅';
-            case 'in-progress': return '🔄';
-            case 'pending': return '⏳';
-            default: return '📝';
         }
     };
 
@@ -701,6 +960,13 @@ const Transportation = ({ navigate }) => {
                                             {task.description && (
                                                 <div className="task-description">{task.description}</div>
                                             )}
+                                            {/* Image indicator if exists */}
+                                            {task.imageUrl && (
+                                                <div className="image-indicator">
+                                                    <span className="image-badge">🖼️</span>
+                                                    <span className="uploaded-text">Signature And Image uploaded</span>
+                                                </div>
+                                            )}
                                         </td>
                                         <td>
                                             <span className="project-no-badge">
@@ -758,6 +1024,15 @@ const Transportation = ({ navigate }) => {
                                                     ✏️
                                                 </button>
                                                 <button
+                                                    onClick={() => openUploadModal(task)}
+                                                    className="upload-btn"
+                                                    title={task.imageUrl ? 
+                                                        "View/Change media" : 
+                                                        "Upload media (Signature/Image)"}
+                                                >
+                                                    {task.imageUrl ? '✅' : '📤'}
+                                                </button>
+                                                <button
                                                     onClick={() => handleDeleteTask(task.id)}
                                                     className="delete-btn"
                                                     title="Delete task"
@@ -770,24 +1045,6 @@ const Transportation = ({ navigate }) => {
                                 ))}
                             </tbody>
                         </table>
-                    </div>
-                )}
-
-                {filteredTasks.length > 0 && (
-                    <div className="table-footer">
-                        <div className="table-summary">
-                            Showing {filteredTasks.length} of {tasks.length} tasks
-                        </div>
-                        <div className="export-controls">
-                            <button className="secondary" onClick={() => window.print()}>
-                                📄 Print
-                            </button>
-                            <button className="secondary" onClick={() => {
-                                alert('Export functionality would be implemented here');
-                            }}>
-                                📊 Export CSV
-                            </button>
-                        </div>
                     </div>
                 )}
             </div>
@@ -810,6 +1067,15 @@ const Transportation = ({ navigate }) => {
                 onSubmit={handleUpdateTask}
                 error={error}
                 uniqueProjectNos={uniqueProjectNos}
+            />
+
+            <UploadMediaModal
+                isOpen={isMediaUploadModalOpen}
+                onClose={closeUploadModal}
+                task={uploadingTask}
+                onUpload={handleUploadMedia}
+                isUploading={isUploadingMedia}
+                error={uploadMediaError}
             />
         </div>
     );

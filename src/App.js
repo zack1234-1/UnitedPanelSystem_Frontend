@@ -8,6 +8,7 @@ import System from './System';
 import { FileView, FileUploadSection, real_uploadProjectFiles } from './FileComponents';
 import AdminPage from './AdminPage';
 import './App.css';
+import Transportation from './Transportation';
 import NotificationPage from './Notification';
 import ExcelExtractor from './ExcelExtractor';
 import ReportGenerator from './ReportGenerator';
@@ -16,7 +17,7 @@ import ReportGenerator from './ReportGenerator';
 // 1. REAL API Service Implementation
 // =========================================================
 
-const API_BASE = 'https://unitedpanelsystem-backend-1.onrender.com/api';
+const API_BASE = 'http://localhost:5000/api';
 
 // Helper function for API calls
 const apiCall = async (endpoint, options = {}) => {
@@ -461,16 +462,18 @@ const EnhancedCategorySelection = ({
                                     onClick={() => handleCategoryToggle(category.id)}
                                 >
                                     <div className="category-icon">{category.icon}</div>
-                                    <div className="category-label">{category.label}</div>
-                                    <div className="category-checkbox">
-                                        <input
+                                    <div className="category-container">
+                                        <div className="category-label">{category.label}</div>
+                                        <div className="category-checkbox">
+                                            <input
                                             type="checkbox"
                                             checked={isSelected}
                                             onChange={() => {}}
                                             className="category-checkbox-input"
-                                        />
-                                        <span className="checkmark"></span>
-                                    </div>
+                                            />
+                                            <span className="checkmark"></span>
+                                        </div>
+                                        </div>
                                 </div>
                                 
                                 {isSelected && (
@@ -637,6 +640,7 @@ const useSimpleRouter = () => {
     const matchAdmin = path === '/admin';
     const matchExcelExtractor = path === '/excel-extractor';
     const matchReportGenerator = path === '/report-generator';
+    const matchTransportation = path === '/transportation';
 
     let currentRoute = 'JobList';
     let params = {};
@@ -654,6 +658,8 @@ const useSimpleRouter = () => {
         currentRoute = 'Accessories';
     } else if (matchStripCurtain) {
         currentRoute = 'StripCurtain';
+    } else if (matchTransportation) { 
+        currentRoute = 'Transportation';
     } else if (matchSystem) {
         currentRoute = 'System';
     } else if (matchNotifications) {
@@ -1335,6 +1341,7 @@ function App() {
             }
             
             addNotification(notificationMessage);
+            navigate('/admin');   
 
         } catch (err) {
             console.error("Error creating project:", err);
@@ -1785,6 +1792,16 @@ function App() {
                         <span role="img" aria-label="home">🏠</span>
                         {isSidebarOpen && <span>Project List</span>}
                     </a>
+
+                    {/* Admin Page Navigation */}
+                    <a 
+                        href="#/admin" 
+                        className={`nav-item ${currentRoute === 'AdminPage' ? 'active' : ''}`}
+                        onClick={() => navigate('/admin')}
+                    > 
+                        <span role="img" aria-label="admin">👨‍💼</span>
+                        {isSidebarOpen && <span>Sales</span>}
+                    </a>
                     
                     <a 
                         href="#/panels" 
@@ -1840,6 +1857,15 @@ function App() {
                         {isSidebarOpen && <span>Refrigeration System</span>}
                     </a>
 
+                    <a 
+                        href="#/transportation" 
+                        className={`nav-item ${currentRoute === 'Transportation' ? 'active' : ''}`}
+                        onClick={() => navigate('/transportation')}
+                    > 
+                        <span role="img" aria-label="transportation">🚚</span>
+                        {isSidebarOpen && <span>Transportation/QC</span>}
+                    </a>    
+
                     {/* Excel Extractor Navigation */}
                     {/* <a 
                         href="#/excel-extractor" 
@@ -1849,16 +1875,6 @@ function App() {
                         <span role="img" aria-label="excel">📊</span>
                         {isSidebarOpen && <span>Excel Extractor</span>}
                     </a> */}
-
-                    {/* Admin Page Navigation */}
-                    <a 
-                        href="#/admin" 
-                        className={`nav-item ${currentRoute === 'AdminPage' ? 'active' : ''}`}
-                        onClick={() => navigate('/admin')}
-                    > 
-                        <span role="img" aria-label="admin">👨‍💼</span>
-                        {isSidebarOpen && <span>Sales</span>}
-                    </a>
                     {/* Report Generator Navigation */}
                     {/* <a 
                         href="#/report-generator" 
@@ -2137,6 +2153,7 @@ function App() {
                 {currentRoute === 'StripCurtain' && <StripCurtain navigate={navigate} />}
                 {currentRoute === 'Accessories' && <Accessories navigate={navigate} />}
                 {currentRoute === 'System' && <System navigate={navigate} />}
+                {currentRoute === 'Transportation' && <Transportation navigate={navigate} />}
                 {currentRoute === 'ReportGenerator' && <ReportGenerator />}
                 
                 {/* Excel Extractor Page */}

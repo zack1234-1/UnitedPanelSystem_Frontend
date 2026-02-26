@@ -1,4 +1,4 @@
-const BASE_URL = 'https://unitedpanelsystem-backend-1.onrender.com/api';
+const BASE_URL = 'http://localhost:5000/api';
 
 // Helper to handle standard API responses
 const handleResponse = async (response) => {
@@ -14,22 +14,47 @@ const handleResponse = async (response) => {
 };
 
 // Generic API request function
+
 const apiRequest = async (endpoint, options = {}) => {
     const url = `${BASE_URL}${endpoint}`;
-    const config = {
-        headers: {
-            'Content-Type': 'application/json',
-            ...options.headers,
-        },
-        ...options,
-        // Stringify body if it exists and is an object
-        body: options.body && typeof options.body === 'object' 
-            ? JSON.stringify(options.body) 
-            : options.body,
+
+    // Merge default headers with any custom headers provided
+    const headers = {
+        // You can add common headers here (e.g., Authorization)
+        ...options.headers,
     };
 
-    const response = await fetch(url, config);
-    return handleResponse(response);
+    const fetchOptions = {
+        method: options.method || 'GET',
+        headers,
+        body: options.body,
+    };
+
+    // If the body is FormData, let the browser set the Content-Type (with boundary)
+    if (!(options.body instanceof FormData)) {
+        // Set Content-Type to JSON for non‑FormData bodies
+        headers['Content-Type'] = 'application/json';
+        // Stringify the body if it exists and is not already a string
+        if (options.body) {
+            fetchOptions.body = JSON.stringify(options.body);
+        }
+    }
+
+    try {
+        const response = await fetch(url, fetchOptions);
+        const data = await response.json();
+
+        if (!response.ok) {
+            // Extract error message from server response if available
+            const errorMessage = data.error || data.message || response.statusText;
+            throw new Error(errorMessage);
+        }
+
+        return data;
+    } catch (error) {
+        console.error(`API request failed: ${url}`, error);
+        throw error; // Re-throw so calling code can handle it
+    }
 };
 
 // =========================================================
@@ -110,14 +135,32 @@ export const panelTasksAPI = {
     getAll: () => apiRequest('/panel-tasks'),
     create: (taskData) => apiRequest('/panel-tasks', { 
         method: 'POST',
-        body: taskData,
+        body: taskData, // Will be stringified in apiRequest
     }),
     update: (taskId, taskData) => apiRequest(`/panel-tasks/${taskId}`, {
         method: 'PATCH',
-        body: taskData,
+        body: taskData, // Will be stringified in apiRequest
     }),
     delete: (taskId) => apiRequest(`/panel-tasks/${taskId}`, {
         method: 'DELETE',
+    }),
+    uploadSignature: (taskId, formData) => apiRequest(`/panel-tasks/${taskId}/signature`, {
+        method: 'POST',
+        body: formData, // FormData object, don't stringify
+    }),
+    deleteSignature: (taskId) => apiRequest(`/panel-tasks/${taskId}/signature`, {
+        method: 'DELETE',
+    }),
+    uploadImage: (taskId, formData) => apiRequest(`/panel-tasks/${taskId}/image`, {
+        method: 'POST',
+        body: formData, // FormData object, don't stringify
+    }),
+    deleteImage: (taskId) => apiRequest(`/panel-tasks/${taskId}/image`, {
+        method: 'DELETE',
+    }),
+    uploadMedia: (taskId, formData) => apiRequest(`/panel-tasks/${taskId}/media`, {
+        method: 'POST',
+        body: formData,
     }),
 };
 
@@ -135,6 +178,10 @@ export const doorTasksAPI = {
     delete: (taskId) => apiRequest(`/door-tasks/${taskId}`, {
         method: 'DELETE',
     }),
+    uploadMedia: (taskId, formData) => apiRequest(`/door-tasks/${taskId}/media`, {
+        method: 'POST',
+        body: formData,
+    }),
 };
 
 // --- Accessories Tasks API ---
@@ -150,6 +197,10 @@ export const accessoriesTasksAPI = {
     }),
     delete: (taskId) => apiRequest(`/accessories-tasks/${taskId}`, {
         method: 'DELETE',
+    }),
+    uploadMedia: (taskId, formData) => apiRequest(`/accessories-tasks/${taskId}/media`, {
+        method: 'POST',
+        body: formData,
     }),
 };
 
@@ -167,6 +218,10 @@ export const cuttingTasksAPI = {
     delete: (taskId) => apiRequest(`/cutting-tasks/${taskId}`, {
         method: 'DELETE',
     }),
+    uploadMedia: (taskId, formData) => apiRequest(`/cutting-tasks/${taskId}/media`, {
+        method: 'POST',
+        body: formData,
+    }),
 };
 
 export const stripCurtainTasksAPI = {
@@ -183,6 +238,10 @@ export const stripCurtainTasksAPI = {
     delete: (taskId) => apiRequest(`/strip-curtain-tasks/${taskId}`, {
         method: 'DELETE',
     }),
+    uploadMedia: (taskId, formData) => apiRequest(`/strip-curtain-tasks/${taskId}/media`, {
+        method: 'POST',
+        body: formData,
+    }),
 };
 
 export const systemTasksAPI = {
@@ -198,6 +257,10 @@ export const systemTasksAPI = {
     }),
     delete: (taskId) => apiRequest(`/system-tasks/${taskId}`, {
         method: 'DELETE',
+    }),
+    uploadMedia: (taskId, formData) => apiRequest(`/system-tasks/${taskId}/media`, {
+        method: 'POST',
+        body: formData,
     }),
 };
 
@@ -278,6 +341,10 @@ export const transportationTasksAPI = {
     }),
     delete: (taskId) => apiRequest(`/transportation-tasks/${taskId}`, {
         method: 'DELETE',
+    }),
+    uploadMedia: (taskId, formData) => apiRequest(`/transportation-tasks/${taskId}/media`, {
+        method: 'POST',
+        body: formData,
     }),
 };
 
