@@ -81,10 +81,14 @@ const SignatureCanvas = ({ signatureData, onSaveSignature, onClearSignature }) =
         }
     }, [signatureData]);
 
-    // Utility to get canvas coordinates
-    const getCoordinates = (e) => {
+   const getCoordinates = (e) => {
         const canvas = canvasRef.current;
         const rect = canvas.getBoundingClientRect();
+        
+        // Calculate scaling factors between bitmap and display size
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+
         let clientX, clientY;
 
         if (e.touches && e.touches.length === 1) {
@@ -95,11 +99,13 @@ const SignatureCanvas = ({ signatureData, onSaveSignature, onClearSignature }) =
             clientY = e.clientY;
         }
 
-        const x = clientX - rect.left;
-        const y = clientY - rect.top;
+        // Convert to canvas bitmap coordinates
+        const x = (clientX - rect.left) * scaleX;
+        const y = (clientY - rect.top) * scaleY;
+
         return { x, y };
-    }
-    
+    };
+
     const startDrawing = (e) => {
         if (!ctx) return;
         const { x, y } = getCoordinates(e);
@@ -427,7 +433,7 @@ const ProjectModal = ({
 
                         <div className="modal-actions">
                             <button type="submit" className="action-btn primary">
-                                {jobToEdit ? 'Update Entry' : 'Save Entry'}
+                                {jobToEdit ? 'Update' : 'Save Entry'}
                             </button>
                             <button type="button" onClick={onClose} className="action-btn secondary">
                                 Cancel

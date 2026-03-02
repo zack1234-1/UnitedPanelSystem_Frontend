@@ -428,6 +428,7 @@ export const productionAPI = {
     }),
 
     getAll: () => apiRequest('/panels/production-records/all'),
+    getByDate: (date) => apiRequest(`/panels/production-records/by-date?date=${date}`),
 
     // PUT: Update production record
     update: (panelId, recordId, productionData) => apiRequest(`/panels/${panelId}/production-records/${recordId}`, {

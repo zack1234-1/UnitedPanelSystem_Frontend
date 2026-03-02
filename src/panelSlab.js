@@ -266,7 +266,7 @@ const CreateTaskModal = ({
 };
 
 // =========================================================
-// Upload Media Modal (unchanged)
+// Upload Media Modal (with fixed coordinate scaling)
 // =========================================================
 const UploadMediaModal = ({ 
     isOpen, 
@@ -282,6 +282,30 @@ const UploadMediaModal = ({
     const [imagePreview, setImagePreview] = useState(null);
     const fileInputRef = useRef(null);
 
+    // Helper to get scaled canvas coordinates
+    const getCanvasCoordinates = (e) => {
+        const canvas = canvasRef.current;
+        const rect = canvas.getBoundingClientRect();
+        const scaleX = canvas.width / rect.width;   // ratio between bitmap width and display width
+        const scaleY = canvas.height / rect.height; // ratio between bitmap height and display height
+
+        let clientX, clientY;
+
+        if (e.touches && e.touches.length === 1) {
+            clientX = e.touches[0].clientX;
+            clientY = e.touches[0].clientY;
+        } else {
+            clientX = e.clientX;
+            clientY = e.clientY;
+        }
+
+        // Convert to canvas bitmap coordinates
+        const x = (clientX - rect.left) * scaleX;
+        const y = (clientY - rect.top) * scaleY;
+
+        return { x, y };
+    };
+
     useEffect(() => {
         if (isOpen && task) {
             const canvas = canvasRef.current;
@@ -292,6 +316,7 @@ const UploadMediaModal = ({
                 img.crossOrigin = 'anonymous';
                 img.onload = () => {
                     ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    // Draw the image centered, scaled to fit the canvas
                     const scale = Math.min(canvas.width / img.width, canvas.height / img.height);
                     const x = (canvas.width - img.width * scale) / 2;
                     const y = (canvas.height - img.height * scale) / 2;
@@ -303,6 +328,7 @@ const UploadMediaModal = ({
                 };
                 img.src = task.signatureUrl;
             } else {
+                // Clear canvas to white
                 ctx.fillStyle = '#fff';
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
             }
@@ -321,11 +347,10 @@ const UploadMediaModal = ({
     }, [isOpen, task]);
 
     const startDrawing = (e) => {
+        e.preventDefault(); // Prevent scrolling on touch devices
         const canvas = canvasRef.current;
         const ctx = canvas.getContext('2d');
-        const rect = canvas.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
+        const { x, y } = getCanvasCoordinates(e);
         ctx.beginPath();
         ctx.moveTo(x, y);
         setIsDrawing(true);
@@ -333,16 +358,16 @@ const UploadMediaModal = ({
 
     const draw = (e) => {
         if (!isDrawing) return;
+        e.preventDefault();
         const canvas = canvasRef.current;
         const ctx = canvas.getContext('2d');
-        const rect = canvas.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
+        const { x, y } = getCanvasCoordinates(e);
         ctx.lineTo(x, y);
         ctx.stroke();
     };
 
-    const stopDrawing = () => {
+    const stopDrawing = (e) => {
+        e.preventDefault();
         setIsDrawing(false);
     };
 
@@ -385,6 +410,7 @@ const UploadMediaModal = ({
         const data = imageData.data;
         let hasDrawing = false;
         for (let i = 0; i < data.length; i += 4) {
+            // Check if any pixel is not white (threshold 250)
             if (data[i] < 250 || data[i+1] < 250 || data[i+2] < 250) {
                 hasDrawing = true;
                 break;
@@ -434,11 +460,22 @@ const UploadMediaModal = ({
                                     ref={canvasRef}
                                     width={500}
                                     height={200}
-                                    style={{ border: '1px solid #ccc', background: '#fff', cursor: 'crosshair' }}
+                                    style={{
+                                        border: '1px solid #ccc',
+                                        background: '#fff',
+                                        cursor: 'crosshair',
+                                        width: '100%',      // Let it scale with container
+                                        height: 'auto',
+                                        touchAction: 'none'  // Prevent scrolling while drawing on touch
+                                    }}
                                     onMouseDown={startDrawing}
                                     onMouseMove={draw}
                                     onMouseUp={stopDrawing}
                                     onMouseLeave={stopDrawing}
+                                    onTouchStart={startDrawing}
+                                    onTouchMove={draw}
+                                    onTouchEnd={stopDrawing}
+                                    onTouchCancel={stopDrawing}
                                 />
                             </div>
                             <button type="button" className="secondary small" onClick={clearSignature}>
@@ -1067,9 +1104,6 @@ const PanelSlab = ({ onBackToProjects }) => {
                                     <tr key={task.id} className="task-row">
                                         <td className="task-title-cell">
                                             <div className="task-title-main">{task.title}</div>
-                                            {task.description && (
-                                                <div className="task-description">{task.description}</div>
-                                            )}
                                             {task.imageUrl && (
                                                 <div className="image-indicator">
                                                     <span className="image-badge">🖼️</span>

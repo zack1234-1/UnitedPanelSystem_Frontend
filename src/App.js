@@ -1907,7 +1907,7 @@ function App() {
                         <header className="page-header">
                             <h1>Project Tracker</h1>
                             <button onClick={toggleForm} className="primary toggle-form-button">
-                                {isFormOpen ? '✖️ Close Form' : '➕ Add New Project'}
+                                {isFormOpen ? '✖️ Close Form' : '➕ First Start With Add New Project'}
                             </button>
                         </header>
                         <main>
