@@ -385,6 +385,11 @@ export const viewPanelAPI = {
         method: 'DELETE',
     }),
 
+    // DELETE: Delete all panels by job number
+    deleteByJob: (jobNo) => apiRequest(`/panels/by-job/${encodeURIComponent(jobNo)}`, {
+        method: 'DELETE',
+    }),
+
     // GET: Get production summary for a panel (including current balance)
     getProductionSummary: (panelId) => apiRequest(`/panels/${panelId}/production-summary`),
 

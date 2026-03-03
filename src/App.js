@@ -312,7 +312,7 @@ const EnhancedCategorySelection = ({
         { id: 'panel', label: 'Panel / Slab', icon: '🖼️' },
         { id: 'cutting', label: 'Cutting', icon: '✂️' },
         { id: 'door', label: 'Door', icon: '🚪' },
-        { id: 'strip_curtain', label: 'Strip Curtain', icon: '🎪' },
+        //{ id: 'strip_curtain', label: 'Strip Curtain', icon: '🎪' },
         { id: 'accessories', label: 'Accessories', icon: '🔧' },
         { id: 'system', label: 'Refrigeration System', icon: '⚙️' },
         { id: 'quotation', label: 'Quotation', icon: '📋' }
@@ -1318,7 +1318,7 @@ function App() {
                 panel: 'Panel/Slab',
                 cutting: 'Cutting',
                 door: 'Door',
-                strip_curtain: 'Strip Curtain',
+                //strip_curtain: 'Strip Curtain',
                 accessories: 'Accessories',
                 system: 'Refrigeration System',
             };
@@ -1404,7 +1404,7 @@ function App() {
         { key: 'panelSlab', label: 'Panel / Slab' },
         { key: 'cutting', label: 'Cutting' },
         { key: 'door', label: 'Door' },
-        { key: 'stripCurtain', label: 'Strip Curtain' },
+        //{ key: 'stripCurtain', label: 'Strip Curtain' },
         { key: 'accessories', label: 'Accessories' },
         { key: 'system', label: 'Refrigeration System' },
     ];
@@ -1830,14 +1830,14 @@ function App() {
                         {isSidebarOpen && <span>Door</span>}
                     </a>
 
-                    <a 
+                    {/* <a 
                         href="#/strip-curtain" 
                         className={`nav-item ${currentRoute === 'StripCurtain' ? 'active' : ''}`}
                         onClick={() => navigate('/strip-curtain')}
                     > 
                         <span role="img" aria-label="strip curtain">🎪</span>
                         {isSidebarOpen && <span>Strip Curtain</span>}
-                    </a>
+                    </a> */}
 
                     <a 
                         href="#/accessories" 
@@ -2150,7 +2150,6 @@ function App() {
                 {currentRoute === 'PanelSlab' && <PanelSlab navigate={navigate} />}
                 {currentRoute === 'Cutting' && <Cutting navigate={navigate} />}
                 {currentRoute === 'Door' && <Door navigate={navigate} />}
-                {currentRoute === 'StripCurtain' && <StripCurtain navigate={navigate} />}
                 {currentRoute === 'Accessories' && <Accessories navigate={navigate} />}
                 {currentRoute === 'System' && <System navigate={navigate} />}
                 {currentRoute === 'Transportation' && <Transportation navigate={navigate} />}

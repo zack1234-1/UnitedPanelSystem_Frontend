@@ -859,8 +859,23 @@ body {
   animation: fadeIn 0.2s ease;
 }
 
+.modal-content {
+  max-height: 90vh;
+  overflow-y: auto;
+  z-index: 3000;
+}
+
 .production-modal-overlay {
-  z-index: 3000 !important;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0,0,0,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 3000;
 }
 
 @keyframes fadeIn {
@@ -1915,4 +1930,48 @@ input[type="number"]::-webkit-inner-spin-button,
 input[type="number"]::-webkit-outer-spin-button {
   -webkit-appearance: none;
   margin: 0;
+}
+
+/* Job Overview Table enhancements */
+.job-panels-table table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 13px;
+  table-layout: fixed;
+}
+
+.job-panels-table th,
+.job-panels-table td {
+  padding: 4px 2px;
+  border: 1px solid #aaa; /* darker border */
+  text-align: left;
+  vertical-align: middle;
+  word-wrap: break-word;
+}
+
+.job-panels-table th {
+  font-weight: 600;
+  white-space: normal;
+}
+
+.job-panels-table thead th {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 10 !important;
+  background-color: inherit; /* uses the inline color */
+}
+
+/* Zebra striping for rows */
+.job-panels-table tbody tr:nth-child(even) {
+  background-color: #f9f9f9;
+}
+
+/* Hover effect */
+.job-panels-table tbody tr:hover {
+  background-color: #e6f7ff !important;
+}
+
+/* Ensure the "new row" highlight still stands out */
+.job-panels-table tbody tr[style*="background-color: #e6f7ff"] {
+  background-color: #e6f7ff !important;
 }

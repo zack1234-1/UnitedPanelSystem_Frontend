@@ -245,9 +245,6 @@ const EditTaskModal = ({
     );
 };
 
-// =========================================================
-// Upload Media Modal (with fixed coordinate scaling)
-// =========================================================
 const UploadMediaModal = ({ 
     isOpen, 
     onClose, 
@@ -266,8 +263,8 @@ const UploadMediaModal = ({
     const getCanvasCoordinates = (e) => {
         const canvas = canvasRef.current;
         const rect = canvas.getBoundingClientRect();
-        const scaleX = canvas.width / rect.width;   // ratio between bitmap width and display width
-        const scaleY = canvas.height / rect.height; // ratio between bitmap height and display height
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
 
         let clientX, clientY;
 
@@ -279,7 +276,6 @@ const UploadMediaModal = ({
             clientY = e.clientY;
         }
 
-        // Convert to canvas bitmap coordinates
         const x = (clientX - rect.left) * scaleX;
         const y = (clientY - rect.top) * scaleY;
 
@@ -296,7 +292,6 @@ const UploadMediaModal = ({
                 img.crossOrigin = 'anonymous';
                 img.onload = () => {
                     ctx.clearRect(0, 0, canvas.width, canvas.height);
-                    // Draw the image centered, scaled to fit the canvas
                     const scale = Math.min(canvas.width / img.width, canvas.height / img.height);
                     const x = (canvas.width - img.width * scale) / 2;
                     const y = (canvas.height - img.height * scale) / 2;
@@ -308,7 +303,6 @@ const UploadMediaModal = ({
                 };
                 img.src = task.signatureUrl;
             } else {
-                // Clear canvas to white
                 ctx.fillStyle = '#fff';
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
             }
@@ -327,7 +321,7 @@ const UploadMediaModal = ({
     }, [isOpen, task]);
 
     const startDrawing = (e) => {
-        e.preventDefault(); // Prevent scrolling on touch devices
+        e.preventDefault();
         const canvas = canvasRef.current;
         const ctx = canvas.getContext('2d');
         const { x, y } = getCanvasCoordinates(e);
@@ -373,12 +367,6 @@ const UploadMediaModal = ({
         }
     };
 
-    const clearImage = () => {
-        setImageFile(null);
-        setImagePreview(task?.imageUrl || null);
-        if (fileInputRef.current) fileInputRef.current.value = '';
-    };
-
     const handleSubmit = async (e) => {
         e.preventDefault();
 
@@ -390,7 +378,6 @@ const UploadMediaModal = ({
         const data = imageData.data;
         let hasDrawing = false;
         for (let i = 0; i < data.length; i += 4) {
-            // Check if any pixel is not white (threshold 250)
             if (data[i] < 250 || data[i+1] < 250 || data[i+2] < 250) {
                 hasDrawing = true;
                 break;
@@ -401,6 +388,11 @@ const UploadMediaModal = ({
             signatureBlob = await new Promise(resolve => {
                 canvas.toBlob(resolve, 'image/png');
             });
+        }
+
+        if (!hasDrawing || !imageFile) {
+            alert('Please draw a signature AND select an image.');
+            return;
         }
 
         if (!signatureBlob && !imageFile) {
@@ -444,9 +436,9 @@ const UploadMediaModal = ({
                                         border: '1px solid #ccc',
                                         background: '#fff',
                                         cursor: 'crosshair',
-                                        width: '100%',      // Let it scale with container
+                                        width: '100%',
                                         height: 'auto',
-                                        touchAction: 'none'  // Prevent scrolling while drawing on touch
+                                        touchAction: 'none'
                                     }}
                                     onMouseDown={startDrawing}
                                     onMouseMove={draw}
@@ -475,11 +467,12 @@ const UploadMediaModal = ({
                             {imagePreview && (
                                 <div className="image-preview-container">
                                     <img src={imagePreview} alt="Preview" className="image-preview" />
-                                    <button type="button" className="remove-image-btn" onClick={clearImage}>
-                                        ✖
-                                    </button>
+                                    {/* Removed the remove button as requested */}
                                 </div>
                             )}
+                            <p className="form-hint">
+                                {task?.imageUrl ? "Uploading a new image will replace the existing one." : ""}
+                            </p>
                         </div>
 
                         {error && <div className="alert alert-danger">{error}</div>}

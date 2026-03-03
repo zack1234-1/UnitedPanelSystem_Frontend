@@ -267,8 +267,8 @@ const ProductionDetailsModal = ({ panel, onClose, updatePanelBalance, formatNumb
     const calculateRecordLength = (record) => ((parseInt(record.number_of_panels) || 0) * panelLength / 1000).toFixed(2);
 
     return (
-        <div className="modal-overlay production-modal-overlay" onClick={onClose}>
-            <div className="modal-content large-modal" onClick={e => e.stopPropagation()}>
+        <div className="modal-overlay production-modal-overlay" onClick={onClose} style={{ zIndex: 10000 }}>
+          <div className="modal-content large-modal" onClick={e => e.stopPropagation()} style={{ width: '95vw', maxWidth: '1600px', height: '95vh', zIndex: 10001 }}>
                 <div className="modal-header">
                     <h2>Production Management: {currentPanel.reference_number}</h2>
                     <button type="button" className="close-button" onClick={onClose}>×</button>
@@ -413,25 +413,46 @@ const JobOverviewContent = ({
   handleCancelEdit,
   formatDate,
   calculateArea,
-  jobOverviewColumns,
+  visibleColumns,
   openDuplicateModal,
   handlePrint,
   handleDeletePanel,
-  openProductionModal
+  openProductionModal,
+  onAddNewPanel,
+  isAddingNew,
+  newRowData,
+  setNewRowData,
+  handleSaveNewPanel,
+  onDeleteAllByJob,
+  stickyTop = 0
 }) => {
-  // Filter state (unchanged)
   const [jobFilters, setJobFilters] = useState({});
   const [activeFilterCol, setActiveFilterCol] = useState(null);
   const [filterDropdownPos, setFilterDropdownPos] = useState({ top: 0, left: 0 });
   const filterDropdownRef = useRef(null);
-
-  // New state for action modal
   const [actionModalPanel, setActionModalPanel] = useState(null);
 
-  // Unique values for each column in this job (unchanged)
+  const headerColors = [
+    '#f8d7da', // light red
+    '#fff3cd', // light yellow
+    '#d1e7dd', // light green
+    '#cfe2ff', // light blue
+    '#e2d1f0', // light purple
+    '#f9e1d2', // light orange
+    '#d2d2d2', // light gray
+    '#fadadd', // light pink
+    '#c9e4f0', // light cyan
+    '#fce4d6', // light peach
+    '#e6d5b8', // light tan
+    '#d9ead3', // light mint
+    '#ffe5b4', // light apricot
+    '#dcd3ff', // light lavender
+    '#ffd1dc', // light rose
+    ];
+
   const uniqueValues = useMemo(() => {
     const uniques = {};
-    jobOverviewColumns.forEach(col => {
+    visibleColumns.forEach(col => {
       if (col.type === 'computed') return;
       const values = panels
         .map(p => {
@@ -445,9 +466,8 @@ const JobOverviewContent = ({
       uniques[col.key] = [...new Set(values)].sort();
     });
     return uniques;
-  }, [panels, jobOverviewColumns]);
+  }, [panels, visibleColumns]);
 
-  // Filtered panels based on jobFilters (unchanged)
   const filteredPanels = useMemo(() => {
     return panels.filter(panel => {
       for (let [key, filterVal] of Object.entries(jobFilters)) {
@@ -464,7 +484,6 @@ const JobOverviewContent = ({
     });
   }, [panels, jobFilters]);
 
-  // Totals for filtered panels (unchanged)
   const totalQty = filteredPanels.reduce((sum, p) => sum + (parseInt(p.qty) || 0), 0);
   const totalBalance = filteredPanels.reduce((sum, p) => sum + (p.balance !== undefined ? p.balance : (parseInt(p.qty) || 0)), 0);
   const totalArea = filteredPanels.reduce((sum, p) => {
@@ -479,7 +498,6 @@ const JobOverviewContent = ({
     return sum + (produced * length);
   }, 0);
 
-  // Click outside handler for filter dropdown (unchanged)
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (filterDropdownRef.current && !filterDropdownRef.current.contains(e.target)) {
@@ -490,13 +508,11 @@ const JobOverviewContent = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Handle filter selection (unchanged)
   const handleFilterSelect = (key, value) => {
     setJobFilters(prev => ({ ...prev, [key]: value }));
     setActiveFilterCol(null);
   };
 
-  // Clear filter for a column (unchanged)
   const clearFilter = (key) => {
     setJobFilters(prev => {
       const newFilters = { ...prev };
@@ -505,19 +521,34 @@ const JobOverviewContent = ({
     });
   };
 
-  // Check if any filter is active (unchanged)
   const hasFilters = Object.keys(jobFilters).length > 0;
+
+  const handleNewRowFieldChange = (field, value) => {
+    setNewRowData(prev => ({ ...prev, [field]: value }));
+  };
 
   return (
     <>
       <div className="job-summary" style={{ marginBottom: '1.5rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap' }}>
           <h3>Summary</h3>
-          {hasFilters && (
-            <button className="btn btn-sm btn-secondary" onClick={() => setJobFilters({})}>
-              Clear Filters
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+            {hasFilters && (
+              <button className="btn btn-sm btn-secondary" onClick={() => setJobFilters({})}>
+                Clear Filters
+              </button>
+            )}
+            <button
+              className="btn btn-sm btn-danger"
+              onClick={() => onDeleteAllByJob(job)}
+              title="Delete all panels in this job"
+            >
+              Delete All
             </button>
-          )}
+            <button className="btn btn-sm btn-success" onClick={onAddNewPanel} disabled={isAddingNew}>
+              {isAddingNew ? 'Adding...' : '+ Add Row'}
+            </button>
+          </div>
         </div>
         <div className="summary-stats" style={{ display: 'flex', gap: '2rem', flexWrap: 'wrap' }}>
           <div className="stat-item"><span className="stat-label">Total Panels:</span><span className="stat-value">{filteredPanels.length} / {panels.length}</span></div>
@@ -527,57 +558,154 @@ const JobOverviewContent = ({
           <div className="stat-item"><span className="stat-label">Total Produced Meter:</span><span className="stat-value">{(totalProducedMeter / 1000).toFixed(2)} m</span></div>
         </div>
       </div>
+
       <div className="job-panels-table">
         <h3>Panels in this Job (click column header to filter, click cell to edit)</h3>
         <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px', tableLayout: 'fixed' }}>
-            <thead>
-              <tr style={{ backgroundColor: '#f2f2f2' }}>
-                {jobOverviewColumns.map(col => (
-                  <th
+          <table style={{
+            width: '100%',
+            borderCollapse: 'collapse',
+            fontSize: '13px',
+            tableLayout: 'fixed'
+          }}>
+           <thead>
+            <tr>
+                {visibleColumns.map((col, index) => (
+                <th
                     key={col.key}
                     onClick={() => {
-                      if (col.type !== 'computed') {
+                    if (col.type !== 'computed') {
                         const rect = document.getElementById(`th-${col.key}`)?.getBoundingClientRect();
                         if (rect) {
-                          setFilterDropdownPos({
+                        setFilterDropdownPos({
                             top: rect.bottom + window.scrollY,
                             left: rect.left + window.scrollX
-                          });
-                          setActiveFilterCol(activeFilterCol === col.key ? null : col.key);
+                        });
+                        setActiveFilterCol(activeFilterCol === col.key ? null : col.key);
                         }
-                      }
+                    }
                     }}
                     style={{
-                      padding: '4px 2px',
-                      border: '1px solid #ccc',
-                      whiteSpace: 'normal',
-                      cursor: col.type !== 'computed' ? 'pointer' : 'default',
-                      position: 'relative'
+                    padding: '4px 2px',
+                    border: '1px solid #ccc',
+                    whiteSpace: 'normal',
+                    cursor: col.type !== 'computed' ? 'pointer' : 'default',
+                    position: 'sticky',
+                    top: stickyTop,
+                    zIndex: 2,
+                    backgroundColor: headerColors[index % headerColors.length],
+                    boxShadow: '0 2px 2px -1px rgba(0,0,0,0.1)'
                     }}
                     id={`th-${col.key}`}
-                  >
+                >
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      {col.label}
-                      {jobFilters[col.key] && (
+                    {col.label}
+                    {jobFilters[col.key] && (
                         <span
-                          style={{ marginLeft: '4px', fontSize: '10px', cursor: 'pointer' }}
-                          onClick={(e) => {
+                        style={{ marginLeft: '4px', fontSize: '10px', cursor: 'pointer' }}
+                        onClick={(e) => {
                             e.stopPropagation();
                             clearFilter(col.key);
-                          }}
-                          title="Clear filter"
+                        }}
+                        title="Clear filter"
                         >
-                          ✕
+                        ✕
                         </span>
-                      )}
+                    )}
                     </div>
-                  </th>
+                </th>
                 ))}
-                <th style={{ padding: '4px 2px', border: '1px solid #ccc', whiteSpace: 'normal' }}>Actions</th>
-              </tr>
+                <th
+                style={{
+                    padding: '4px 2px',
+                    border: '1px solid #ccc',
+                    whiteSpace: 'normal',
+                    position: 'sticky',
+                    top: stickyTop,
+                    zIndex: 2,
+                    backgroundColor: headerColors[visibleColumns.length % headerColors.length],
+                    boxShadow: '0 2px 2px -1px rgba(0,0,0,0.1)'
+                }}
+                >
+                Actions
+                </th>
+            </tr>
             </thead>
             <tbody>
+              {isAddingNew && (
+                <tr style={{ backgroundColor: '#e6f7ff' }}>
+                  {visibleColumns.map(col => {
+                    if (col.type === 'computed') {
+                      return <td key={col.key} style={{ padding: '4px 2px', border: '1px solid #ccc' }}>—</td>;
+                    }
+                    let inputElement;
+                    if (col.type === 'number') {
+                      inputElement = (
+                        <input
+                          type="number"
+                          step="any"
+                          value={newRowData[col.key] ?? ''}
+                          onChange={(e) => handleNewRowFieldChange(col.key, e.target.value)}
+                          style={{ width: '100%', boxSizing: 'border-box', fontSize: '13px', padding: '2px' }}
+                        />
+                      );
+                    } else if (col.type === 'date') {
+                      inputElement = (
+                        <input
+                          type="date"
+                          value={newRowData[col.key] ?? ''}
+                          onChange={(e) => handleNewRowFieldChange(col.key, e.target.value)}
+                          style={{ width: '100%', boxSizing: 'border-box', fontSize: '13px', padding: '2px' }}
+                        />
+                      );
+                    } else if (col.key === 'status') {
+                      inputElement = (
+                        <select
+                          value={newRowData.status || 'pending'}
+                          onChange={(e) => handleNewRowFieldChange('status', e.target.value)}
+                          style={{ width: '100%', fontSize: '13px', padding: '2px' }}
+                        >
+                          <option value="pending">Pending</option>
+                          <option value="in_progress">In Progress</option>
+                          <option value="completed">Completed</option>
+                        </select>
+                      );
+                    } else {
+                      inputElement = (
+                        <input
+                          type="text"
+                          value={newRowData[col.key] ?? ''}
+                          onChange={(e) => handleNewRowFieldChange(col.key, e.target.value)}
+                          style={{ width: '100%', boxSizing: 'border-box', fontSize: '13px', padding: '2px' }}
+                        />
+                      );
+                    }
+                    return (
+                      <td key={col.key} style={{ padding: '4px 2px', border: '1px solid #ccc' }}>
+                        {inputElement}
+                      </td>
+                    );
+                  })}
+                  <td style={{ padding: '4px 2px', border: '1px solid #ccc', textAlign: 'center' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+                      <button
+                        onClick={handleSaveNewPanel}
+                        style={{ fontSize: '14px', background: 'none', border: 'none', cursor: 'pointer' }}
+                        title="Save"
+                      >
+                        💾
+                      </button>
+                      <button
+                        onClick={() => setNewRowData(null)}
+                        style={{ fontSize: '14px', background: 'none', border: 'none', cursor: 'pointer' }}
+                        title="Cancel"
+                      >
+                        ❌
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              )}
               {filteredPanels.map(panel => {
                 const isEditing = editingRowId === panel.id;
                 const qty = parseInt(panel.qty) || 0;
@@ -590,7 +718,7 @@ const JobOverviewContent = ({
 
                 return (
                   <tr key={panel.id}>
-                    {jobOverviewColumns.map(col => {
+                    {visibleColumns.map(col => {
                       let value;
                       if (col.key === 'area') {
                         value = area.toFixed(3);
@@ -603,7 +731,6 @@ const JobOverviewContent = ({
                       }
 
                       if (isEditing && col.type !== 'computed') {
-                        // Render input for editable columns
                         let inputElement;
                         if (col.type === 'number') {
                           inputElement = (
@@ -612,7 +739,7 @@ const JobOverviewContent = ({
                               step="any"
                               value={editedRowData[col.key] ?? ''}
                               onChange={(e) => handleEditedFieldChange(col.key, e.target.value)}
-                              style={{ width: '100%', boxSizing: 'border-box', fontSize: '11px', padding: '2px' }}
+                              style={{ width: '100%', boxSizing: 'border-box', fontSize: '13px', padding: '2px' }}
                             />
                           );
                         } else if (col.type === 'date') {
@@ -621,7 +748,7 @@ const JobOverviewContent = ({
                               type="date"
                               value={editedRowData[col.key] ?? ''}
                               onChange={(e) => handleEditedFieldChange(col.key, e.target.value)}
-                              style={{ width: '100%', boxSizing: 'border-box', fontSize: '11px', padding: '2px' }}
+                              style={{ width: '100%', boxSizing: 'border-box', fontSize: '13px', padding: '2px' }}
                             />
                           );
                         } else if (col.key === 'status') {
@@ -629,7 +756,7 @@ const JobOverviewContent = ({
                             <select
                               value={editedRowData.status || 'pending'}
                               onChange={(e) => handleEditedFieldChange('status', e.target.value)}
-                              style={{ width: '100%', fontSize: '11px', padding: '2px' }}
+                              style={{ width: '100%', fontSize: '13px', padding: '2px' }}
                             >
                               <option value="pending">Pending</option>
                               <option value="in_progress">In Progress</option>
@@ -642,7 +769,7 @@ const JobOverviewContent = ({
                               type="text"
                               value={editedRowData[col.key] ?? ''}
                               onChange={(e) => handleEditedFieldChange(col.key, e.target.value)}
-                              style={{ width: '100%', boxSizing: 'border-box', fontSize: '11px', padding: '2px' }}
+                              style={{ width: '100%', boxSizing: 'border-box', fontSize: '13px', padding: '2px' }}
                             />
                           );
                         }
@@ -652,7 +779,6 @@ const JobOverviewContent = ({
                           </td>
                         );
                       } else {
-                        // Read-only cell
                         return (
                           <td
                             key={col.key}
@@ -662,6 +788,7 @@ const JobOverviewContent = ({
                               border: '1px solid #ccc',
                               cursor: col.type !== 'computed' ? 'pointer' : 'default',
                               wordBreak: 'break-word',
+                              fontSize: '13px',
                               backgroundColor: jobFilters[col.key] === panel[col.key]?.toString().trim() ? '#e3f2fd' : 'transparent'
                             }}
                             title={col.type !== 'computed' ? 'Click to edit' : ''}
@@ -673,7 +800,6 @@ const JobOverviewContent = ({
                     })}
                     <td style={{ padding: '4px 2px', border: '1px solid #ccc', textAlign: 'center', verticalAlign: 'middle' }}>
                       {isEditing ? (
-                        // Save/Cancel buttons stacked vertically
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
                           <button
                             onClick={handleSaveEdit}
@@ -691,7 +817,6 @@ const JobOverviewContent = ({
                           </button>
                         </div>
                       ) : (
-                        // Single action button that opens the modal
                         <button
                           onClick={() => setActionModalPanel(panel)}
                           style={{ fontSize: '20px', background: 'none', border: 'none', cursor: 'pointer' }}
@@ -709,7 +834,6 @@ const JobOverviewContent = ({
         </div>
       </div>
 
-      {/* Filter Dropdown Portal (unchanged) */}
       {activeFilterCol && ReactDOM.createPortal(
         <div
           className="filter-dropdown"
@@ -722,7 +846,7 @@ const JobOverviewContent = ({
           }}
         >
           <div className="filter-dropdown-header">
-            <span>Filter by {jobOverviewColumns.find(c => c.key === activeFilterCol)?.label}</span>
+            <span>Filter by {visibleColumns.find(c => c.key === activeFilterCol)?.label}</span>
             <button onClick={() => setActiveFilterCol(null)}>×</button>
           </div>
           <div className="filter-dropdown-list">
@@ -749,7 +873,6 @@ const JobOverviewContent = ({
         document.body
       )}
 
-      {/* Action Modal Portal (new) */}
       {actionModalPanel && ReactDOM.createPortal(
         <div
           className="modal-overlay"
@@ -827,7 +950,6 @@ const JobOverviewContent = ({
   );
 };
 
-// ==================== Main ViewPanelPage Component ====================
 const ViewPanelPage = () => {
     const navigate = useNavigate();
     const [panels, setPanels] = useState([]);
@@ -864,13 +986,24 @@ const ViewPanelPage = () => {
     const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0 });
     const portalDropdownRef = useRef(null);
 
-    // State for Job Overview and inline editing
     const [isJobOverviewModalOpen, setIsJobOverviewModalOpen] = useState(false);
     const [selectedJobForOverview, setSelectedJobForOverview] = useState(null);
     const [editingRowId, setEditingRowId] = useState(null);
     const [editedRowData, setEditedRowData] = useState(null);
     const [editError, setEditError] = useState(null);
     const [editSuccess, setEditSuccess] = useState(null);
+
+    const [isAddingNew, setIsAddingNew] = useState(false);
+    const [newRowData, setNewRowData] = useState(null);
+
+    const modalHeaderRef = useRef(null);
+    const [modalHeaderHeight, setModalHeaderHeight] = useState(60);
+
+    useEffect(() => {
+        if (isJobOverviewModalOpen && modalHeaderRef.current) {
+            setModalHeaderHeight(modalHeaderRef.current.offsetHeight);
+        }
+    }, [isJobOverviewModalOpen]);
 
     const defaultColumns = [
         { id: 'job_no', label: 'Job No', visible: true, order: 1 },
@@ -912,6 +1045,25 @@ const ViewPanelPage = () => {
 
     const refreshAllProductionRecords = async () => {
         await fetchAllProductionRecords();
+    };
+
+    const handleDeleteAllByJob = async (jobNo) => {
+        if (!jobNo) return;
+        const jobPanels = panels.filter(p => p.job_no === jobNo);
+        if (jobPanels.length === 0) return;
+        
+        if (!window.confirm(`Are you sure you want to delete ALL ${jobPanels.length} panels for job "${jobNo}"? This action cannot be undone.`)) {
+            return;
+        }
+        
+        try {
+            await viewPanelAPI.deleteByJob(jobNo);
+            setSuccess(`All panels for job ${jobNo} deleted successfully.`);
+            await fetchPanels();
+        } catch (err) {
+            console.error('Failed to delete panels by job:', err);
+            setError('Failed to delete panels: ' + (err.message || 'Unknown error'));
+        }
     };
 
     const defaultPanelValues = {
@@ -1217,7 +1369,7 @@ const ViewPanelPage = () => {
             const newPanels = [];
             for (let i = 0; i < count; i++) {
                 const originalJobNo = panel.job_no || '';
-                const newJobNo = count === 1 ? `${originalJobNo} (Copy)` : `${originalJobNo} (Copy ${i + 1})`;
+                const newJobNo = originalJobNo;
                 const originalNotes = panel.notes || '';
                 const newNotes = originalNotes ? `${originalNotes}\n\n---\nDuplicate of ${panel.reference_number}` : `Duplicate of ${panel.reference_number}`;
                 let formattedEstimatedDelivery = null;
@@ -1256,6 +1408,17 @@ const ViewPanelPage = () => {
                 newPanels.push({ ...createdPanel, balance: createdPanel.balance !== undefined ? createdPanel.balance : (createdPanel.qty || 0) });
             }
             setPanels(prev => [...newPanels, ...prev]);
+            
+            if (isJobOverviewModalOpen && selectedJobForOverview && selectedJobForOverview.job === panel.job_no) {
+                const updatedJobPanels = panels
+                    .filter(p => p.job_no === panel.job_no)
+                    .concat(newPanels);
+                setSelectedJobForOverview(prev => ({
+                    ...prev,
+                    panels: updatedJobPanels
+                }));
+            }
+            
             closeDuplicateModal();
             setError(null);
             if (count === 1) alert(`Panel duplicated successfully! New reference: ${referenceNumbers[0]}`);
@@ -1296,7 +1459,7 @@ const ViewPanelPage = () => {
             const newPanels = [];
             for (let i = 0; i < count; i++) {
                 const originalJobNo = newPanel.job_no || '';
-                const newJobNo = count === 1 ? `${originalJobNo} (Copy)` : `${originalJobNo} (Copy ${i + 1})`;
+                const newJobNo = originalJobNo;
                 const originalNotes = newPanel.notes || '';
                 const newNotes = originalNotes ? `${originalNotes}\n\n---\nCreated from form` : `Created from form`;
                 const panelData = {
@@ -1328,6 +1491,17 @@ const ViewPanelPage = () => {
                 newPanels.push({ ...createdPanel, balance: createdPanel.balance !== undefined ? createdPanel.balance : (createdPanel.qty || 0) });
             }
             setPanels(prev => [...newPanels, ...prev]);
+            
+            if (isJobOverviewModalOpen && selectedJobForOverview && selectedJobForOverview.job === newPanel.job_no) {
+                const updatedJobPanels = panels
+                    .filter(p => p.job_no === newPanel.job_no)
+                    .concat(newPanels);
+                setSelectedJobForOverview(prev => ({
+                    ...prev,
+                    panels: updatedJobPanels
+                }));
+            }
+            
             setIsCreateFormDuplicateModalOpen(false);
             setNewPanel({...defaultPanelValues});
             setError(null);
@@ -1467,6 +1641,14 @@ const ViewPanelPage = () => {
             Object.keys(panelToUpdate).forEach(key => { if (panelToUpdate[key] === '') panelToUpdate[key] = null; });
             const updatedPanel = await viewPanelAPI.update(editingPanel.id, panelToUpdate);
             setPanels(prev => prev.map(p => p.id === updatedPanel.id ? { ...updatedPanel, balance: updatedPanel.balance !== undefined ? updatedPanel.balance : (updatedPanel.qty || 0) } : p));
+            
+            if (isJobOverviewModalOpen && selectedJobForOverview) {
+                const updatedPanels = selectedJobForOverview.panels.map(p => 
+                    p.id === updatedPanel.id ? { ...p, ...updatedPanel, balance: updatedPanel.balance !== undefined ? updatedPanel.balance : (updatedPanel.qty || 0) } : p
+                );
+                setSelectedJobForOverview(prev => ({ ...prev, panels: updatedPanels }));
+            }
+            
             setIsEditModalOpen(false); setEditingPanel(null); setError(null); setSuccess('Panel updated successfully!'); setTimeout(() => setSuccess(null), 3000);
         } catch (err) { console.error('Failed to update panel:', err); setError('Failed to update panel: ' + (err.message || 'Unknown error')); }
     };
@@ -1508,26 +1690,18 @@ const ViewPanelPage = () => {
         if (!window.confirm('Are you sure you want to delete this panel? All production records will also be deleted.')) return;
         try {
             await viewPanelAPI.delete(id);
-            // Update the main panels list
             setPanels(prev => prev.filter(panel => panel.id !== id));
-
-            // If the job overview modal is open and contains this panel, remove it there too
             if (selectedJobForOverview) {
-            setSelectedJobForOverview(prev => {
-                if (!prev) return prev;
-                const updatedPanels = prev.panels.filter(p => p.id !== id);
-                // If the job becomes empty, you can either close the modal or keep it with an empty list
-                return { ...prev, panels: updatedPanels };
-            });
+                const updatedPanels = selectedJobForOverview.panels.filter(p => p.id !== id);
+                setSelectedJobForOverview(prev => ({ ...prev, panels: updatedPanels }));
             }
-
             setSuccess('Panel deleted successfully!');
             setTimeout(() => setSuccess(null), 3000);
         } catch (err) {
             console.error('Failed to delete panel:', err);
             setError('Failed to delete panel: ' + (err.message || 'Unknown error'));
         }
-        };
+    };
 
     const openProductionModal = (panel) => setSelectedPanelForProduction(panel);
     const closeProductionModal = () => setSelectedPanelForProduction(null);
@@ -1547,7 +1721,6 @@ const ViewPanelPage = () => {
     const closeEditModal = () => { setIsEditModalOpen(false); setEditingPanel(null); setError(null); };
     const closeCreateModal = () => { setIsCreateModalOpen(false); setNewPanel({...defaultPanelValues}); setError(null); setSuccess(null); };
 
-    // Job Overview handlers
     const openJobOverview = (job) => {
         setSelectedJobForOverview(job);
         setIsJobOverviewModalOpen(true);
@@ -1555,6 +1728,8 @@ const ViewPanelPage = () => {
         setEditedRowData(null);
         setEditError(null);
         setEditSuccess(null);
+        setIsAddingNew(false);
+        setNewRowData(null);
     };
     const closeJobOverview = () => {
         setIsJobOverviewModalOpen(false);
@@ -1563,9 +1738,10 @@ const ViewPanelPage = () => {
         setEditedRowData(null);
         setEditError(null);
         setEditSuccess(null);
+        setIsAddingNew(false);
+        setNewRowData(null);
     };
 
-    // Click-to-edit handlers
     const handleCellClick = (panel) => {
         if (editingRowId === panel.id) return;
         setEditingRowId(panel.id);
@@ -1644,6 +1820,77 @@ const ViewPanelPage = () => {
         setEditedRowData(null);
         setEditError(null);
         setEditSuccess(null);
+    };
+
+    const handleAddNewPanel = () => {
+        const initialNewRow = {};
+        visibleColumns.forEach(col => {
+            if (col.type !== 'computed') {
+                if (col.key === 'status') initialNewRow.status = 'pending';
+                else if (col.key === 'job_no') initialNewRow.job_no = selectedJobForOverview?.job || '';
+                else initialNewRow[col.key] = '';
+            }
+        });
+        setNewRowData(initialNewRow);
+        setIsAddingNew(true);
+    };
+
+    const handleSaveNewPanel = async () => {
+        if (!newRowData) return;
+
+        let jobNo = newRowData.job_no?.trim();
+        if (!jobNo && selectedJobForOverview?.job) {
+            jobNo = selectedJobForOverview.job;
+            setNewRowData(prev => ({ ...prev, job_no: jobNo }));
+        }
+
+        if (!jobNo) {
+            setEditError('Job No is required');
+            return;
+        }
+        if (!newRowData.width || !newRowData.length) {
+            setEditError('Width and Length are required');
+            return;
+        }
+
+        try {
+            setEditError(null);
+            const existingRefs = panels.map(p => p.reference_number);
+            const referenceNumber = generateReferenceNumber(existingRefs);
+
+            const panelData = {
+                ...newRowData,
+                job_no: jobNo,
+                reference_number: referenceNumber,
+                width: newRowData.width ? parseFloat(newRowData.width) : 0,
+                length: newRowData.length ? parseFloat(newRowData.length) : 0,
+                qty: newRowData.qty ? parseInt(newRowData.qty) : null,
+                balance: newRowData.qty ? parseInt(newRowData.qty) : null,
+                status: newRowData.status || 'pending',
+                estimated_delivery: newRowData.estimated_delivery ? convertToISOString(newRowData.estimated_delivery) : null,
+                created_at: newRowData.created_at ? convertToISOString(newRowData.created_at) : null,
+            };
+
+            Object.keys(panelData).forEach(key => {
+                if (panelData[key] === '') panelData[key] = null;
+            });
+
+            const createdPanel = await viewPanelAPI.create(panelData);
+
+            setPanels(prev => [{ ...createdPanel, balance: createdPanel.balance !== undefined ? createdPanel.balance : (createdPanel.qty || 0) }, ...prev]);
+
+            setSelectedJobForOverview(prev => ({
+                ...prev,
+                panels: [{ ...createdPanel, balance: createdPanel.balance !== undefined ? createdPanel.balance : (createdPanel.qty || 0) }, ...prev.panels]
+            }));
+
+            setEditSuccess('Panel created successfully');
+            setIsAddingNew(false);
+            setNewRowData(null);
+        } catch (err) {
+            console.error('Failed to create panel:', err);
+            setEditError('Failed to create panel: ' + (err.message || 'Unknown error'));
+        }
     };
 
     const formatDate = (dateString) => {
@@ -1781,7 +2028,6 @@ const ViewPanelPage = () => {
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, [activeFilterColumn]);
 
-    // Define columns for job overview table (excluding computed ones and job_no)
     const jobOverviewColumns = [
         { key: 'joint', label: 'Joint', type: 'text' },
         { key: 'type', label: 'Type', type: 'text' },
@@ -1803,6 +2049,24 @@ const ViewPanelPage = () => {
         { key: 'created_at', label: 'Date', type: 'date' },
         { key: 'estimated_delivery', label: 'Estimated Delivery', type: 'date' }
     ];
+
+    const [jobOverviewVisibleColumns, setJobOverviewVisibleColumns] = useState(jobOverviewColumns.map(col => col.key));
+    const [showColumnSelector, setShowColumnSelector] = useState(false);
+    const selectorRef = useRef(null);
+
+    useEffect(() => {
+        const handleClickOutside = (e) => {
+            if (selectorRef.current && !selectorRef.current.contains(e.target)) {
+                setShowColumnSelector(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    const jobOverviewFilteredColumns = jobOverviewColumns.filter(col =>
+        jobOverviewVisibleColumns.includes(col.key)
+    );
 
     return (
         <div className="view-panel-container">
@@ -1925,18 +2189,28 @@ const ViewPanelPage = () => {
                                 {groupedPanels.map(group => (
                                     <div key={group.job} className="job-group">
                                         <div className="group-header" onClick={() => toggleGroup(group.job)}>
-                                            <span className="group-toggle">{expandedGroups.has(group.job) ? '▼' : '▶'}</span>
-                                            <span className="group-title">{group.job}</span>
-                                            <span className="group-count">({group.panels.length} panel{group.panels.length !== 1 ? 's' : ''})</span>
-                                            <button 
-                                                className="overview-btn"
-                                                onClick={(e) => { e.stopPropagation(); openJobOverview(group); }}
-                                                title="View job overview"
-                                                style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.2rem' }}
-                                            >
-                                                📋
-                                            </button>
-                                        </div>
+                                    <span className="group-toggle">{expandedGroups.has(group.job) ? '▼' : '▶'}</span>
+                                    <span className="group-title">{group.job}</span>
+                                    <span className="group-count">({group.panels.length} panel{group.panels.length !== 1 ? 's' : ''})</span>
+                                    <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px' }}>
+                                        <button 
+                                            className="overview-btn"
+                                            onClick={(e) => { e.stopPropagation(); openJobOverview(group); }}
+                                            title="View job overview"
+                                            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.2rem' }}
+                                        >
+                                            📋
+                                        </button>
+                                        <button 
+                                            className="delete-job-btn"
+                                            onClick={(e) => { e.stopPropagation(); handleDeleteAllByJob(group.job); }}
+                                            title="Delete all panels in this job"
+                                            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.2rem', color: '#dc2626' }}
+                                        >
+                                            🗑️
+                                        </button>
+                                    </div>
+                                </div>
                                         {expandedGroups.has(group.job) && (
                                             <div className="card-grid">
                                                 {group.panels.map(panel => (
@@ -1982,15 +2256,69 @@ const ViewPanelPage = () => {
                 />
             )}
 
-            {/* Job Overview Modal with Click-to-Edit and Header Filters */}
             {isJobOverviewModalOpen && selectedJobForOverview && (
                 <div className="modal-overlay" onClick={closeJobOverview}>
                     <div className="modal-content" style={{ width: '98vw', maxWidth: '1600px' }} onClick={e => e.stopPropagation()}>
-                        <div className="modal-header">
+                        <div className="modal-header" ref={modalHeaderRef}>
                             <h2>Job Overview: {selectedJobForOverview.job}</h2>
-                            <button type="button" className="close-button" onClick={closeJobOverview}>×</button>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 0 , marginLeft: 'auto' }}>
+                            <div className="column-selector" style={{ position: 'relative', margin: 0, padding: 0, marginRight: '-1px' }}>
+                                <button
+                                    className="btn btn-sm btn-secondary"
+                                    onClick={() => setShowColumnSelector(!showColumnSelector)}
+                                    style={{ margin: 0 }}
+                                >
+                                    Columns
+                                </button>
+                                {showColumnSelector && (
+                                    <div
+                                        ref={selectorRef}
+                                        className="column-selector-dropdown"
+                                        style={{
+                                            position: 'absolute',
+                                            top: '100%',
+                                            right: 0,
+                                            background: 'white',
+                                            border: '1px solid #ccc',
+                                            borderRadius: '4px',
+                                            padding: '8px',
+                                            zIndex: 1000,
+                                            maxHeight: '300px',
+                                            overflowY: 'auto',
+                                            minWidth: '200px',
+                                            boxShadow: '0 2px 10px rgba(0,0,0,0.1)'
+                                        }}
+                                    >
+                                        {jobOverviewColumns.map(col => (
+                                            <label key={col.key} style={{ display: 'block', marginBottom: '4px' }}>
+                                                <input
+                                                    type="checkbox"
+                                                    checked={jobOverviewVisibleColumns.includes(col.key)}
+                                                    onChange={(e) => {
+                                                        if (e.target.checked) {
+                                                            setJobOverviewVisibleColumns([...jobOverviewVisibleColumns, col.key]);
+                                                        } else {
+                                                            setJobOverviewVisibleColumns(jobOverviewVisibleColumns.filter(k => k !== col.key));
+                                                        }
+                                                    }}
+                                                />
+                                                {' '}{col.label}
+                                            </label>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                            <button
+                                type="button"
+                                className="btn btn-sm btn-danger"
+                                onClick={closeJobOverview}
+                                style={{ margin: 0 }}
+                            >
+                                Close
+                            </button>
                         </div>
-                        <div className="modal-body" style={{ maxHeight: '80vh', overflowY: 'auto' }}>
+                        </div>
+                        <div className="modal-body">
                             {editError && <div className="alert alert-danger">{editError}</div>}
                             {editSuccess && <div className="alert alert-success">{editSuccess}</div>}
                             <JobOverviewContent
@@ -2004,11 +2332,17 @@ const ViewPanelPage = () => {
                                 handleCancelEdit={handleCancelEdit}
                                 formatDate={formatDate}
                                 calculateArea={calculateArea}
-                                jobOverviewColumns={jobOverviewColumns}
+                                visibleColumns={jobOverviewFilteredColumns}
                                 openDuplicateModal={openDuplicateModal}
                                 handlePrint={handlePrint}
                                 handleDeletePanel={handleDeletePanel}
                                 openProductionModal={openProductionModal}
+                                onAddNewPanel={handleAddNewPanel}
+                                isAddingNew={isAddingNew}
+                                newRowData={newRowData}
+                                setNewRowData={setNewRowData}
+                                handleSaveNewPanel={handleSaveNewPanel}
+                                stickyTop={modalHeaderHeight}
                             />
                         </div>
                     </div>
@@ -2042,26 +2376,125 @@ const ViewPanelPage = () => {
                 </div>
             )}
 
-            {isEditModalOpen && editingPanel && (
-                <div className="modal-overlay" onClick={closeEditModal}>
-                    <div className="modal-content wide-modal" onClick={e => e.stopPropagation()}>
-                        <div className="modal-header"><h2>Edit Panel: {editingPanel.reference_number}</h2><button type="button" className="close-button" onClick={closeEditModal}>×</button></div>
-                        <div className="modal-body">
-                            <form onSubmit={handleUpdatePanel} className="panel-form horizontal-form">
-                                <div className="form-row"><div className="form-group"><label htmlFor="edit_job_no">Job No *</label><input type="text" id="edit_job_no" name="job_no" value={editingPanel.job_no} onChange={handleEditInputChange} className="form-input" required/></div><div className="form-group"><label htmlFor="edit_type">Type</label><input type="text" id="edit_type" name="type" value={editingPanel.type} onChange={handleEditInputChange} className="form-input"/></div><div className="form-group"><label htmlFor="edit_panel_thk">Panel Thickness (mm)</label><input type="number" id="edit_panel_thk" name="panel_thk" value={editingPanel.panel_thk} onChange={handleEditInputChange} onWheel={handleWheel} className="form-input"/></div></div>
-                                <div className="form-row"><div className="form-group"><label htmlFor="edit_application">Application</label><input type="text" id="edit_application" name="application" value={editingPanel.application} onChange={handleEditInputChange} className="form-input"/></div><div className="form-group"><label htmlFor="edit_joint">Joint</label><input type="text" id="edit_joint" name="joint" value={editingPanel.joint} onChange={handleEditInputChange} className="form-input"/></div><div className="form-group"><label htmlFor="edit_surface_front">Surface Front</label><input type="text" id="edit_surface_front" name="surface_front" value={editingPanel.surface_front} onChange={handleEditInputChange} className="form-input"/></div></div>
-                                <div className="form-row"><div className="form-group"><label htmlFor="edit_surface_back">Surface Back</label><input type="text" id="edit_surface_back" name="surface_back" value={editingPanel.surface_back} onChange={handleEditInputChange} className="form-input"/></div><div className="form-group"><label htmlFor="edit_surface_front_thk">Front Thickness (mm)</label><input type="number" id="edit_surface_front_thk" name="surface_front_thk" value={editingPanel.surface_front_thk} onChange={handleEditInputChange} onWheel={handleWheel} className="form-input"/></div><div className="form-group"><label htmlFor="edit_surface_back_thk">Back Thickness (mm)</label><input type="number" id="edit_surface_back_thk" name="surface_back_thk" value={editingPanel.surface_back_thk} onChange={handleEditInputChange} onWheel={handleWheel} className="form-input"/></div></div>
-                                <div className="form-row"><div className="form-group"><label htmlFor="edit_surface_type">Surface Type</label><input type="text" id="edit_surface_type" name="surface_type" value={editingPanel.surface_type} onChange={handleEditInputChange} className="form-input"/></div><div className="form-group"><label htmlFor="edit_width">Width (mm) *</label><input type="number" id="edit_width" name="width" value={editingPanel.width} onChange={handleEditInputChange} onWheel={handleWheel} className="form-input" required/></div><div className="form-group"><label htmlFor="edit_length">Length (mm) *</label><input type="number" id="edit_length" name="length" value={editingPanel.length} onChange={handleEditInputChange} onWheel={handleWheel} className="form-input" required/></div></div>
-                                <div className="form-row"><div className="form-group"><label htmlFor="edit_qty">Quantity</label><input type="number" id="edit_qty" name="qty" value={editingPanel.qty} onChange={handleEditInputChange} onWheel={handleWheel} className="form-input"/></div><div className="form-group"><label htmlFor="edit_cutting">Cutting</label><input type="text" id="edit_cutting" name="cutting" value={editingPanel.cutting} onChange={handleEditInputChange} className="form-input"/></div><div className="form-group"><label htmlFor="edit_status">Status</label><select id="edit_status" name="status" value={editingPanel.status} onChange={handleEditInputChange} className="form-input"><option value="pending">Pending</option><option value="in_progress">In Progress</option><option value="completed">Completed</option></select></div></div>
-                                <div className="form-row"><div className="form-group"><label htmlFor="edit_salesman">Salesman</label><input type="text" id="edit_salesman" name="salesman" value={editingPanel.salesman} onChange={handleEditInputChange} className="form-input"/></div><div className="form-group"><label htmlFor="edit_estimated_delivery">Est. Delivery</label><input type="date" id="edit_estimated_delivery" name="estimated_delivery" value={editingPanel.estimated_delivery} onChange={handleEditInputChange} className="form-input"/></div><div className="form-group"><label htmlFor="edit_created_at">Production Date</label><input type="date" id="edit_created_at" name="created_at" value={editingPanel.created_at || ''} onChange={handleEditInputChange} className="form-input"/></div><div className="form-group"></div></div>
-                                <div className="form-row"><div className="form-group full-width"><label htmlFor="edit_notes">Notes</label><textarea id="edit_notes" name="notes" value={editingPanel.notes} onChange={handleEditInputChange} className="form-input" rows="3"/></div></div>
-                                {error && <div className="alert alert-danger">{error}</div>}
-                                <div className="form-actions"><button type="button" className="secondary-btn" onClick={closeEditModal}>Cancel</button><button type="submit" className="primary-btn">Update Panel</button></div>
-                            </form>
-                        </div>
+           {isEditModalOpen && editingPanel && (
+            <div className="modal-overlay" onClick={closeEditModal}>
+                <div className="modal-content wide-modal" onClick={e => e.stopPropagation()}>
+                    <div className="modal-header"><h2>Edit Panel: {editingPanel.reference_number}</h2><button type="button" className="close-button" onClick={closeEditModal}>×</button></div>
+                    <div className="modal-body">
+                        <form onSubmit={handleUpdatePanel} className="panel-form horizontal-form">
+                            <div className="form-grid">
+                                <div className="form-row">
+                                    <div className="form-group">
+                                        <label htmlFor="edit_job_no">Job No *</label>
+                                        <input type="text" id="edit_job_no" name="job_no" value={editingPanel.job_no} onChange={handleEditInputChange} className="form-input" required/>
+                                    </div>
+                                    <div className="form-group">
+                                        <label htmlFor="edit_type">Type</label>
+                                        <input type="text" id="edit_type" name="type" value={editingPanel.type} onChange={handleEditInputChange} className="form-input"/>
+                                    </div>
+                                </div>
+                                <div className="form-row">
+                                    <div className="form-group">
+                                        <label htmlFor="edit_panel_thk">Panel Thickness (mm)</label>
+                                        <input type="number" id="edit_panel_thk" name="panel_thk" value={editingPanel.panel_thk} onChange={handleEditInputChange} onWheel={handleWheel} className="form-input"/>
+                                    </div>
+                                    <div className="form-group">
+                                        <label htmlFor="edit_application">Application</label>
+                                        <input type="text" id="edit_application" name="application" value={editingPanel.application} onChange={handleEditInputChange} className="form-input"/>
+                                    </div>
+                                </div>
+                                <div className="form-row">
+                                    <div className="form-group">
+                                        <label htmlFor="edit_joint">Joint</label>
+                                        <input type="text" id="edit_joint" name="joint" value={editingPanel.joint} onChange={handleEditInputChange} className="form-input"/>
+                                    </div>
+                                    <div className="form-group">
+                                        <label htmlFor="edit_surface_front">Surface Front</label>
+                                        <input type="text" id="edit_surface_front" name="surface_front" value={editingPanel.surface_front} onChange={handleEditInputChange} className="form-input"/>
+                                    </div>
+                                </div>
+                                <div className="form-row">
+                                    <div className="form-group">
+                                        <label htmlFor="edit_surface_back">Surface Back</label>
+                                        <input type="text" id="edit_surface_back" name="surface_back" value={editingPanel.surface_back} onChange={handleEditInputChange} className="form-input"/>
+                                    </div>
+                                    <div className="form-group">
+                                        <label htmlFor="edit_surface_front_thk">Front Thickness (mm)</label>
+                                        <input type="number" id="edit_surface_front_thk" name="surface_front_thk" value={editingPanel.surface_front_thk} onChange={handleEditInputChange} onWheel={handleWheel} className="form-input"/>
+                                    </div>
+                                </div>
+                                <div className="form-row">
+                                    <div className="form-group">
+                                        <label htmlFor="edit_surface_back_thk">Back Thickness (mm)</label>
+                                        <input type="number" id="edit_surface_back_thk" name="surface_back_thk" value={editingPanel.surface_back_thk} onChange={handleEditInputChange} onWheel={handleWheel} className="form-input"/>
+                                    </div>
+                                    <div className="form-group">
+                                        <label htmlFor="edit_surface_type">Surface Type</label>
+                                        <input type="text" id="edit_surface_type" name="surface_type" value={editingPanel.surface_type} onChange={handleEditInputChange} className="form-input"/>
+                                    </div>
+                                </div>
+                                <div className="form-row">
+                                    <div className="form-group">
+                                        <label htmlFor="edit_width">Width (mm) *</label>
+                                        <input type="number" id="edit_width" name="width" value={editingPanel.width} onChange={handleEditInputChange} onWheel={handleWheel} className="form-input" required/>
+                                    </div>
+                                    <div className="form-group">
+                                        <label htmlFor="edit_length">Length (mm) *</label>
+                                        <input type="number" id="edit_length" name="length" value={editingPanel.length} onChange={handleEditInputChange} onWheel={handleWheel} className="form-input" required/>
+                                    </div>
+                                </div>
+                                <div className="form-row">
+                                    <div className="form-group">
+                                        <label htmlFor="edit_qty">Quantity</label>
+                                        <input type="number" id="edit_qty" name="qty" value={editingPanel.qty} onChange={handleEditInputChange} onWheel={handleWheel} className="form-input"/>
+                                    </div>
+                                    <div className="form-group">
+                                        <label htmlFor="edit_cutting">Cutting</label>
+                                        <input type="text" id="edit_cutting" name="cutting" value={editingPanel.cutting} onChange={handleEditInputChange} className="form-input"/>
+                                    </div>
+                                </div>
+                                <div className="form-row">
+                                    <div className="form-group">
+                                        <label htmlFor="edit_status">Status</label>
+                                        <select id="edit_status" name="status" value={editingPanel.status} onChange={handleEditInputChange} className="form-input">
+                                            <option value="pending">Pending</option>
+                                            <option value="in_progress">In Progress</option>
+                                            <option value="completed">Completed</option>
+                                        </select>
+                                    </div>
+                                    <div className="form-group">
+                                        <label htmlFor="edit_salesman">Salesman</label>
+                                        <input type="text" id="edit_salesman" name="salesman" value={editingPanel.salesman} onChange={handleEditInputChange} className="form-input"/>
+                                    </div>
+                                </div>
+                                <div className="form-row">
+                                    <div className="form-group">
+                                        <label htmlFor="edit_estimated_delivery">Est. Delivery</label>
+                                        <input type="date" id="edit_estimated_delivery" name="estimated_delivery" value={editingPanel.estimated_delivery} onChange={handleEditInputChange} className="form-input"/>
+                                    </div>
+                                    <div className="form-group">
+                                        <label htmlFor="edit_created_at">Production Date</label>
+                                        <input type="date" id="edit_created_at" name="created_at" value={editingPanel.created_at || ''} onChange={handleEditInputChange} className="form-input"/>
+                                    </div>
+                                </div>
+                                <div className="form-row">
+                                    <div className="form-group full-width">
+                                        <label htmlFor="edit_notes">Notes</label>
+                                        <textarea id="edit_notes" name="notes" value={editingPanel.notes} onChange={handleEditInputChange} className="form-input" rows="3"/>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {error && <div className="alert alert-danger">{error}</div>}
+                            <div className="form-actions">
+                                <button type="button" className="secondary-btn" onClick={closeEditModal}>Cancel</button>
+                                <button type="submit" className="primary-btn">Update Panel</button>
+                            </div>
+                        </form>
                     </div>
                 </div>
-            )}
+            </div>
+        )}
 
             {isDuplicateModalOpen && selectedPanelToDuplicate && (
                 <div className="modal-overlay" onClick={closeDuplicateModal}>
@@ -2078,7 +2511,7 @@ const ViewPanelPage = () => {
                                     </div>
                                     <div className="validation-hint"><span className={`hint-text ${(!numberOfCopies || numberOfCopies<1) ? 'error' : ''}`}>{(!numberOfCopies || numberOfCopies<1) ? 'Minimum 1 copy required' : 'Enter 1 to 100'}</span></div>
                                 </div>
-                                <div className="duplicate-info"><p><strong>Note:</strong> Duplicated panels will have:</p><ul><li>New reference numbers</li><li>Job No will have "(Copy)" appended</li><li>Notes will indicate it's a duplicate</li><li>Pending status</li><li>Balance reset to original quantity</li></ul></div>
+                                <div className="duplicate-info"><p><strong>Note:</strong> Duplicated panels will have:</p><ul><li>New reference numbers</li><li>Pending status</li><li>Balance reset to original quantity</li></ul></div>
                                 {error && <div className="alert alert-danger">{error}</div>}
                                 <div className="form-actions"><button type="button" className="secondary-btn" onClick={closeDuplicateModal}>Cancel</button><button type="button" className="primary-btn" onClick={() => { let count = numberOfCopies; if (count === '' || count<1) count=1; handleDuplicatePanel(selectedPanelToDuplicate, count); }} disabled={!numberOfCopies || numberOfCopies<1}>Create {numberOfCopies>=1 ? numberOfCopies : 1} {numberOfCopies>=1 ? (numberOfCopies===1 ? 'Copy' : 'Copies') : 'Copy'}</button></div>
                             </div>
