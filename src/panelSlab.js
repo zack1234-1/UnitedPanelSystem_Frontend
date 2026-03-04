@@ -62,18 +62,7 @@ const EditTaskModal = ({
                             />
                         </div>
 
-                        <div className="form-group">
-                            <label htmlFor="editDescription">Description</label>
-                            <textarea 
-                                id="editDescription" 
-                                name="description" 
-                                value={editingTask.description || ''} 
-                                onChange={onInputChange} 
-                                rows="3" 
-                                autoComplete="off" 
-                                className="form-textarea" 
-                            />
-                        </div>
+                        {/* Description field removed as requested */}
 
                         <div className="form-row">
                             <div className="form-group">
@@ -105,7 +94,7 @@ const EditTaskModal = ({
                                     <option value="on-hold">On Hold</option>
                                     <option value="in-progress">In Progress</option>
                                     <option value="completed">Completed</option>
-                                    <option value="cutting">Cutting</option>   {/* NEW */}
+                                    <option value="cutting">Cutting</option>
                                 </select>
                             </div>
                         </div>

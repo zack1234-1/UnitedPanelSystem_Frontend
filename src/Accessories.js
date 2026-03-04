@@ -181,19 +181,6 @@ const EditTaskModal = ({
                             />
                         </div>
 
-                        <div className="form-group">
-                            <label htmlFor="editDescription">Description</label>
-                            <textarea
-                                id="editDescription"
-                                name="description"
-                                value={editingTask.description || ''}
-                                onChange={onInputChange}
-                                rows="3"
-                                autoComplete="off"
-                                className="form-textarea"
-                            />
-                        </div>
-
                         <div className="form-row">
                             <div className="form-group">
                                 <label htmlFor="editPriority">Priority</label>
