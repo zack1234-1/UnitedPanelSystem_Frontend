@@ -1406,15 +1406,12 @@ const ViewPanelPage = () => {
             }
             setPanels(prev => [...newPanels, ...prev]);
             
-            if (isJobOverviewModalOpen && selectedJobForOverview && selectedJobForOverview.job === panel.job_no) {
-                const updatedJobPanels = panels
-                    .filter(p => p.job_no === panel.job_no)
-                    .concat(newPanels);
-                setSelectedJobForOverview(prev => ({
-                    ...prev,
-                    panels: updatedJobPanels
-                }));
-            }
+        if (isJobOverviewModalOpen && selectedJobForOverview && selectedJobForOverview.job === panel.job_no) {
+            setSelectedJobForOverview(prev => ({
+                ...prev,
+                panels: [...newPanels, ...prev.panels]  // new panels first
+            }));
+        }
             
             closeDuplicateModal();
             setError(null);
@@ -1719,7 +1716,13 @@ const ViewPanelPage = () => {
     const closeCreateModal = () => { setIsCreateModalOpen(false); setNewPanel({...defaultPanelValues}); setError(null); setSuccess(null); };
 
     const openJobOverview = (job) => {
-        setSelectedJobForOverview(job);
+        // Sort panels by created_at descending (latest first)
+        const sortedPanels = [...job.panels].sort((a, b) => {
+            const dateA = new Date(a.created_at || 0);
+            const dateB = new Date(b.created_at || 0);
+            return dateB - dateA; // newest first
+        });
+        setSelectedJobForOverview({ ...job, panels: sortedPanels });
         setIsJobOverviewModalOpen(true);
         setEditingRowId(null);
         setEditedRowData(null);
@@ -1728,6 +1731,7 @@ const ViewPanelPage = () => {
         setIsAddingNew(false);
         setNewRowData(null);
     };
+
     const closeJobOverview = () => {
         setIsJobOverviewModalOpen(false);
         setSelectedJobForOverview(null);
