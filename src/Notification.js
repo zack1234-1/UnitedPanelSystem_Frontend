@@ -7,7 +7,7 @@ import {
 import './Notification.css';
 
 // --- API CONFIGURATION ---
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://unitedpanelsystem-backend-2.onrender.com/api';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://unitedpanelsystem-backend.onrender.com/api';
 
 const apiFetch = async (endpoint, options = {}) => {
     const url = `${API_BASE_URL}${endpoint}`;
