@@ -1362,33 +1362,160 @@ body {
   color: var(--gray-800);
 }
 
-/* Job Overview Table (inside modal) */
+/* ============================================ */
+/* Enhanced Job Overview Table Styles           */
+/* ============================================ */
+
 .job-panels-table {
   margin-top: var(--space-4);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
 }
 
+/* Scrollable container – both horizontal and vertical */
+.job-panels-table > div {
+  max-height: 60vh; /* adjust as needed */
+  overflow: auto;
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-lg);
+}
+
+/* Base table styles */
 .job-panels-table table {
   width: 100%;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
   font-size: 0.85rem;
-  table-layout: fixed;
-  min-width: 1000px;
+  min-width: 1000px; /* ensures horizontal scroll on smaller screens */
+  background: white;
 }
 
-.job-panels-table th,
-.job-panels-table td {
-  padding: var(--space-2) var(--space-1);
-  border: 1px solid var(--gray-200);
-  text-align: left;
-  vertical-align: middle;
-  word-wrap: break-word;
+/* Sticky header – works because parent has overflow: auto */
+.job-panels-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background-color: inherit; /* will be overridden by inline style */
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
+/* Header cell styling */
 .job-panels-table th {
-  background: var(--gray-100);
+  padding: 12px 8px;
   font-weight: 600;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--gray-800);
+  border-bottom: 2px solid var(--gray-300);
+  white-space: nowrap;
+  background-color: #f8fafc; /* fallback */
+  transition: background-color 0.2s;
+}
+
+/* Body cells */
+.job-panels-table td {
+  padding: 10px 8px;
+  border-bottom: 1px solid var(--gray-200);
+  vertical-align: middle;
   color: var(--gray-700);
-  white-space: normal;
+  word-break: break-word;
+}
+
+/* Row striping for better readability */
+.job-panels-table tbody tr:nth-child(even) {
+  background-color: var(--gray-50);
+}
+
+/* Hover effect */
+.job-panels-table tbody tr:hover {
+  background-color: #f0f9ff !important; /* light blue */
+  transition: background-color 0.15s;
+}
+
+/* Highlight filtered cells */
+.job-panels-table td[style*="background-color: #e3f2fd"] {
+  background-color: #e3f2fd !important;
+  font-weight: 500;
+}
+
+/* Action button (⋮) */
+.job-panels-table td:last-child button {
+  font-size: 1.4rem;
+  color: var(--gray-600);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: var(--radius-md);
+  transition: all 0.2s;
+}
+
+.job-panels-table td:last-child button:hover {
+  background-color: var(--gray-200);
+  color: var(--gray-900);
+}
+
+/* Edit mode inputs */
+.job-panels-table input,
+.job-panels-table select {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid var(--gray-300);
+  border-radius: var(--radius-md);
+  font-size: 0.85rem;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  background: white;
+}
+
+.job-panels-table input:focus,
+.job-panels-table select:focus {
+  outline: none;
+  border-color: var(--secondary);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+
+/* Save/Cancel buttons (vertical stack) */
+.job-panels-table td:last-child div[style*="flex-direction: column"] button {
+  font-size: 1.2rem;
+  padding: 6px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  border-radius: var(--radius-md);
+  transition: background-color 0.2s;
+}
+
+.job-panels-table td:last-child div[style*="flex-direction: column"] button:hover {
+  background-color: var(--gray-200);
+}
+
+/* New row highlight */
+.job-panels-table tbody tr[style*="background-color: #e6f7ff"] {
+  background-color: #e6f7ff !important;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .job-panels-table th,
+  .job-panels-table td {
+    padding: 8px 4px;
+    font-size: 0.8rem;
+  }
+
+  .job-panels-table td:last-child button {
+    font-size: 1.2rem;
+    padding: 2px 4px;
+  }
+}
+
+@media (max-width: 480px) {
+  .job-panels-table th,
+  .job-panels-table td {
+    padding: 6px 2px;
+    font-size: 0.75rem;
+  }
 }
 
 .production-submit-group {

@@ -328,7 +328,6 @@ const CategoryCards = ({ projectNo, onCategorySelect }) => {
     { key: 'panel', label: 'Panel / Slab', icon: '🖼️', description: 'Panel and slab related files' },
     { key: 'cutting', label: 'Cutting', icon: '✂️', description: 'Cutting plans and documents' },
     { key: 'door', label: 'Door', icon: '🚪', description: 'Door specifications and drawings' },
-    { key: 'strip_curtain', label: 'Strip Curtain', icon: '🎪', description: 'Strip curtain documentation' },
     { key: 'accessories', label: 'Accessories', icon: '🔧', description: 'Accessories and fittings' },
     { key: 'system', label: 'System', icon: '⚙️', description: 'System integration files' },
     { key: 'transportation', label: 'Transportation', icon: '🚚', description: 'Transportation logs and documents' },

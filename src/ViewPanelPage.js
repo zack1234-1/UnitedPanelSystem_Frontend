@@ -434,22 +434,9 @@ const JobOverviewContent = ({
   const [actionModalPanel, setActionModalPanel] = useState(null);
 
   const headerColors = [
-    '#f8d7da', // light red
-    '#fff3cd', // light yellow
-    '#d1e7dd', // light green
-    '#cfe2ff', // light blue
-    '#e2d1f0', // light purple
-    '#f9e1d2', // light orange
-    '#d2d2d2', // light gray
-    '#fadadd', // light pink
-    '#c9e4f0', // light cyan
-    '#fce4d6', // light peach
-    '#e6d5b8', // light tan
-    '#d9ead3', // light mint
-    '#ffe5b4', // light apricot
-    '#dcd3ff', // light lavender
-    '#ffd1dc', // light rose
-    ];
+    '#f8d7da', '#fff3cd', '#d1e7dd', '#cfe2ff', '#e2d1f0', '#f9e1d2', '#d2d2d2',
+    '#fadadd', '#c9e4f0', '#fce4d6', '#e6d5b8', '#d9ead3', '#ffe5b4', '#dcd3ff', '#ffd1dc',
+  ];
 
   const uniqueValues = useMemo(() => {
     const uniques = {};
@@ -562,6 +549,7 @@ const JobOverviewContent = ({
 
       <div className="job-panels-table">
         <h3>Panels in this Job (click column header to filter, click cell to edit)</h3>
+        <h3>Meter=Production Meter , Date=Production Date,Applic=Application,Delivery=Estimated Delivery</h3>
         <div style={{ overflowX: 'auto', height: '400px', overflowY: 'scroll' }}>
           <table style={{
             width: '100%',
@@ -569,75 +557,77 @@ const JobOverviewContent = ({
             fontSize: '13px',
             tableLayout: 'fixed'
           }}>
-           <thead>
-            <tr>
+            <thead>
+              <tr>
                 {visibleColumns.map((col, index) => (
-                <th
+                  <th
                     key={col.key}
                     onClick={() => {
-                    if (col.type !== 'computed') {
+                      if (col.type !== 'computed') {
                         const rect = document.getElementById(`th-${col.key}`)?.getBoundingClientRect();
                         if (rect) {
-                        setFilterDropdownPos({
+                          setFilterDropdownPos({
                             top: rect.bottom + window.scrollY,
                             left: rect.left + window.scrollX
-                        });
-                        setActiveFilterCol(activeFilterCol === col.key ? null : col.key);
+                          });
+                          setActiveFilterCol(activeFilterCol === col.key ? null : col.key);
                         }
-                    }
+                      }
                     }}
                     style={{
-                    padding: '4px 2px',
-                    border: '1px solid #ccc',
-                    whiteSpace: 'normal',
-                    cursor: col.type !== 'computed' ? 'pointer' : 'default',
-                    position: 'sticky',
-                    top: stickyTop,
-                    zIndex: 2,
-                    backgroundColor: headerColors[index % headerColors.length],
-                    boxShadow: '0 2px 2px -1px rgba(0,0,0,0.1)'
+                      padding: '6px 4px',
+                      border: '1px solid #ccc',
+                      whiteSpace: 'normal',
+                      cursor: col.type !== 'computed' ? 'pointer' : 'default',
+                      position: 'sticky',
+                      top: stickyTop,
+                      zIndex: 2,
+                      backgroundColor: headerColors[index % headerColors.length],
+                      boxShadow: '0 2px 2px -1px rgba(0,0,0,0.1)',
+                      fontSize: '13px'
                     }}
                     id={`th-${col.key}`}
-                >
+                  >
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    {col.label}
-                    {jobFilters[col.key] && (
+                      {col.label}
+                      {jobFilters[col.key] && (
                         <span
-                        style={{ marginLeft: '4px', fontSize: '10px', cursor: 'pointer' }}
-                        onClick={(e) => {
+                          style={{ marginLeft: '4px', fontSize: '11px', cursor: 'pointer' }}
+                          onClick={(e) => {
                             e.stopPropagation();
                             clearFilter(col.key);
-                        }}
-                        title="Clear filter"
+                          }}
+                          title="Clear filter"
                         >
-                        ✕
+                          ✕
                         </span>
-                    )}
+                      )}
                     </div>
-                </th>
+                  </th>
                 ))}
                 <th
-                style={{
-                    padding: '4px 2px',
+                  style={{
+                    padding: '6px 4px',
                     border: '1px solid #ccc',
                     whiteSpace: 'normal',
                     position: 'sticky',
                     top: stickyTop,
                     zIndex: 2,
                     backgroundColor: headerColors[visibleColumns.length % headerColors.length],
-                    boxShadow: '0 2px 2px -1px rgba(0,0,0,0.1)'
-                }}
+                    boxShadow: '0 2px 2px -1px rgba(0,0,0,0.1)',
+                    fontSize: '13px'
+                  }}
                 >
-                Actions
+                  Actions
                 </th>
-            </tr>
+              </tr>
             </thead>
             <tbody>
               {isAddingNew && (
                 <tr style={{ backgroundColor: '#e6f7ff' }}>
                   {visibleColumns.map(col => {
                     if (col.type === 'computed') {
-                      return <td key={col.key} style={{ padding: '4px 2px', border: '1px solid #ccc' }}>—</td>;
+                      return <td key={col.key} style={{ padding: '6px 4px', border: '1px solid #ccc' }}>—</td>;
                     }
                     let inputElement;
                     if (col.type === 'number') {
@@ -647,7 +637,7 @@ const JobOverviewContent = ({
                           step="any"
                           value={newRowData[col.key] ?? ''}
                           onChange={(e) => handleNewRowFieldChange(col.key, e.target.value)}
-                          style={{ width: '100%', boxSizing: 'border-box', fontSize: '13px', padding: '2px' }}
+                          style={{ width: '100%', boxSizing: 'border-box', fontSize: '14px', padding: '4px' }}
                         />
                       );
                     } else if (col.type === 'date') {
@@ -656,7 +646,7 @@ const JobOverviewContent = ({
                           type="date"
                           value={newRowData[col.key] ?? ''}
                           onChange={(e) => handleNewRowFieldChange(col.key, e.target.value)}
-                          style={{ width: '100%', boxSizing: 'border-box', fontSize: '13px', padding: '2px' }}
+                          style={{ width: '100%', boxSizing: 'border-box', fontSize: '14px', padding: '4px' }}
                         />
                       );
                     } else if (col.key === 'status') {
@@ -664,7 +654,7 @@ const JobOverviewContent = ({
                         <select
                           value={newRowData.status || 'pending'}
                           onChange={(e) => handleNewRowFieldChange('status', e.target.value)}
-                          style={{ width: '100%', fontSize: '13px', padding: '2px' }}
+                          style={{ width: '100%', fontSize: '14px', padding: '4px' }}
                         >
                           <option value="pending">Pending</option>
                           <option value="in_progress">In Progress</option>
@@ -677,32 +667,32 @@ const JobOverviewContent = ({
                           type="text"
                           value={newRowData[col.key] ?? ''}
                           onChange={(e) => handleNewRowFieldChange(col.key, e.target.value)}
-                          style={{ width: '100%', boxSizing: 'border-box', fontSize: '13px', padding: '2px' }}
+                          style={{ width: '100%', boxSizing: 'border-box', fontSize: '14px', padding: '4px' }}
                         />
                       );
                     }
                     return (
-                      <td key={col.key} style={{ padding: '4px 2px', border: '1px solid #ccc' }}>
+                      <td key={col.key} style={{ padding: '6px 4px', border: '1px solid #ccc' }}>
                         {inputElement}
                       </td>
                     );
                   })}
-                  <td style={{ padding: '4px 2px', border: '1px solid #ccc', textAlign: 'center' }}>
+                  <td style={{ padding: '6px 4px', border: '1px solid #ccc', textAlign: 'center' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
                       <button
                         onClick={handleSaveNewPanel}
-                        style={{ fontSize: '14px', background: 'none', border: 'none', cursor: 'pointer' }}
+                        style={{ fontSize: '16px', background: 'none', border: 'none', cursor: 'pointer' }}
                         title="Save"
                       >
                         💾
                       </button>
                       <button
-                            onClick={onCancelNewPanel}
-                            style={{ fontSize: '14px', background: 'none', border: 'none', cursor: 'pointer' }}
-                            title="Cancel"
-                            >
-                            ❌
-                     </button>
+                        onClick={onCancelNewPanel}
+                        style={{ fontSize: '16px', background: 'none', border: 'none', cursor: 'pointer' }}
+                        title="Cancel"
+                      >
+                        ❌
+                      </button>
                     </div>
                   </td>
                 </tr>
@@ -740,7 +730,7 @@ const JobOverviewContent = ({
                               step="any"
                               value={editedRowData[col.key] ?? ''}
                               onChange={(e) => handleEditedFieldChange(col.key, e.target.value)}
-                              style={{ width: '100%', boxSizing: 'border-box', fontSize: '13px', padding: '2px' }}
+                              style={{ width: '100%', boxSizing: 'border-box', fontSize: '14px', padding: '4px' }}
                             />
                           );
                         } else if (col.type === 'date') {
@@ -749,7 +739,7 @@ const JobOverviewContent = ({
                               type="date"
                               value={editedRowData[col.key] ?? ''}
                               onChange={(e) => handleEditedFieldChange(col.key, e.target.value)}
-                              style={{ width: '100%', boxSizing: 'border-box', fontSize: '13px', padding: '2px' }}
+                              style={{ width: '100%', boxSizing: 'border-box', fontSize: '14px', padding: '4px' }}
                             />
                           );
                         } else if (col.key === 'status') {
@@ -757,7 +747,7 @@ const JobOverviewContent = ({
                             <select
                               value={editedRowData.status || 'pending'}
                               onChange={(e) => handleEditedFieldChange('status', e.target.value)}
-                              style={{ width: '100%', fontSize: '13px', padding: '2px' }}
+                              style={{ width: '100%', fontSize: '14px', padding: '4px' }}
                             >
                               <option value="pending">Pending</option>
                               <option value="in_progress">In Progress</option>
@@ -770,12 +760,12 @@ const JobOverviewContent = ({
                               type="text"
                               value={editedRowData[col.key] ?? ''}
                               onChange={(e) => handleEditedFieldChange(col.key, e.target.value)}
-                              style={{ width: '100%', boxSizing: 'border-box', fontSize: '13px', padding: '2px' }}
+                              style={{ width: '100%', boxSizing: 'border-box', fontSize: '14px', padding: '4px' }}
                             />
                           );
                         }
                         return (
-                          <td key={col.key} style={{ padding: '4px 2px', border: '1px solid #ccc' }}>
+                          <td key={col.key} style={{ padding: '6px 4px', border: '1px solid #ccc' }}>
                             {inputElement}
                           </td>
                         );
@@ -785,11 +775,11 @@ const JobOverviewContent = ({
                             key={col.key}
                             onClick={() => col.type !== 'computed' && handleCellClick(panel)}
                             style={{
-                              padding: '4px 2px',
+                              padding: '6px 4px',
                               border: '1px solid #ccc',
                               cursor: col.type !== 'computed' ? 'pointer' : 'default',
                               wordBreak: 'break-word',
-                              fontSize: '13px',
+                              fontSize: '16px',
                               backgroundColor: jobFilters[col.key] === panel[col.key]?.toString().trim() ? '#e3f2fd' : 'transparent'
                             }}
                             title={col.type !== 'computed' ? 'Click to edit' : ''}
@@ -799,19 +789,19 @@ const JobOverviewContent = ({
                         );
                       }
                     })}
-                    <td style={{ padding: '4px 2px', border: '1px solid #ccc', textAlign: 'center', verticalAlign: 'middle' }}>
+                    <td style={{ padding: '6px 4px', border: '1px solid #ccc', textAlign: 'center', verticalAlign: 'middle' }}>
                       {isEditing ? (
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
                           <button
                             onClick={handleSaveEdit}
-                            style={{ fontSize: '14px', background: 'none', border: 'none', cursor: 'pointer' }}
+                            style={{ fontSize: '16px', background: 'none', border: 'none', cursor: 'pointer' }}
                             title="Save"
                           >
                             💾
                           </button>
                           <button
                             onClick={handleCancelEdit}
-                            style={{ fontSize: '14px', background: 'none', border: 'none', cursor: 'pointer' }}
+                            style={{ fontSize: '16px', background: 'none', border: 'none', cursor: 'pointer' }}
                             title="Cancel"
                           >
                             ❌
@@ -820,7 +810,7 @@ const JobOverviewContent = ({
                       ) : (
                         <button
                           onClick={() => setActionModalPanel(panel)}
-                          style={{ fontSize: '20px', background: 'none', border: 'none', cursor: 'pointer' }}
+                          style={{ fontSize: '22px', background: 'none', border: 'none', cursor: 'pointer' }}
                           title="Actions"
                         >
                           ⋮
@@ -998,6 +988,9 @@ const ViewPanelPage = () => {
     const modalHeaderRef = useRef(null);
     const [modalHeaderHeight, setModalHeaderHeight] = useState(60);
 
+    const [isPrintColumnSelectionOpen, setIsPrintColumnSelectionOpen] = useState(false);
+    const [selectedPrintColumns, setSelectedPrintColumns] = useState([]);
+
     const handleCancelNewPanel = () => {
         setIsAddingNew(false);
         setNewRowData(null);
@@ -1021,7 +1014,7 @@ const ViewPanelPage = () => {
         { id: 'surface_type', label: 'Finishes', visible: true, order: 9 },
         { id: 'width', label: 'Width', visible: true, order: 10 },
         { id: 'length', label: 'Length', visible: true, order: 11 },
-        { id: 'salesman', label: 'Salesman', visible: true, order: 12 },
+        { id: 'salesman', label: 'Person', visible: true, order: 12 },
         { id: 'application', label: 'Applic', visible: true, order: 13 },
         { id: 'area', label: 'Area', visible: true, order: 14 },
         { id: 'qty', label: 'Qty', visible: true, order: 16 },
@@ -1029,7 +1022,7 @@ const ViewPanelPage = () => {
         { id: 'balance', label: 'Balance', visible: true, order: 18 },
         { id: 'production_meter', label: 'Meter', visible: true, order: 19 },
         { id: 'created_at', label: 'Date', visible: true, order: 20 },
-        { id: 'estimated_delivery', label: 'Estimated Delivery', visible: true, order: 21 },
+        { id: 'estimated_delivery', label: 'Delivery', visible: true, order: 21 },
         { id: 'actions', label: 'Actions', visible: true, order: 22, alwaysVisible: true }
     ];
 
@@ -1918,6 +1911,80 @@ const ViewPanelPage = () => {
 
     const handleKeyDown = (e, rowIndex, colIndex, fieldName) => {};
 
+    const handlePrintWithColumns = (selectedKeys) => {
+        try {
+            const printWindow = window.open('', '_blank');
+            if (!printWindow) { alert('Please allow popups to print the table'); return; }
+            const panelsToPrint = filteredPanels;
+            const selectedColumns = PRINTABLE_COLUMNS.filter(col => selectedKeys.includes(col.key));
+
+            const headers = selectedColumns.map(col => `<th>${col.label}</th>`).join('');
+            const rows = panelsToPrint.map(panel => {
+                const cells = selectedColumns.map(col => {
+                    let value;
+                    if (col.key === 'area' || col.key === 'production_meter') {
+                        value = col.getValue(panel, calculateArea, formatDate);
+                    } else if (col.key === 'created_at' || col.key === 'estimated_delivery') {
+                        value = col.getValue(panel, formatDate);
+                    } else {
+                        value = col.getValue(panel);
+                    }
+                    return `<td>${value}</td>`;
+                }).join('');
+                return `<tr class="panel-row">${cells}</tr>`;
+            }).join('');
+
+            const printContent = `<!DOCTYPE html>
+<html>
+<head>
+    <title>Panels Report - ${new Date().toLocaleDateString()}</title>
+    <style>
+        @media print {
+            @page { size: landscape; margin: 15mm; }
+            body { font-family: Arial, sans-serif; font-size: 14pt; margin: 0; padding: 0; line-height: 1.4; }
+            table { width: 100%; border-collapse: collapse; font-size: 12pt; }
+            th, td { border: 1px solid #000; padding: 8px 10px; text-align: left; vertical-align: top; word-wrap: break-word; }
+            th { background-color: #f2f2f2; font-weight: bold; }
+            .no-print { display: none !important; }
+            .print-header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #000; padding-bottom: 12px; }
+            .print-title { font-size: 20pt; font-weight: bold; margin-bottom: 6px; }
+            .print-subtitle { font-size: 14pt; color: #333; margin-bottom: 10px; }
+            .print-summary { margin-bottom: 20px; font-size: 12pt; }
+            .panel-row:nth-child(even) { background-color: #f9f9f9; }
+        }
+        @media screen {
+            body { font-family: Arial, sans-serif; font-size: 12px; padding: 20px; }
+            .no-screen { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="print-header">
+        <div class="print-title">Panel Management System - Report</div>
+        <div class="print-subtitle">Generated on: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}</div>
+        <div class="print-summary">
+            Total Panels: ${panelsToPrint.length} | Printed by: ${localStorage.getItem('username') || 'System User'}
+        </div>
+    </div>
+    <table>
+        <thead><tr>${headers}</tr></thead>
+        <tbody>${rows}</tbody>
+    </table>
+    <div style="text-align:center; margin-top:20px; font-size:10pt; color:#666;" class="no-print">
+        <p>--- End of Report ---</p>
+    </div>
+</body>
+</html>`;
+
+            printWindow.document.write(printContent);
+            printWindow.document.close();
+            printWindow.onload = function() { setTimeout(() => { printWindow.focus(); printWindow.print(); }, 500); };
+        } catch (error) {
+            console.error('Error printing:', error);
+            alert('Error generating print document. Please try again.');
+        }
+    };
+
     const handlePrint = (specificPanel = null) => {
         try {
             const printWindow = window.open('', '_blank');
@@ -2043,7 +2110,7 @@ const ViewPanelPage = () => {
         { key: 'surface_type', label: 'Finishes', type: 'text' },
         { key: 'width', label: 'Width', type: 'number' },
         { key: 'length', label: 'Length', type: 'number' },
-        { key: 'salesman', label: 'Salesman', type: 'text' },
+        { key: 'salesman', label: 'Person', type: 'text' },
         { key: 'application', label: 'Applic', type: 'text' },
         { key: 'area', label: 'Area', type: 'computed' },
         { key: 'qty', label: 'Qty', type: 'number' },
@@ -2051,7 +2118,7 @@ const ViewPanelPage = () => {
         { key: 'balance', label: 'Balance', type: 'number' },
         { key: 'production_meter', label: 'Meter', type: 'computed' },
         { key: 'created_at', label: 'Date', type: 'date' },
-        { key: 'estimated_delivery', label: 'Estimated Delivery', type: 'date' }
+        { key: 'estimated_delivery', label: 'Delivery', type: 'date' }
     ];
 
     const [jobOverviewVisibleColumns, setJobOverviewVisibleColumns] = useState(jobOverviewColumns.map(col => col.key));
@@ -2071,6 +2138,50 @@ const ViewPanelPage = () => {
     const jobOverviewFilteredColumns = jobOverviewColumns.filter(col =>
         jobOverviewVisibleColumns.includes(col.key)
     );
+
+    const PRINTABLE_COLUMNS = [
+        { key: 'reference_number', label: 'Ref No', getValue: (panel) => panel.reference_number || 'N/A' },
+        { key: 'job_no', label: 'Job No', getValue: (panel) => panel.job_no || 'N/A' },
+        { key: 'type', label: 'Type', getValue: (panel) => panel.type || 'null' },
+        { key: 'panel_thk', label: 'Panel Thk (mm)', getValue: (panel) => panel.panel_thk ? formatNumber(panel.panel_thk) : 'null' },
+        { key: 'joint', label: 'Joint', getValue: (panel) => panel.joint || 'null' },
+        { key: 'surface_front', label: 'Surface Front', getValue: (panel) => panel.surface_front || 'null' },
+        { key: 'surface_back', label: 'Surface Back', getValue: (panel) => panel.surface_back || 'null' },
+        { key: 'surface_front_thk', label: 'Front Thk', getValue: (panel) => panel.surface_front_thk ? formatNumber(panel.surface_front_thk) : 'null' },
+        { key: 'surface_back_thk', label: 'Back Thk', getValue: (panel) => panel.surface_back_thk ? formatNumber(panel.surface_back_thk) : 'null' },
+        { key: 'surface_type', label: 'Surface Type', getValue: (panel) => panel.surface_type || 'null' },
+        { key: 'width', label: 'Width (mm)', getValue: (panel) => panel.width ? formatNumber(panel.width) : 'null' },
+        { key: 'length', label: 'Length (mm)', getValue: (panel) => panel.length ? formatNumber(panel.length) : 'null' },
+        { key: 'salesman', label: 'Salesman', getValue: (panel) => panel.salesman || 'null' },
+        { key: 'application', label: 'Application', getValue: (panel) => panel.application || 'null' },
+        { key: 'area', label: 'Area (m²)', getValue: (panel, calculateArea) => {
+            const qty = parseInt(panel.qty) || 0;
+            const area = calculateArea(panel.width, panel.length, qty) / 1000000;
+            return area > 0 ? area.toFixed(3) : '0';
+          }
+        },
+        { key: 'qty', label: 'Qty', getValue: (panel) => formatNumber(panel.qty) },
+        { key: 'cutting', label: 'Cutting', getValue: (panel) => panel.cutting || 'null' },
+        { key: 'balance', label: 'Balance', getValue: (panel) => {
+            const balance = panel.balance !== undefined ? panel.balance : (panel.qty || 0);
+            return formatNumber(balance);
+          }
+        },
+        { key: 'production_meter', label: 'Prod Meter (mm)', getValue: (panel) => {
+            const qty = parseInt(panel.qty) || 0;
+            const balance = panel.balance !== undefined ? panel.balance : qty;
+            const produced = qty - balance;
+            const length = parseFloat(panel.length) || 0;
+            return (produced * length).toFixed(2);
+          }
+        },
+        { key: 'created_at', label: 'Created Date', getValue: (panel, formatDate) => formatDate(panel.created_at) },
+        { key: 'estimated_delivery', label: 'Est. Delivery', getValue: (panel, formatDate) => formatDate(panel.estimated_delivery) }
+    ];
+
+    useEffect(() => {
+        setSelectedPrintColumns(PRINTABLE_COLUMNS.map(col => col.key));
+    }, []);
 
     return (
         <div className="view-panel-container">
@@ -2135,7 +2246,6 @@ const ViewPanelPage = () => {
             {activeView === 'table' && (
                 <div className="table-container">
                     {error && <div className="alert alert-danger">{error}</div>}
-                    {/* Sticky column chips bar */}
                     <div className="column-selection-chips" style={{ position: 'sticky', top: 0, zIndex: 10, backgroundColor: 'white', padding: '1rem 0', borderBottom: '1px solid #e5e7eb', marginBottom: '1rem' }}>
                         <div className="chips-header">
                             <h5>Selected Columns To View In the Table And Click The Filter Icon To Filter The Value In The Table Base On Column</h5>
@@ -2185,7 +2295,9 @@ const ViewPanelPage = () => {
                                 <h3>Panels ({filteredPanels.length} of {panels.length})</h3>
                                 <div className="table-header-controls">
                                     <div className="action-controls">
-                                        <button className="print-btn" onClick={() => setIsPrintSelectionModalOpen(true)} title="Print Panels">🖨️ Print</button>
+                                        <button className="print-btn" onClick={() => setIsPrintColumnSelectionOpen(true)} title="Print Panels">
+                                            🖨️ Print
+                                        </button>
                                     </div>
                                 </div>
                             </div>
@@ -2608,6 +2720,63 @@ const ViewPanelPage = () => {
                                     <div className="summary-item"><span className="summary-label">Hidden Columns:</span><span className="summary-value">{(columns.length - 1) - (visibleColumns.length - 1)}</span></div>
                                 </div>
                                 <div className="modal-footer"><div className="footer-actions"><button type="button" className="btn btn-secondary" onClick={() => setIsColumnSelectionModalOpen(false)}>Close</button><button type="button" className="btn btn-primary" onClick={() => setIsColumnSelectionModalOpen(false)}>Apply Selection</button></div></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {isPrintColumnSelectionOpen && (
+                <div className="modal-overlay" onClick={() => setIsPrintColumnSelectionOpen(false)}>
+                    <div className="modal-content print-selection-modal" onClick={e => e.stopPropagation()}>
+                        <div className="modal-header">
+                            <h2>Select Columns to Print</h2>
+                            <button type="button" className="close-button" onClick={() => setIsPrintColumnSelectionOpen(false)}>×</button>
+                        </div>
+                        <div className="modal-body">
+                            <div className="print-column-options">
+                                <div className="selection-actions" style={{ marginBottom: '1rem' }}>
+                                    <button className="btn btn-sm btn-secondary" onClick={() => setSelectedPrintColumns(PRINTABLE_COLUMNS.map(col => col.key))}>
+                                        Select All
+                                    </button>
+                                    <button className="btn btn-sm btn-secondary" onClick={() => setSelectedPrintColumns([])}>
+                                        Deselect All
+                                    </button>
+                                </div>
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', maxHeight: '400px', overflowY: 'auto', padding: '0.5rem' }}>
+                                    {PRINTABLE_COLUMNS.map(col => (
+                                        <div key={col.key} style={{ flex: '0 0 auto', minWidth: '150px' }}>
+                                        <div className="column-checkbox">
+                                            <input
+                                            type="checkbox"
+                                            id={`print-col-${col.key}`}
+                                            checked={selectedPrintColumns.includes(col.key)}
+                                            onChange={(e) => {
+                                                if (e.target.checked) {
+                                                setSelectedPrintColumns([...selectedPrintColumns, col.key]);
+                                                } else {
+                                                setSelectedPrintColumns(selectedPrintColumns.filter(k => k !== col.key));
+                                                }
+                                            }}
+                                            />
+                                            <label htmlFor={`print-col-${col.key}`}>{col.label}</label>
+                                        </div>
+                                        </div>
+                                    ))}
+                                </div>
+                                <div className="modal-footer">
+                                    <button className="btn btn-secondary" onClick={() => setIsPrintColumnSelectionOpen(false)}>Cancel</button>
+                                    <button
+                                        className="btn btn-primary"
+                                        onClick={() => {
+                                            handlePrintWithColumns(selectedPrintColumns);
+                                            setIsPrintColumnSelectionOpen(false);
+                                        }}
+                                        disabled={selectedPrintColumns.length === 0}
+                                    >
+                                        Print ({selectedPrintColumns.length} columns)
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
