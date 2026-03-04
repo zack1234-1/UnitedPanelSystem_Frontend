@@ -176,20 +176,6 @@ const CreateTaskModal = ({
                             />
                         </div>
 
-                        <div className="form-group">
-                            <label htmlFor="createDescription">Description</label>
-                            <textarea 
-                                id="createDescription" 
-                                name="description" 
-                                value={newTask.description || ''} 
-                                onChange={onInputChange} 
-                                rows="3" 
-                                autoComplete="off" 
-                                className="form-textarea" 
-                                placeholder="Enter task description (optional)"
-                            />
-                        </div>
-
                         <div className="form-row">
                             <div className="form-group">
                                 <label htmlFor="createPriority">Priority</label>

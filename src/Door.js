@@ -62,20 +62,6 @@ const CreateTaskModal = ({
                             />
                         </div>
 
-                        <div className="form-group">
-                            <label htmlFor="description">Description</label>
-                            <textarea 
-                                id="description" 
-                                name="description" 
-                                value={newTask.description} 
-                                onChange={onInputChange} 
-                                placeholder="Enter door task description" 
-                                rows="3" 
-                                autoComplete="off" 
-                                className="form-textarea" 
-                            />
-                        </div>
-
                         <div className="form-row">
                             <div className="form-group">
                                 <label htmlFor="priority">Priority</label>
