@@ -1364,7 +1364,6 @@ body {
 
 /* Job Overview Table (inside modal) */
 .job-panels-table {
-  overflow-x: auto;
   margin-top: var(--space-4);
 }
 
@@ -1390,6 +1389,10 @@ body {
   font-weight: 600;
   color: var(--gray-700);
   white-space: normal;
+}
+
+.production-submit-group {
+  margin-top: 45px;
 }
 
 .job-panels-table td {

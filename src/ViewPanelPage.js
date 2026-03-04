@@ -372,7 +372,7 @@ const ProductionDetailsModal = ({ panel, onClose, updatePanelBalance, formatNumb
                                            onChange={(e) => setBrand(e.target.value)} placeholder="Enter brand for this production"
                                            disabled={isSaving}/>
                                 </div>
-                                <div className="form-group">
+                                <div className="form-group production-submit-group">
                                     <button className={`btn btn-primary full-width ${balance <= 0 ? 'disabled' : ''}`}
                                             onClick={handleCreateProductionRecord}
                                             disabled={isSaving || !numberOfPanels || parseInt(numberOfPanels) < 1 || parseInt(numberOfPanels) > balance || balance <= 0}>
@@ -423,6 +423,7 @@ const JobOverviewContent = ({
   newRowData,
   setNewRowData,
   handleSaveNewPanel,
+  onCancelNewPanel,  
   onDeleteAllByJob,
   stickyTop = 0
 }) => {
@@ -561,7 +562,7 @@ const JobOverviewContent = ({
 
       <div className="job-panels-table">
         <h3>Panels in this Job (click column header to filter, click cell to edit)</h3>
-        <div style={{ overflowX: 'auto' }}>
+        <div style={{ overflowX: 'auto', height: '400px', overflowY: 'scroll' }}>
           <table style={{
             width: '100%',
             borderCollapse: 'collapse',
@@ -696,12 +697,12 @@ const JobOverviewContent = ({
                         💾
                       </button>
                       <button
-                        onClick={() => setNewRowData(null)}
-                        style={{ fontSize: '14px', background: 'none', border: 'none', cursor: 'pointer' }}
-                        title="Cancel"
-                      >
-                        ❌
-                      </button>
+                            onClick={onCancelNewPanel}
+                            style={{ fontSize: '14px', background: 'none', border: 'none', cursor: 'pointer' }}
+                            title="Cancel"
+                            >
+                            ❌
+                     </button>
                     </div>
                   </td>
                 </tr>
@@ -967,6 +968,8 @@ const ViewPanelPage = () => {
     const [isCreateFormDuplicateModalOpen, setIsCreateFormDuplicateModalOpen] = useState(false);
     const [duplicateFormCopies, setDuplicateFormCopies] = useState(1);
     const [productionMeterDate, setProductionMeterDate] = useState('');
+    const [isAddingNew, setIsAddingNew] = useState(false);
+    const [newRowData, setNewRowData] = useState(null);
     const [dailyProductionMeter, setDailyProductionMeter] = useState({
         totalMeter: 0,
         panelCount: 0,
@@ -992,12 +995,13 @@ const ViewPanelPage = () => {
     const [editedRowData, setEditedRowData] = useState(null);
     const [editError, setEditError] = useState(null);
     const [editSuccess, setEditSuccess] = useState(null);
-
-    const [isAddingNew, setIsAddingNew] = useState(false);
-    const [newRowData, setNewRowData] = useState(null);
-
     const modalHeaderRef = useRef(null);
     const [modalHeaderHeight, setModalHeaderHeight] = useState(60);
+
+    const handleCancelNewPanel = () => {
+        setIsAddingNew(false);
+        setNewRowData(null);
+    };
 
     useEffect(() => {
         if (isJobOverviewModalOpen && modalHeaderRef.current) {
@@ -2084,13 +2088,13 @@ const ViewPanelPage = () => {
                     className={`btn btn-primary ${activeView === 'table' ? 'active' : ''}`}
                     onClick={() => setActiveView('table')}
                 >
-                    Panels Table
+                    Click Here To View All The Panel
                 </button>
                 <button 
                     className={`btn btn-secondary ${activeView === 'productionMeter' ? 'active' : ''}`}
                     onClick={() => setActiveView('productionMeter')}
                 >
-                    Production Meter By Date
+                    Check Production Meter By Date
                 </button>
                 <button className="btn btn-success" onClick={openCreateModal}>
                     Create New Panel
@@ -2131,9 +2135,10 @@ const ViewPanelPage = () => {
             {activeView === 'table' && (
                 <div className="table-container">
                     {error && <div className="alert alert-danger">{error}</div>}
-                    <div className="column-selection-chips">
+                    {/* Sticky column chips bar */}
+                    <div className="column-selection-chips" style={{ position: 'sticky', top: 0, zIndex: 10, backgroundColor: 'white', padding: '1rem 0', borderBottom: '1px solid #e5e7eb', marginBottom: '1rem' }}>
                         <div className="chips-header">
-                            <h4>Selected Columns ({visibleColumns.length - 1})</h4>
+                            <h5>Selected Columns To View In the Table And Click The Filter Icon To Filter The Value In The Table Base On Column</h5>
                             <div className="chips-controls">
                                 <button className="btn btn-sm btn-secondary" onClick={() => setIsColumnSelectionModalOpen(true)}>
                                     <span className="chip-icon">⚙️</span> Manage Columns
@@ -2142,30 +2147,30 @@ const ViewPanelPage = () => {
                                 <button className="btn btn-sm btn-outline" onClick={deselectAllColumns}>Deselect All</button>
                             </div>
                         </div>
-                       <div className="chips-container" style={{ maxHeight: '200px', overflowY: 'auto' }}>
-                        {columns.filter(col => !col.alwaysVisible).sort((a, b) => a.order - b.order).map(column => (
-                            <div 
-                                key={column.id} 
-                                className={`column-chip ${column.visible ? 'active' : 'inactive'}`}
-                                onClick={() => handleColumnChipClick(column.id)}
-                            >
-                                <span className="chip-label">{column.label}</span>
-                                <span className="chip-indicator">{column.visible ? '✓' : '✗'}</span>
-                                <button
-                                    className={`filter-icon-btn ${filters[columnFilterMap[column.id]?.filterKey] ? 'active' : ''}`}
-                                    data-column={column.id}
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleFilterIconClick(e, column.id);
-                                    }}
-                                    style={{ marginLeft: '6px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '12px' }}
-                                    title="Filter"
+                        <div className="chips-container" style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                            {columns.filter(col => !col.alwaysVisible).sort((a, b) => a.order - b.order).map(column => (
+                                <div 
+                                    key={column.id} 
+                                    className={`column-chip ${column.visible ? 'active' : 'inactive'}`}
+                                    onClick={() => handleColumnChipClick(column.id)}
                                 >
-                                    🔽
-                                </button>
-                            </div>
-                        ))}
-                    </div>
+                                    <span className="chip-label">{column.label}</span>
+                                    <span className="chip-indicator">{column.visible ? '✓' : '✗'}</span>
+                                    <button
+                                        className={`filter-icon-btn ${filters[columnFilterMap[column.id]?.filterKey] ? 'active' : ''}`}
+                                        data-column={column.id}
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleFilterIconClick(e, column.id);
+                                        }}
+                                        style={{ marginLeft: '6px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '12px' }}
+                                        title="Filter"
+                                    >
+                                        🔽
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
                     </div>
 
                     {isLoading ? (
@@ -2261,7 +2266,7 @@ const ViewPanelPage = () => {
                     <div className="modal-content" style={{ width: '98vw', maxWidth: '1600px' }} onClick={e => e.stopPropagation()}>
                         <div className="modal-header" ref={modalHeaderRef}>
                             <h2>Job Overview: {selectedJobForOverview.job}</h2>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 0 , marginLeft: 'auto' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 20 , marginLeft: 0 }}>
                             <div className="column-selector" style={{ position: 'relative', margin: 0, padding: 0, marginRight: '-1px' }}>
                                 <button
                                     className="btn btn-sm btn-secondary"
@@ -2342,6 +2347,8 @@ const ViewPanelPage = () => {
                                 newRowData={newRowData}
                                 setNewRowData={setNewRowData}
                                 handleSaveNewPanel={handleSaveNewPanel}
+                                onCancelNewPanel={handleCancelNewPanel}
+                                onDeleteAllByJob={handleDeleteAllByJob}
                                 stickyTop={modalHeaderHeight}
                             />
                         </div>
