@@ -127,7 +127,7 @@ const EditTaskModal = ({
         <div className="modal-overlay" onClick={onClose}>
             <div className="modal-content" onClick={e => e.stopPropagation()}>
                 <div className="modal-header">
-                    <h2>✏️ Edit Task: {editingTask.title}</h2>
+                    <h2 style={{ color: 'white' }}>✏️ Edit Task: {editingTask.title}</h2>
                     <button type="button" className="close-button" onClick={onClose}>
                         &times;
                     </button>
