@@ -1115,8 +1115,11 @@ const ViewPanelPage = () => {
         await fetchAllProductionRecords();
     };
 
-    const handleDeleteAllByJob = async (jobNo) => {
+    const handleDeleteAllByJob = async (job) => {
+        // handle both cases - job object or job string
+        const jobNo = typeof job === 'object' ? job.job : job;
         if (!jobNo) return;
+        
         const jobPanels = panels.filter(p => p.job_no === jobNo);
         if (jobPanels.length === 0) return;
         
@@ -1126,11 +1129,25 @@ const ViewPanelPage = () => {
         
         try {
             await viewPanelAPI.deleteByJob(jobNo);
+
+            // ✅ Update panels state instantly without waiting for fetchPanels
+            setPanels(prev => prev.filter(p => p.job_no !== jobNo));
+
+            // ✅ Close job overview modal if it's showing the deleted job
+            if (isJobOverviewModalOpen && selectedJobForOverview?.job === jobNo) {
+                closeJobOverview();
+            }
+
+            // ✅ Also refresh allProductionRecords since they were deleted too
+            await fetchAllProductionRecords();
+
             setSuccess(`All panels for job ${jobNo} deleted successfully.`);
-            await fetchPanels();
+            setTimeout(() => setSuccess(null), 3000);
         } catch (err) {
             console.error('Failed to delete panels by job:', err);
             setError('Failed to delete panels: ' + (err.message || 'Unknown error'));
+            // Refresh to ensure UI is in sync if something went wrong
+            await fetchPanels();
         }
     };
 
