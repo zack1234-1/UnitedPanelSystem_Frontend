@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import ReactDOM from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import { viewPanelAPI, productionAPI } from '../src/apiService';
+import { viewPanelAPI, productionAPI, projectsAPI } from '../src/apiService';
 import './ViewPanelPage.css';
 
 const generateReferenceNumber = (existingReferences = []) => {
@@ -166,6 +166,7 @@ const ProductionDetailsModal = ({ panel, onClose, updatePanelBalance, formatNumb
                 delivery_date: productionDate,
                 reference_number: productionRef,
                 panel_reference: currentPanel.reference_number,
+                panel_id: panel.id, 
                 status: productionStatus || 'pending',
                 notes: `Production for job ${currentPanel.job_no} - Panel: ${currentPanel.reference_number}`,
                 job_no: currentPanel.job_no,
@@ -425,13 +426,18 @@ const JobOverviewContent = ({
   handleSaveNewPanel,
   onCancelNewPanel,  
   onDeleteAllByJob,
-  stickyTop = 0
+  stickyTop = 0,
+  // NEW: production records passed from parent
+  productionRecords = []
 }) => {
   const [jobFilters, setJobFilters] = useState({});
   const [activeFilterCol, setActiveFilterCol] = useState(null);
   const [filterDropdownPos, setFilterDropdownPos] = useState({ top: 0, left: 0 });
   const filterDropdownRef = useRef(null);
   const [actionModalPanel, setActionModalPanel] = useState(null);
+
+  // NEW: state for production date filter
+  const [productionDateFilter, setProductionDateFilter] = useState('');
 
   const headerColors = [
     '#f8d7da', '#fff3cd', '#d1e7dd', '#cfe2ff', '#e2d1f0', '#f9e1d2', '#d2d2d2',
@@ -456,7 +462,8 @@ const JobOverviewContent = ({
     return uniques;
   }, [panels, visibleColumns]);
 
-  const filteredPanels = useMemo(() => {
+  // First apply job-level column filters
+  const filteredByColumn = useMemo(() => {
     return panels.filter(panel => {
       for (let [key, filterVal] of Object.entries(jobFilters)) {
         if (!filterVal) continue;
@@ -472,13 +479,34 @@ const JobOverviewContent = ({
     });
   }, [panels, jobFilters]);
 
-  const totalQty = filteredPanels.reduce((sum, p) => sum + (parseInt(p.qty) || 0), 0);
-  const totalBalance = filteredPanels.reduce((sum, p) => sum + (p.balance !== undefined ? p.balance : (parseInt(p.qty) || 0)), 0);
-  const totalArea = filteredPanels.reduce((sum, p) => {
+  const panelsWithProductionOnDate = useMemo(() => {
+    if (!productionDateFilter) return filteredByColumn;
+
+    const panelIdsWithProduction = new Set(
+        productionRecords
+        .filter(record => {
+            if (!record.created_at) return false;
+            // Parse the UTC timestamp and add 8 hours
+            const recordDate = new Date(record.created_at);
+            const localDate = new Date(recordDate.getTime() + 8 * 60 * 60 * 1000);
+            // Convert to YYYY-MM-DD in local time (the added hours already account for UTC+8)
+            const localDateStr = localDate.toISOString().split('T')[0];
+            return localDateStr === productionDateFilter;
+        })
+        .map(record => record.panel_id)
+        .filter(id => id)
+    );
+
+    return filteredByColumn.filter(panel => panelIdsWithProduction.has(panel.id));
+    }, [productionDateFilter, filteredByColumn, productionRecords]);
+
+  const totalQty = panelsWithProductionOnDate.reduce((sum, p) => sum + (parseInt(p.qty) || 0), 0);
+  const totalBalance = panelsWithProductionOnDate.reduce((sum, p) => sum + (p.balance !== undefined ? p.balance : (parseInt(p.qty) || 0)), 0);
+  const totalArea = panelsWithProductionOnDate.reduce((sum, p) => {
     const area = calculateArea(p.width, p.length, p.qty) / 1000000;
     return sum + area;
   }, 0);
-  const totalProducedMeter = filteredPanels.reduce((sum, p) => {
+  const totalProducedMeter = panelsWithProductionOnDate.reduce((sum, p) => {
     const qty = parseInt(p.qty) || 0;
     const balance = p.balance !== undefined ? p.balance : qty;
     const produced = qty - balance;
@@ -539,7 +567,7 @@ const JobOverviewContent = ({
           </div>
         </div>
         <div className="summary-stats" style={{ display: 'flex', gap: '2rem', flexWrap: 'wrap' }}>
-          <div className="stat-item"><span className="stat-label">Total Panels:</span><span className="stat-value">{filteredPanels.length} / {panels.length}</span></div>
+          <div className="stat-item"><span className="stat-label">Total Panels:</span><span className="stat-value">{panelsWithProductionOnDate.length} / {panels.length}</span></div>
           <div className="stat-item"><span className="stat-label">Total Quantity:</span><span className="stat-value">{totalQty}</span></div>
           <div className="stat-item"><span className="stat-label">Total Balance:</span><span className="stat-value">{totalBalance}</span></div>
           <div className="stat-item"><span className="stat-label">Total Area:</span><span className="stat-value">{totalArea.toFixed(2)} m²</span></div>
@@ -549,7 +577,47 @@ const JobOverviewContent = ({
 
       <div className="job-panels-table">
         <h3>Panels in this Job (click column header to filter, click cell to edit)</h3>
-        <h3>Meter=Production Meter , Date=Production Date,Applic=Application,Delivery=Estimated Delivery</h3>
+        <div className="production-date-filter" style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'space-between',
+                gap: '1rem', 
+                flexWrap: 'wrap', 
+                marginBottom: '1rem' 
+            }}>
+                {/* Left Side: Legend */}
+                <h2 style={{ margin: 0, whiteSpace: 'nowrap', fontSize: '1rem' }}>
+                    Meter=Production Meter , Date=Production Date, Applic=Application, Delivery=Est. Delivery
+                </h2>
+
+                {/* Right Side: Filter Controls & Count */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <span style={{ color: '#666', fontSize: '0.9rem', whiteSpace: 'nowrap' }}>
+                        {productionDateFilter
+                            ? `Showing ${panelsWithProductionOnDate.length} of ${filteredByColumn.length} panels`
+                            : `Showing all ${filteredByColumn.length} panels`}
+                    </span>
+                    
+                    <input 
+                        type="date" 
+                        value={productionDateFilter} 
+                        onChange={(e) => setProductionDateFilter(e.target.value)} 
+                        className="form-input" 
+                        style={{ width: 'auto', flexShrink: 0 }} 
+                    />
+
+                    {productionDateFilter && (
+                        <button 
+                            className="btn btn-sm btn-secondary" 
+                            onClick={() => setProductionDateFilter('')} 
+                            style={{ flexShrink: 0 }}
+                        >
+                            Clear Filter
+                        </button>
+                    )}
+                </div>
+            </div>
+
         <div style={{ overflowX: 'auto', height: '400px', overflowY: 'scroll' }}>
           <table style={{
             width: '100%',
@@ -697,7 +765,8 @@ const JobOverviewContent = ({
                   </td>
                 </tr>
               )}
-              {filteredPanels.map(panel => {
+              {/* Use panelsWithProductionOnDate instead of filteredByColumn */}
+              {panelsWithProductionOnDate.map(panel => {
                 const isEditing = editingRowId === panel.id;
                 const qty = parseInt(panel.qty) || 0;
                 const balance = panel.balance !== undefined ? panel.balance : qty;
@@ -960,6 +1029,8 @@ const ViewPanelPage = () => {
     const [productionMeterDate, setProductionMeterDate] = useState('');
     const [isAddingNew, setIsAddingNew] = useState(false);
     const [newRowData, setNewRowData] = useState(null);
+    const [productionDetailModal, setProductionDetailModal] = useState(null);
+    const [allProjects, setAllProjects] = useState([]);
     const [dailyProductionMeter, setDailyProductionMeter] = useState({
         totalMeter: 0,
         panelCount: 0,
@@ -1163,6 +1234,15 @@ const ViewPanelPage = () => {
         return timestamp || '';
     };
 
+    const fetchAllProjects = async () => {
+        try {
+            const data = await projectsAPI.getAll();
+            if (Array.isArray(data)) setAllProjects(data);
+        } catch (err) {
+            console.error('Failed to fetch projects:', err);
+        }
+    };
+
     const convertToISOString = (dateString) => {
         if (!dateString) return null;
         try {
@@ -1182,6 +1262,7 @@ const ViewPanelPage = () => {
         fetchPanels();
         fetchAllProductionRecords();
         fetchProductionReferences();
+        fetchAllProjects();
     }, []);
 
     useEffect(() => {
@@ -1198,6 +1279,16 @@ const ViewPanelPage = () => {
             });
         }
     }, [productionMeterDate, allProductionRecords, estimatedRunningSpeed]);
+
+    const getCustomerByJobNo = (jobNo) => {
+        if (!jobNo) return null;
+        const project = allProjects.find(p =>
+            p.project_no === jobNo ||
+            p.job_no === jobNo ||
+            p.projectNo === jobNo
+        );
+        return project || null;
+    };
 
     useEffect(() => {
         const getUnique = (key, isNumeric = false, isDate = false) => {
@@ -1339,7 +1430,24 @@ const ViewPanelPage = () => {
         }
     };
     
-    const updatePanelBalance = (panelId, newBalance) => setPanels(prev => prev.map(p => p.id === panelId ? { ...p, balance: Math.max(0, newBalance) } : p));
+    const updatePanelBalance = (panelId, newBalance) => {
+        const updatedBalance = Math.max(0, newBalance);
+        
+        // Update main panels array
+        setPanels(prev => prev.map(p => 
+            p.id === panelId ? { ...p, balance: updatedBalance } : p
+        ));
+        
+        // Also update job overview panels if open
+        if (isJobOverviewModalOpen && selectedJobForOverview) {
+            setSelectedJobForOverview(prev => ({
+                ...prev,
+                panels: prev.panels.map(p => 
+                    p.id === panelId ? { ...p, balance: updatedBalance } : p
+                )
+            }));
+        }
+    };
 
     const openDuplicateModal = (panel) => { setSelectedPanelToDuplicate(panel); setNumberOfCopies(1); setIsDuplicateModalOpen(true); };
     const closeDuplicateModal = () => { setIsDuplicateModalOpen(false); setSelectedPanelToDuplicate(null); setNumberOfCopies(1); };
@@ -1613,6 +1721,14 @@ const ViewPanelPage = () => {
 
     const handleUpdatePanel = async (e) => {
         e.preventDefault();
+        const currentPanel = panels.find(p => p.id === editingPanel.id);
+        const originalQty = parseInt(currentPanel?.qty) || 0;
+        const originalBalance = currentPanel?.balance !== undefined ? currentPanel.balance : originalQty;
+        const newQty = parseInt(editingPanel.qty) || 0;
+        
+        // ✅ Calculate new balance proportionally based on how much was already produced
+        const alreadyProduced = originalQty - originalBalance;
+        const newBalance = Math.max(0, newQty - alreadyProduced);
         if (!editingPanel.job_no?.trim()) { setError('Job No is required'); return; }
         if (!editingPanel.width || !editingPanel.length) { setError('Width and Length are required'); return; }
         try {
@@ -1623,11 +1739,11 @@ const ViewPanelPage = () => {
                 surface_front_thk: editingPanel.surface_front_thk ? parseFloat(editingPanel.surface_front_thk) : null,
                 surface_back_thk: editingPanel.surface_back_thk ? parseFloat(editingPanel.surface_back_thk) : null,
                 panel_thk: editingPanel.panel_thk ? parseFloat(editingPanel.panel_thk) : null,
-                qty: editingPanel.qty ? parseInt(editingPanel.qty) : null,
+                qty: newQty,
                 production_meter: editingPanel.production_meter ? parseFloat(editingPanel.production_meter) : null,
                 salesman: editingPanel.salesman || null,
                 notes: editingPanel.notes || null,
-                balance: editingPanel.qty ? parseInt(editingPanel.qty) : null,
+                balance: newBalance,
                 application: editingPanel.application || null,
                 estimated_delivery: convertToISOString(editingPanel.estimated_delivery),
                 created_at: editingPanel.created_at ? convertToISOString(editingPanel.created_at) : null
@@ -1772,6 +1888,10 @@ const ViewPanelPage = () => {
             'created_at', 'estimated_delivery'
         ];
 
+        if (updates.qty !== undefined) {
+                updates.balance = parseInt(updates.qty) || 0;
+        }
+
         fieldsToCheck.forEach(field => {
             let originalValue = originalPanel[field];
             let newValue = editedRowData[field];
@@ -1896,9 +2016,23 @@ const ViewPanelPage = () => {
 
     const formatDate = (dateString) => {
         if (!dateString) return 'null';
-        try { const date = new Date(dateString); if (isNaN(date.getTime())) return 'Invalid date'; return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }); }
-        catch { return 'Invalid date'; }
-    };
+        // If it's an ISO string with 'T', take only the date part
+        if (typeof dateString === 'string' && dateString.includes('T')) {
+            return dateString.split('T')[0];
+        }
+        // Fallback for other formats
+        try {
+            const date = new Date(dateString);
+            if (isNaN(date.getTime())) return 'Invalid date';
+            // Use UTC methods to avoid local timezone shift
+            const year = date.getUTCFullYear();
+            const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+            const day = String(date.getUTCDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        } catch {
+            return 'Invalid date';
+        }
+        };
 
     const formatNumber = (num) => {
         if (num === null || num === undefined || num === '') return 'null';
@@ -2119,7 +2253,7 @@ const ViewPanelPage = () => {
         { key: 'area', label: 'Area', type: 'computed' },
         { key: 'qty', label: 'Qty', type: 'number' },
         { key: 'cutting', label: 'Cutting', type: 'text' },
-        { key: 'balance', label: 'Balance', type: 'number' },
+        { key: 'balance', label: 'Balance', type: 'computed' },
         { key: 'production_meter', label: 'Meter', type: 'computed' },
         { key: 'created_at', label: 'Date', type: 'date' },
         { key: 'estimated_delivery', label: 'Delivery', type: 'date' }
@@ -2216,37 +2350,478 @@ const ViewPanelPage = () => {
                 </button>
             </div>
 
-            {activeView === 'productionMeter' && (
-                <div className="daily-production-meter-section">
-                    <div className="filter-card">
-                        <h3>Production Meter by Production Date</h3>
-                        <div className="daily-filter-row">
-                            <div className="form-group">
-                                <label>Select Production Date</label>
-                                <input type="date" value={productionMeterDate} onChange={handleProductionMeterDateChange} className="form-input" />
-                            </div>
-                            <div className="form-group">
-                                <button className="btn btn-secondary" onClick={() => setProductionMeterDate('')}>Clear Date</button>
-                            </div>
+           {activeView === 'productionMeter' && (
+            <div className="daily-production-meter-section">
+                <div className="filter-card">
+                    <h3>Production Meter by Production Date</h3>
+                    <div className="daily-filter-row">
+                        <div className="form-group">
+                            <label>Select Production Date</label>
+                            <input type="date" value={productionMeterDate} onChange={handleProductionMeterDateChange} className="form-input" />
                         </div>
-                        {productionMeterDate && (
+                        <div className="form-group">
+                            <button className="btn btn-secondary" onClick={() => setProductionMeterDate('')}>Clear Date</button>
+                        </div>
+                    </div>
+
+                    {productionMeterDate && (() => {
+                        const dateRecords = allProductionRecords.filter(record => {
+                            if (!record.created_at) return false;
+                            const recordDate = new Date(record.created_at);
+                            const year = recordDate.getFullYear();
+                            const month = String(recordDate.getMonth() + 1).padStart(2, '0');
+                            const day = String(recordDate.getDate()).padStart(2, '0');
+                            return `${year}-${month}-${day}` === productionMeterDate;
+                        });
+
+                        const groupMap = {};
+                        dateRecords.forEach(record => {
+                            const panel = panels.find(p => p.id === record.panel_id);
+                            if (!panel) return;
+                            const key = `${panel.type || 'N/A'}_${panel.width}_${panel.length}_${panel.panel_thk}`;
+                            if (!groupMap[key]) {
+                                groupMap[key] = {
+                                    type: panel.type || 'N/A',
+                                    width: panel.width,
+                                    length: panel.length,
+                                    panel_thk: panel.panel_thk,
+                                    totalPanels: 0,
+                                    totalMeterMm: 0,
+                                    records: []
+                                };
+                            }
+                            const panels_count = parseInt(record.number_of_panels) || 0;
+                            const length = parseFloat(panel.length) || 0;
+                            groupMap[key].totalPanels += panels_count;
+                            groupMap[key].totalMeterMm += panels_count * length;
+                            groupMap[key].records.push({ ...record, panel });
+                        });
+
+                        const groups = Object.values(groupMap);
+                        const grandTotalMeterMm = groups.reduce((sum, g) => sum + g.totalMeterMm, 0);
+                        const grandTotalMeterM = grandTotalMeterMm / 1000;
+                        const grandTotalPanels = groups.reduce((sum, g) => sum + g.totalPanels, 0);
+                        const estimatedTimeMinutes = estimatedRunningSpeed > 0 ? grandTotalMeterM / estimatedRunningSpeed : 0;
+                        const estimatedTimeHours = Math.floor(estimatedTimeMinutes / 60);
+                        const estimatedTimeRemainingMinutes = Math.round(estimatedTimeMinutes % 60);
+
+                        // Sort records by time
+                        const sortedDateRecords = [...dateRecords].sort((a, b) =>
+                            new Date(a.created_at) - new Date(b.created_at)
+                        );
+
+                        return (
                             <div className="daily-production-summary">
-                                <div className="summary-card">
-                                    <h4>Production Meter Summary for {formatDate(productionMeterDate)}</h4>
-                                    <div className="summary-stats">
-                                        <div className="daily-stat"><span className="stat-label">Total Production Meter:</span><span className="stat-value">{dailyProductionMeter.totalMeter.toFixed(2)} mm</span></div>
-                                        <div className="daily-stat"><span className="stat-label">Number of Panels:</span><span className="stat-value">{dailyProductionMeter.panelCount}</span></div>
-                                        <div className="daily-stat"><span className="stat-label">Average Meter per Panel:</span><span className="stat-value">{dailyProductionMeter.panelCount > 0 ? (dailyProductionMeter.totalMeter / dailyProductionMeter.panelCount).toFixed(2) : '0'} mm</span><div className="stat-subtext">({dailyProductionMeter.panelCount > 0 ? (dailyProductionMeter.totalMeterInMeters / dailyProductionMeter.panelCount).toFixed(2) : '0'} meters)</div></div>
-                                        <div className="daily-stat"><span className="stat-label">Estimated Running Speed:</span><span className="stat-value">{estimatedRunningSpeed.toFixed(1)} M/Minutes</span></div>
-                                        <div className="daily-stat highlight"><span className="stat-label">Estimated Time to Complete:</span><span className="stat-value">{dailyProductionMeter.estimatedTimeHours > 0 ? `${dailyProductionMeter.estimatedTimeHours} hours ` : ''}{dailyProductionMeter.estimatedTimeRemainingMinutes} minutes</span><div className="stat-subtext">({dailyProductionMeter.estimatedTimeMinutes.toFixed(1)} total minutes)</div></div>
+
+                                {/* ── Top Summary Cards ── */}
+                                <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginBottom: '1.5rem' }}>
+                                    <div style={{ flex: '1', minWidth: '180px', background: '#e8f4fd', borderRadius: '8px', padding: '1rem', textAlign: 'center' }}>
+                                        <div style={{ fontSize: '0.85rem', color: '#666', marginBottom: '4px' }}>Total Production Meter</div>
+                                        <div style={{ fontSize: '1.8rem', fontWeight: 'bold', color: '#1a73e8' }}>{grandTotalMeterM.toFixed(2)} m</div>
+                                        <div style={{ fontSize: '0.8rem', color: '#888' }}>{grandTotalMeterMm.toFixed(0)} mm</div>
+                                    </div>
+                                    <div style={{ flex: '1', minWidth: '180px', background: '#e8fdf0', borderRadius: '8px', padding: '1rem', textAlign: 'center' }}>
+                                        <div style={{ fontSize: '0.85rem', color: '#666', marginBottom: '4px' }}>Total Panels Produced</div>
+                                        <div style={{ fontSize: '1.8rem', fontWeight: 'bold', color: '#2e7d32' }}>{grandTotalPanels}</div>
+                                        <div style={{ fontSize: '0.8rem', color: '#888' }}>{groups.length} type(s)</div>
+                                    </div>
+                                    <div style={{ flex: '1', minWidth: '180px', background: '#fff8e1', borderRadius: '8px', padding: '1rem', textAlign: 'center' }}>
+                                        <div style={{ fontSize: '0.85rem', color: '#666', marginBottom: '4px' }}>Estimated Time</div>
+                                        <div style={{ fontSize: '1.8rem', fontWeight: 'bold', color: '#f57c00' }}>
+                                            {estimatedTimeHours > 0 ? `${estimatedTimeHours}h ` : ''}{estimatedTimeRemainingMinutes}m
+                                        </div>
+                                        <div style={{ fontSize: '0.8rem', color: '#888' }}>@ {estimatedRunningSpeed} m/min</div>
+                                    </div>
+                                </div>
+
+                                {dateRecords.length === 0 ? (
+                                    <div style={{ textAlign: 'center', padding: '2rem', color: '#888' }}>
+                                        No production records found for {productionMeterDate}
+                                    </div>
+                                ) : (
+                                    <>
+                                        {/* ── Main Detail Table ── */}
+                                        <h4 style={{ marginBottom: '0.75rem', color: '#333' }}>
+                                            Production Records for {productionMeterDate}
+                                            <span style={{ marginLeft: '0.5rem', fontSize: '0.85rem', color: '#888', fontWeight: 'normal' }}>
+                                                ({sortedDateRecords.length} records)
+                                            </span>
+                                        </h4>
+                                        <div style={{ overflowX: 'auto', marginBottom: '2rem' }}>
+                                            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                                                <thead>
+                                                    <tr style={{ background: 'blue', color: 'white' }}>
+                                                        <th style={{ padding: '10px 8px', border: '1px solid #555', whiteSpace: 'nowrap' }}>#</th>
+                                                        <th style={{ padding: '10px 8px', border: '1px solid #555', whiteSpace: 'nowrap' }}>Production Ref</th>
+                                                        <th style={{ padding: '10px 8px', border: '1px solid #555', whiteSpace: 'nowrap' }}>Job No</th>
+                                                        <th style={{ padding: '10px 8px', border: '1px solid #555', whiteSpace: 'nowrap' }}>Customer</th>
+                                                        <th style={{ padding: '10px 8px', border: '1px solid #555', whiteSpace: 'nowrap' }}>Type</th>
+                                                        <th style={{ padding: '10px 8px', border: '1px solid #555', whiteSpace: 'nowrap' }}>Brand</th>
+                                                        <th style={{ padding: '10px 8px', border: '1px solid #555', whiteSpace: 'nowrap' }}>Surface Front</th>
+                                                        <th style={{ padding: '10px 8px', border: '1px solid #555', whiteSpace: 'nowrap' }}>Surface Back</th>
+                                                        <th style={{ padding: '10px 8px', border: '1px solid #555', whiteSpace: 'nowrap' }}>Width (mm)</th>
+                                                        <th style={{ padding: '10px 8px', border: '1px solid #555', whiteSpace: 'nowrap' }}>Length (mm)</th>
+                                                        <th style={{ padding: '10px 8px', border: '1px solid #555', whiteSpace: 'nowrap' }}>Thk (mm)</th>
+                                                        <th style={{ padding: '10px 8px', border: '1px solid #555', whiteSpace: 'nowrap' }}>Qty</th>
+                                                        <th style={{ padding: '10px 8px', border: '1px solid #555', whiteSpace: 'nowrap' }}>Meter (m)</th>
+                                                        <th style={{ padding: '10px 8px', border: '1px solid #555', whiteSpace: 'nowrap' }}>Est. Complete Time</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {sortedDateRecords.map((record, i) => {
+                                                        const panel = panels.find(p => p.id === record.panel_id);
+                                                        const panelLength = parseFloat(panel?.length) || 0;
+                                                        const panelsCount = parseInt(record.number_of_panels) || 0;
+                                                        const meterM = ((panelsCount * panelLength) / 1000).toFixed(2);
+
+                                                        const timeStr = new Date(record.created_at).toLocaleTimeString('en-MY', {
+                                                            hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true
+                                                        });
+
+                                                        const jobNo = panel?.job_no || record.job_no;
+                                                        const project = getCustomerByJobNo(jobNo);
+                                                        const customerName = project?.customer_name
+                                                            || project?.company_name
+                                                            || project?.client_name
+                                                            || project?.customer
+                                                            || project?.name
+                                                            || '—';
+
+                                                        return (
+                                                            <tr key={record.id} style={{ background: i % 2 === 0 ? '#fff' : '#f9f9f9' }}>
+                                                                <td style={{ padding: '8px', border: '1px solid #ddd', color: '#888', textAlign: 'center' }}>{i + 1}</td>
+                                                                <td style={{ padding: '8px', border: '1px solid #ddd', fontFamily: 'monospace', fontWeight: 'bold', whiteSpace: 'nowrap', color: '#1a73e8' }}>
+                                                                    {record.reference_number || 'N/A'}
+                                                                </td>
+                                                                <td style={{ padding: '8px', border: '1px solid #ddd', fontWeight: '600', whiteSpace: 'nowrap' }}>
+                                                                    {jobNo || 'N/A'}
+                                                                </td>
+                                                                <td style={{ padding: '8px', border: '1px solid #ddd', whiteSpace: 'nowrap' }}>
+                                                                    {project ? (
+                                                                        <span style={{
+                                                                            background: '#f3e5f5',
+                                                                            color: '#6a1b9a',
+                                                                            padding: '2px 8px',
+                                                                            borderRadius: '10px',
+                                                                            fontSize: '12px',
+                                                                            fontWeight: '500'
+                                                                        }}>
+                                                                            {customerName}
+                                                                        </span>
+                                                                    ) : (
+                                                                        <span style={{ color: '#bbb', fontSize: '12px' }}>No project found</span>
+                                                                    )}
+                                                                </td>
+                                                                <td style={{ padding: '8px', border: '1px solid #ddd' }}>
+                                                                    <span style={{ background: '#e3f2fd', color: '#1565c0', padding: '2px 8px', borderRadius: '10px', fontSize: '12px', fontWeight: '500' }}>
+                                                                        {panel?.type || 'N/A'}
+                                                                    </span>
+                                                                </td>
+                                                                <td style={{ padding: '8px', border: '1px solid #ddd' }}>
+                                                                    {record.brand || panel?.brand || '—'}
+                                                                </td>
+                                                                <td style={{ padding: '8px', border: '1px solid #ddd' }}>
+                                                                    {panel?.surface_front || '—'}
+                                                                </td>
+                                                                <td style={{ padding: '8px', border: '1px solid #ddd' }}>
+                                                                    {panel?.surface_back || '—'}
+                                                                </td>
+                                                                <td style={{ padding: '8px', border: '1px solid #ddd', textAlign: 'right' }}>
+                                                                    {panel?.width || '—'}
+                                                                </td>
+                                                                <td style={{ padding: '8px', border: '1px solid #ddd', textAlign: 'right' }}>
+                                                                    {panel?.length || '—'}
+                                                                </td>
+                                                                <td style={{ padding: '8px', border: '1px solid #ddd', textAlign: 'right' }}>
+                                                                    {panel?.panel_thk || '—'}
+                                                                </td>
+                                                                <td style={{ padding: '8px', border: '1px solid #ddd', textAlign: 'right', fontWeight: 'bold', color: '#2e7d32' }}>
+                                                                    {panelsCount}
+                                                                </td>
+                                                                <td style={{ padding: '8px', border: '1px solid #ddd', textAlign: 'right', fontWeight: 'bold', color: '#1a73e8' }}>
+                                                                    {meterM}
+                                                                </td>
+                                                                <td style={{ padding: '8px', border: '1px solid #ddd', whiteSpace: 'nowrap' }}>
+                                                            {(() => {
+                                                                const panelLength = parseFloat(panel?.length) || 0;
+                                                                const panelsCount = parseInt(record.number_of_panels) || 0;
+                                                                const meterM = (panelsCount * panelLength) / 1000;
+                                                                const timeMinutes = estimatedRunningSpeed > 0 ? meterM / estimatedRunningSpeed : 0;
+                                                                const hours = Math.floor(timeMinutes / 60);
+                                                                const mins = Math.floor(timeMinutes % 60);
+                                                                const secs = Math.round((timeMinutes * 60) % 60);
+
+                                                                let label = '';
+                                                                let bg = '#e8f4fd';
+                                                                let color = '#1a73e8';
+
+                                                                if (timeMinutes < 1) {
+                                                                    label = `${secs}s`;
+                                                                    bg = '#e8fdf0'; color = '#2e7d32';
+                                                                } else if (timeMinutes < 60) {
+                                                                    label = secs > 0 ? `${Math.floor(timeMinutes)}m ${secs}s` : `${Math.floor(timeMinutes)}m`;
+                                                                    bg = '#e8f4fd'; color = '#1a73e8';
+                                                                } else {
+                                                                    const remainingMins = Math.floor(timeMinutes % 60);
+                                                                    label = remainingMins > 0 ? `${hours}h ${remainingMins}m` : `${hours}h`;
+                                                                    bg = '#fff8e1'; color = '#f57c00';
+                                                                }
+
+                                                                return (
+                                                                    <span style={{ background: bg, padding: '2px 8px', borderRadius: '10px', fontSize: '12px', color, fontWeight: '500' }}>
+                                                                        ⏱ {label}
+                                                                    </span>
+                                                                );
+                                                            })()}
+                                                        </td>
+                                                            </tr>
+                                                        );
+                                                    })}
+                                                </tbody>
+                                                <tfoot>
+                                                    <tr style={{ background: '#f0f0f0', fontWeight: 'bold' }}>
+                                                        <td colSpan={11} style={{ padding: '10px 8px', border: '1px solid #ddd', textAlign: 'right' }}>
+                                                            Total
+                                                        </td>
+                                                        <td style={{ padding: '10px 8px', border: '1px solid #ddd', textAlign: 'right', color: '#2e7d32' }}>
+                                                            {dateRecords.reduce((sum, r) => sum + (parseInt(r.number_of_panels) || 0), 0)}
+                                                        </td>
+                                                        <td style={{ padding: '10px 8px', border: '1px solid #ddd', textAlign: 'right', color: '#1a73e8' }}>
+                                                            {(dateRecords.reduce((sum, r) => {
+                                                                const p = panels.find(x => x.id === r.panel_id);
+                                                                return sum + (parseInt(r.number_of_panels) || 0) * (parseFloat(p?.length) || 0);
+                                                            }, 0) / 1000).toFixed(2)}
+                                                        </td>
+                                                        {/* ✅ Total estimated time */}
+                                                        <td style={{ padding: '10px 8px', border: '1px solid #ddd', textAlign: 'center' }}>
+                                                            {(() => {
+                                                                const totalMeterM = dateRecords.reduce((sum, r) => {
+                                                                    const p = panels.find(x => x.id === r.panel_id);
+                                                                    return sum + (parseInt(r.number_of_panels) || 0) * (parseFloat(p?.length) || 0);
+                                                                }, 0) / 1000;
+
+                                                                const totalMinutes = estimatedRunningSpeed > 0 ? totalMeterM / estimatedRunningSpeed : 0;
+                                                                const hours = Math.floor(totalMinutes / 60);
+                                                                const mins = Math.floor(totalMinutes % 60);
+                                                                const secs = Math.round((totalMinutes * 60) % 60);
+
+                                                                let label = '';
+                                                                if (totalMinutes < 1) {
+                                                                    label = `${secs}s`;
+                                                                } else if (totalMinutes < 60) {
+                                                                    label = secs > 0 ? `${Math.floor(totalMinutes)}m ${secs}s` : `${Math.floor(totalMinutes)}m`;
+                                                                } else {
+                                                                    const remainingMins = Math.floor(totalMinutes % 60);
+                                                                    label = remainingMins > 0 ? `${hours}h ${remainingMins}m` : `${hours}h`;
+                                                                }
+
+                                                                return (
+                                                                    <span style={{ background: '#fff8e1', padding: '2px 8px', borderRadius: '10px', fontSize: '12px', color: '#f57c00', fontWeight: '600' }}>
+                                                                        ⏱ {label}
+                                                                    </span>
+                                                                );
+                                                            })()}
+                                                        </td>
+                                                    </tr>
+                                                </tfoot>
+                                            </table>
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+                        );
+                    })()}
+                </div>
+            </div>
+        )}
+
+            {/* Production Detail Modal */}
+            {productionDetailModal && (
+                <div className="modal-overlay" onClick={() => setProductionDetailModal(null)}>
+                    <div className="modal-content" style={{ width: '95vw', maxWidth: '1100px', maxHeight: '90vh' }} onClick={e => e.stopPropagation()}>
+                        <div className="modal-header">
+                            <h2>
+                                Production Records — {productionDetailModal.group.type} &nbsp;
+                                {productionDetailModal.group.width} × {productionDetailModal.group.length} mm &nbsp;
+                                | {productionDetailModal.date}
+                            </h2>
+                            <button type="button" className="close-button" onClick={() => setProductionDetailModal(null)}>×</button>
+                        </div>
+                        <div className="modal-body" style={{ overflowY: 'auto' }}>
+                            {/* Group Summary */}
+                            <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginBottom: '1.5rem' }}>
+                                <div style={{ flex: '1', minWidth: '140px', background: '#e8f4fd', borderRadius: '8px', padding: '0.75rem', textAlign: 'center' }}>
+                                    <div style={{ fontSize: '0.8rem', color: '#666' }}>Total Meter</div>
+                                    <div style={{ fontSize: '1.4rem', fontWeight: 'bold', color: '#1a73e8' }}>
+                                        {(productionDetailModal.group.totalMeterMm / 1000).toFixed(2)} m
+                                    </div>
+                                </div>
+                                <div style={{ flex: '1', minWidth: '140px', background: '#e8fdf0', borderRadius: '8px', padding: '0.75rem', textAlign: 'center' }}>
+                                    <div style={{ fontSize: '0.8rem', color: '#666' }}>Total Panels</div>
+                                    <div style={{ fontSize: '1.4rem', fontWeight: 'bold', color: '#2e7d32' }}>
+                                        {productionDetailModal.group.totalPanels}
+                                    </div>
+                                </div>
+                                <div style={{ flex: '1', minWidth: '140px', background: '#fff8e1', borderRadius: '8px', padding: '0.75rem', textAlign: 'center' }}>
+                                    <div style={{ fontSize: '0.8rem', color: '#666' }}>Records Count</div>
+                                    <div style={{ fontSize: '1.4rem', fontWeight: 'bold', color: '#f57c00' }}>
+                                        {productionDetailModal.group.records.length}
                                     </div>
                                 </div>
                             </div>
-                        )}
+
+                            {/* Records Table */}
+                            <div style={{ overflowX: 'auto' }}>
+                                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
+                                    <thead>
+                                        <tr style={{ background: '#f0f0f0' }}>
+                                            <th style={{ padding: '10px 12px', border: '1px solid #ddd', textAlign: 'left', whiteSpace: 'nowrap' }}>#</th>
+                                            <th style={{ padding: '10px 12px', border: '1px solid #ddd', textAlign: 'left', whiteSpace: 'nowrap' }}>Production Ref</th>
+                                            <th style={{ padding: '10px 12px', border: '1px solid #ddd', textAlign: 'left', whiteSpace: 'nowrap' }}>Panel Ref</th>
+                                            <th style={{ padding: '10px 12px', border: '1px solid #ddd', textAlign: 'left', whiteSpace: 'nowrap' }}>Job No</th>
+                                            <th style={{ padding: '10px 12px', border: '1px solid #ddd', textAlign: 'left', whiteSpace: 'nowrap' }}>Time Completed</th>
+                                            <th style={{ padding: '10px 12px', border: '1px solid #ddd', textAlign: 'left', whiteSpace: 'nowrap' }}>Brand</th>
+                                            <th style={{ padding: '10px 12px', border: '1px solid #ddd', textAlign: 'right', whiteSpace: 'nowrap' }}>Panels</th>
+                                            <th style={{ padding: '10px 12px', border: '1px solid #ddd', textAlign: 'right', whiteSpace: 'nowrap' }}>Meter (m)</th>
+                                            <th style={{ padding: '10px 12px', border: '1px solid #ddd', textAlign: 'left', whiteSpace: 'nowrap' }}>Status</th>
+                                            <th style={{ padding: '10px 12px', border: '1px solid #ddd', textAlign: 'right', whiteSpace: 'nowrap' }}>Balance After</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {productionDetailModal.group.records
+                                            .sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
+                                            .map((record, i) => {
+                                                const panelLength = parseFloat(record.panel?.length) || 0;
+                                                const panelsCount = parseInt(record.number_of_panels) || 0;
+                                                const meterM = ((panelsCount * panelLength) / 1000).toFixed(2);
+
+                                                // Format time completed
+                                                const completedDate = new Date(record.created_at);
+                                                const timeStr = completedDate.toLocaleTimeString('en-MY', {
+                                                    hour: '2-digit',
+                                                    minute: '2-digit',
+                                                    second: '2-digit',
+                                                    hour12: true
+                                                });
+
+                                                // Get current panel balance
+                                                const currentPanel = panels.find(p => p.id === record.panel_id);
+                                                const currentBalance = currentPanel?.balance !== undefined
+                                                    ? currentPanel.balance
+                                                    : (parseInt(currentPanel?.qty) || 0);
+
+                                                const statusColors = {
+                                                    completed: '#28a745',
+                                                    in_progress: '#17a2b8',
+                                                    pending: '#ffc107',
+                                                    cancelled: '#dc3545',
+                                                    on_hold: '#6c757d'
+                                                };
+
+                                                return (
+                                                    <tr key={record.id} style={{ background: i % 2 === 0 ? '#fff' : '#fafafa' }}>
+                                                        <td style={{ padding: '9px 12px', border: '1px solid #ddd', color: '#888' }}>{i + 1}</td>
+                                                        <td style={{ padding: '9px 12px', border: '1px solid #ddd' }}>
+                                                            <span style={{ fontFamily: 'monospace', fontWeight: 'bold', fontSize: '13px' }}>
+                                                                {record.reference_number || 'N/A'}
+                                                            </span>
+                                                        </td>
+                                                        <td style={{ padding: '9px 12px', border: '1px solid #ddd' }}>
+                                                            <span style={{ fontFamily: 'monospace', fontSize: '13px' }}>
+                                                                {record.panel?.reference_number || record.panel_reference || 'N/A'}
+                                                            </span>
+                                                        </td>
+                                                        <td style={{ padding: '9px 12px', border: '1px solid #ddd' }}>
+                                                            {record.panel?.job_no || record.job_no || 'N/A'}
+                                                        </td>
+                                                        <td style={{ padding: '8px', border: '1px solid #ddd', whiteSpace: 'nowrap' }}>
+                                                        {(() => {
+                                                            const recordTime = new Date(record.created_at);
+                                                            const now = new Date();
+                                                            const diffMs = now - recordTime;
+                                                            const diffMins = Math.floor(diffMs / 60000);
+                                                            const diffHours = Math.floor(diffMins / 60);
+                                                            const diffDays = Math.floor(diffHours / 24);
+
+                                                            let label = '';
+                                                            let bg = '#e8f4fd';
+                                                            let color = '#1a73e8';
+
+                                                            if (diffMins < 1) {
+                                                                label = 'Just now';
+                                                                bg = '#e8fdf0'; color = '#2e7d32';
+                                                            } else if (diffMins < 60) {
+                                                                label = `${diffMins} min ago`;
+                                                                bg = '#e8f4fd'; color = '#1a73e8';
+                                                            } else if (diffHours < 24) {
+                                                                const remainingMins = diffMins % 60;
+                                                                label = remainingMins > 0
+                                                                    ? `${diffHours}h ${remainingMins}m ago`
+                                                                    : `${diffHours}h ago`;
+                                                                bg = '#fff8e1'; color = '#f57c00';
+                                                            } else {
+                                                                label = `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+                                                                bg = '#fce4ec'; color = '#c62828';
+                                                            }
+
+                                                            return (
+                                                                <span style={{ background: bg, padding: '2px 8px', borderRadius: '10px', fontSize: '12px', color, fontWeight: '500' }}>
+                                                                    {label}
+                                                                </span>
+                                                            );
+                                                        })()}
+                                                    </td>
+                                                        <td style={{ padding: '9px 12px', border: '1px solid #ddd' }}>
+                                                            {record.brand || '—'}
+                                                        </td>
+                                                        <td style={{ padding: '9px 12px', border: '1px solid #ddd', textAlign: 'right', fontWeight: 'bold' }}>
+                                                            {panelsCount}
+                                                        </td>
+                                                        <td style={{ padding: '9px 12px', border: '1px solid #ddd', textAlign: 'right', fontWeight: 'bold', color: '#1a73e8' }}>
+                                                            {meterM}
+                                                        </td>
+                                                        <td style={{ padding: '9px 12px', border: '1px solid #ddd' }}>
+                                                            <span style={{
+                                                                background: statusColors[record.status] || '#ffc107',
+                                                                color: 'white',
+                                                                padding: '2px 8px',
+                                                                borderRadius: '12px',
+                                                                fontSize: '12px',
+                                                                fontWeight: '500'
+                                                            }}>
+                                                                {record.status || 'pending'}
+                                                            </span>
+                                                        </td>
+                                                        <td style={{ padding: '9px 12px', border: '1px solid #ddd', textAlign: 'right' }}>
+                                                            <span style={{ 
+                                                                color: currentBalance <= 0 ? '#dc3545' : '#e65100',
+                                                                fontWeight: 'bold'
+                                                            }}>
+                                                                {currentBalance}
+                                                            </span>
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })}
+                                    </tbody>
+                                    <tfoot>
+                                        <tr style={{ background: '#f0f0f0', fontWeight: 'bold' }}>
+                                            <td colSpan={6} style={{ padding: '10px 12px', border: '1px solid #ddd', textAlign: 'right' }}>Total</td>
+                                            <td style={{ padding: '10px 12px', border: '1px solid #ddd', textAlign: 'right', color: '#2e7d32' }}>
+                                                {productionDetailModal.group.totalPanels}
+                                            </td>
+                                            <td style={{ padding: '10px 12px', border: '1px solid #ddd', textAlign: 'right', color: '#1a73e8' }}>
+                                                {(productionDetailModal.group.totalMeterMm / 1000).toFixed(2)}
+                                            </td>
+                                            <td colSpan={2} style={{ padding: '10px 12px', border: '1px solid #ddd' }}></td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </div>
+                        </div>
                     </div>
                 </div>
             )}
-
             {activeView === 'table' && (
                 <div className="table-container">
                     {error && <div className="alert alert-danger">{error}</div>}
@@ -2465,6 +3040,7 @@ const ViewPanelPage = () => {
                                 handleSaveNewPanel={handleSaveNewPanel}
                                 onCancelNewPanel={handleCancelNewPanel}
                                 onDeleteAllByJob={handleDeleteAllByJob}
+                                productionRecords={allProductionRecords}
                                 stickyTop={modalHeaderHeight}
                             />
                         </div>
