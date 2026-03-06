@@ -23,7 +23,7 @@ const generateReferenceNumber = (existingReferences = []) => {
 };
 
 const ProductionDetailsModal = ({ panel, onClose, updatePanelBalance, formatNumber, formatDate,
-    onProductionRecordCreated }) => {
+    onProductionRecordCreated, onProductionRecordDeleted }) => {
     const [productionDate, setProductionDate] = useState('');
     const [numberOfPanels, setNumberOfPanels] = useState('');
     const [productionStatus, setProductionStatus] = useState('pending');
@@ -187,7 +187,7 @@ const ProductionDetailsModal = ({ panel, onClose, updatePanelBalance, formatNumb
                 setLocalSuccess(`Production record added successfully! Reference: ${productionRef}`);
                 setActiveTab(result.production_record.status || 'pending');
                 if (onProductionRecordCreated) {
-                    await onProductionRecordCreated();
+                    await onProductionRecordCreated(result.production_record); // pass the new record
                 }
                 setTimeout(() => setLocalSuccess(null), 3000);
             } else throw new Error('Invalid response from server');
@@ -212,6 +212,9 @@ const ProductionDetailsModal = ({ panel, onClose, updatePanelBalance, formatNumb
             if (newBalance > 0) setNumberOfPanels('1');
             setLocalSuccess('Production record deleted. Balance restored.');
             setTimeout(() => setLocalSuccess(null), 3000);
+            if (onProductionRecordDeleted) {
+                onProductionRecordDeleted(recordId);
+            }
         } catch (err) {
             console.error('Failed to delete production record:', err);
             setLocalError('Failed to delete production record: ' + (err.message || 'Unknown error'));
@@ -1112,7 +1115,17 @@ const ViewPanelPage = () => {
         return defaultColumns;
     });
 
-    const refreshAllProductionRecords = async () => {
+    const refreshAllProductionRecords = async (newRecord = null) => {
+        if (newRecord) {
+            setAllProductionRecords(prev => [newRecord, ...prev]);
+        }
+        await fetchAllProductionRecords();
+    };
+
+    const refreshAllProductionRecordsOnDelete = async (deletedId) => {
+        if (deletedId) {
+            setAllProductionRecords(prev => prev.filter(r => r.id !== deletedId));
+        }
         await fetchAllProductionRecords();
     };
 
@@ -2996,6 +3009,7 @@ const ViewPanelPage = () => {
                     formatNumber={formatNumber}
                     formatDate={formatDate}
                     onProductionRecordCreated={refreshAllProductionRecords}
+                    onProductionRecordDeleted={refreshAllProductionRecordsOnDelete}
                 />
             )}
 
@@ -3007,6 +3021,7 @@ const ViewPanelPage = () => {
                     formatNumber={formatNumber}
                     formatDate={formatDate}
                     onProductionRecordCreated={refreshAllProductionRecords}
+                    onProductionRecordDeleted={refreshAllProductionRecordsOnDelete}
                 />
             )}
 
