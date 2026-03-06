@@ -1031,6 +1031,7 @@ const ViewPanelPage = () => {
     const [newRowData, setNewRowData] = useState(null);
     const [productionDetailModal, setProductionDetailModal] = useState(null);
     const [allProjects, setAllProjects] = useState([]);
+    const [productionModalFromMeter, setProductionModalFromMeter] = useState(null);
     const [dailyProductionMeter, setDailyProductionMeter] = useState({
         totalMeter: 0,
         panelCount: 0,
@@ -2482,6 +2483,7 @@ const ViewPanelPage = () => {
                                                         <th style={{ padding: '10px 8px', border: '1px solid #555', whiteSpace: 'nowrap' }}>Qty</th>
                                                         <th style={{ padding: '10px 8px', border: '1px solid #555', whiteSpace: 'nowrap' }}>Meter (m)</th>
                                                         <th style={{ padding: '10px 8px', border: '1px solid #555', whiteSpace: 'nowrap' }}>Est. Complete Time</th>
+                                                        <th style={{ padding: '10px 8px', border: '1px solid #555', whiteSpace: 'nowrap' }}>Production</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody>
@@ -2559,38 +2561,64 @@ const ViewPanelPage = () => {
                                                                     {meterM}
                                                                 </td>
                                                                 <td style={{ padding: '8px', border: '1px solid #ddd', whiteSpace: 'nowrap' }}>
-                                                            {(() => {
-                                                                const panelLength = parseFloat(panel?.length) || 0;
-                                                                const panelsCount = parseInt(record.number_of_panels) || 0;
-                                                                const meterM = (panelsCount * panelLength) / 1000;
-                                                                const timeMinutes = estimatedRunningSpeed > 0 ? meterM / estimatedRunningSpeed : 0;
-                                                                const hours = Math.floor(timeMinutes / 60);
-                                                                const mins = Math.floor(timeMinutes % 60);
-                                                                const secs = Math.round((timeMinutes * 60) % 60);
+                                                                {(() => {
+                                                                    const panelLength = parseFloat(panel?.length) || 0;
+                                                                    const panelsCount = parseInt(record.number_of_panels) || 0;
+                                                                    const meterM = (panelsCount * panelLength) / 1000;
+                                                                    const timeMinutes = estimatedRunningSpeed > 0 ? meterM / estimatedRunningSpeed : 0;
+                                                                    const hours = Math.floor(timeMinutes / 60);
+                                                                    const mins = Math.floor(timeMinutes % 60);
+                                                                    const secs = Math.round((timeMinutes * 60) % 60);
 
-                                                                let label = '';
-                                                                let bg = '#e8f4fd';
-                                                                let color = '#1a73e8';
+                                                                    let label = '';
+                                                                    let bg = '#e8f4fd';
+                                                                    let color = '#1a73e8';
 
-                                                                if (timeMinutes < 1) {
-                                                                    label = `${secs}s`;
-                                                                    bg = '#e8fdf0'; color = '#2e7d32';
-                                                                } else if (timeMinutes < 60) {
-                                                                    label = secs > 0 ? `${Math.floor(timeMinutes)}m ${secs}s` : `${Math.floor(timeMinutes)}m`;
-                                                                    bg = '#e8f4fd'; color = '#1a73e8';
-                                                                } else {
-                                                                    const remainingMins = Math.floor(timeMinutes % 60);
-                                                                    label = remainingMins > 0 ? `${hours}h ${remainingMins}m` : `${hours}h`;
-                                                                    bg = '#fff8e1'; color = '#f57c00';
-                                                                }
+                                                                    if (timeMinutes < 1) {
+                                                                        label = `${secs}s`;
+                                                                        bg = '#e8fdf0'; color = '#2e7d32';
+                                                                    } else if (timeMinutes < 60) {
+                                                                        label = secs > 0 ? `${Math.floor(timeMinutes)}m ${secs}s` : `${Math.floor(timeMinutes)}m`;
+                                                                        bg = '#e8f4fd'; color = '#1a73e8';
+                                                                    } else {
+                                                                        const remainingMins = Math.floor(timeMinutes % 60);
+                                                                        label = remainingMins > 0 ? `${hours}h ${remainingMins}m` : `${hours}h`;
+                                                                        bg = '#fff8e1'; color = '#f57c00';
+                                                                    }
 
-                                                                return (
-                                                                    <span style={{ background: bg, padding: '2px 8px', borderRadius: '10px', fontSize: '12px', color, fontWeight: '500' }}>
-                                                                        ⏱ {label}
-                                                                    </span>
-                                                                );
-                                                            })()}
-                                                        </td>
+                                                                    return (
+                                                                        <span style={{ background: bg, padding: '2px 8px', borderRadius: '10px', fontSize: '12px', color, fontWeight: '500' }}>
+                                                                            ⏱ {label}
+                                                                        </span>
+                                                                    );
+                                                                })()}
+                                                            </td>
+                                                                <td style={{ padding: '8px', border: '1px solid #ddd', textAlign: 'center' }}>
+                                                                {(() => {
+                                                                    const panelForModal = panels.find(p => p.id === record.panel_id);
+                                                                    if (!panelForModal) return <span style={{ color: '#bbb', fontSize: '12px' }}>—</span>;
+                                                                    return (
+                                                                        <button
+                                                                            onClick={() => setProductionModalFromMeter(panelForModal)}
+                                                                            title={`Open production records for ${panelForModal.reference_number}`}
+                                                                            style={{
+                                                                                background: 'none',
+                                                                                border: '1px solid #1a73e8',
+                                                                                borderRadius: '6px',
+                                                                                cursor: 'pointer',
+                                                                                fontSize: '16px',
+                                                                                padding: '2px 8px',
+                                                                                color: '#1a73e8',
+                                                                                transition: 'background 0.15s'
+                                                                            }}
+                                                                            onMouseEnter={e => e.currentTarget.style.background = '#e8f4fd'}
+                                                                            onMouseLeave={e => e.currentTarget.style.background = 'none'}
+                                                                        >
+                                                                            🏭
+                                                                        </button>
+                                                                    );
+                                                                })()}
+                                                            </td>
                                                             </tr>
                                                         );
                                                     })}
@@ -2609,6 +2637,7 @@ const ViewPanelPage = () => {
                                                                 return sum + (parseInt(r.number_of_panels) || 0) * (parseFloat(p?.length) || 0);
                                                             }, 0) / 1000).toFixed(2)}
                                                         </td>
+
                                                         {/* ✅ Total estimated time */}
                                                         <td style={{ padding: '10px 8px', border: '1px solid #ddd', textAlign: 'center' }}>
                                                             {(() => {
@@ -2639,6 +2668,7 @@ const ViewPanelPage = () => {
                                                                 );
                                                             })()}
                                                         </td>
+                                                        <td style={{ padding: '10px 8px', border: '1px solid #ddd' }}></td>
                                                     </tr>
                                                 </tfoot>
                                             </table>
@@ -2962,6 +2992,17 @@ const ViewPanelPage = () => {
                 <ProductionDetailsModal
                     panel={selectedPanelForProduction}
                     onClose={closeProductionModal}
+                    updatePanelBalance={updatePanelBalance}
+                    formatNumber={formatNumber}
+                    formatDate={formatDate}
+                    onProductionRecordCreated={refreshAllProductionRecords}
+                />
+            )}
+
+            {productionModalFromMeter && (
+                <ProductionDetailsModal
+                    panel={productionModalFromMeter}
+                    onClose={() => setProductionModalFromMeter(null)}
                     updatePanelBalance={updatePanelBalance}
                     formatNumber={formatNumber}
                     formatDate={formatDate}
