@@ -81,113 +81,57 @@ const real_updateProjectStatus = async (id, status) => {
   });
 };
 
-// New function to create initial tasks for categories
 const createCategoryTasks = async (projectNo, selectedCategories) => {
-  try {
-    const tasks = [];
-    
-    for (const category of selectedCategories) {
-      let taskData = {
-        projectNo: projectNo,
-        status: 'Pending'
-      };
+  const results = [];
+  
+  for (const category of selectedCategories) {
+    try {
+      let endpoint = '';
       
+      const taskData = {
+        project_no: projectNo,
+        title: `${category.charAt(0).toUpperCase() + category.slice(1)} Task`,
+        description: `Initial task for ${category} category`,
+        priority: 'empty',
+        status: 'pending',
+        approve_status: 'Pending',
+        created_at: new Date().toISOString().slice(0, 19).replace('T', ' ')
+      };
+
       switch(category) {
         case 'panel':
-          taskData = {
-            ...taskData,
-            panelName: '',
-            panelWidth: 0,
-            panelHeight: 0,
-            panelQty: 0,
-            remarks: ''
-          };
-          await apiCall('/panel-tasks', {
-            method: 'POST',
-            body: JSON.stringify(taskData),
-          });
+          endpoint = '/panel-tasks';
           break;
-          
         case 'cutting':
-          taskData = {
-            ...taskData,
-            cuttingName: '',
-            cuttingWidth: 0,
-            cuttingHeight: 0,
-            cuttingQty: 0,
-            remarks: ''
-          };
-          await apiCall('/cutting-tasks', {
-            method: 'POST',
-            body: JSON.stringify(taskData),
-          });
+          endpoint = '/cutting-tasks';
           break;
-          
         case 'door':
-          taskData = {
-            ...taskData,
-            doorName: '',
-            doorWidth: 0,
-            doorHeight: 0,
-            doorQty: 0,
-            remarks: ''
-          };
-          await apiCall('/door-tasks', {
-            method: 'POST',
-            body: JSON.stringify(taskData),
-          });
+          endpoint = '/door-tasks';
           break;
-          
-        case 'strip_curtain':
-          taskData = {
-            ...taskData,
-            stripCurtainName: '',
-            stripCurtainWidth: 0,
-            stripCurtainHeight: 0,
-            stripCurtainQty: 0,
-            remarks: ''
-          };
-          await apiCall('/strip-curtain-tasks', {
-            method: 'POST',
-            body: JSON.stringify(taskData),
-          });
-          break;
-          
         case 'accessories':
-          taskData = {
-            ...taskData,
-            accessoryName: '',
-            accessoryQty: 0,
-            remarks: ''
-          };
-          await apiCall('/accessories-tasks', {
-            method: 'POST',
-            body: JSON.stringify(taskData),
-          });
+          endpoint = '/accessories-tasks';
           break;
-          
         case 'system':
-          taskData = {
-            ...taskData,
-            systemName: '',
-            systemQty: 0,
-            remarks: ''
-          };
-          await apiCall('/system-tasks', {
-            method: 'POST',
-            body: JSON.stringify(taskData),
-          });
+          endpoint = '/system-tasks';
           break;
+        default:
+          continue;
       }
-      
-      tasks.push({ category, taskData });
+
+      const result = await apiCall(endpoint, {
+        method: 'POST',
+        body: JSON.stringify(taskData),
+      });
+
+      console.log(`✅ Created task for category: ${category}`);
+
+    } catch (error) {
+      console.error(`❌ Failed to create task for category: ${category}`, error.message);
+      results.push({ category, success: false, error: error.message });
     }
-    
-    return tasks;
-  } catch (error) {
-    console.error('Error creating category tasks:', error);
-    throw error;
   }
+
+  return results;
 };
 
 // =========================================================
@@ -1228,125 +1172,66 @@ function App() {
         e.preventDefault();
         
         if (!newProject.projectNo || !newProject.customer) {
-            addNotification("🚨 **Error:** Project No. and Customer Name are required."); 
+            addNotification("🚨 Error: Project No. and Customer Name are required."); 
             return;
         }
 
         try {
-            // Add selected categories to project data
             const projectWithCategories = {
                 ...newProject,
                 selectedCategories: selectedCategories,
-                status: 'active' // Default status
+                status: 'active'
             };
 
-            // Create the project
+            // 1. Create the project (essential – must complete before anything else)
             const addedProject = await real_createProject(projectWithCategories); 
-            
-            // Create initial tasks for each selected category (except quotation)
-            let createdTasksCount = 0;
-            const categoriesForTasks = selectedCategories.filter(cat => cat !== 'quotation');
-            
-            try {
-                if (categoriesForTasks.length > 0) {
-                    await createCategoryTasks(addedProject.projectNo, categoriesForTasks);
-                    createdTasksCount = categoriesForTasks.length;
-                }
-            } catch (taskError) {
-                console.error("Error creating category tasks:", taskError);
-                addNotification("⚠️ Project created but could not create category tasks. You can add them manually later.");
-            }
 
-            // Handle file uploads for EACH selected category
-            let totalFilesUploaded = 0;
-            let uploadResults = [];
-            
-            const hasFiles = Object.values(categoryFiles).some(files => files && files.length > 0);
-            
-            if (hasFiles) {
-                for (const categoryId of selectedCategories) {
-                    const files = categoryFiles[categoryId] || [];
-                    
-                    if (files.length > 0) {
-                        const formData = new FormData();
-                        formData.append('projectNo', addedProject.projectNo);
-                        formData.append('category', categoryId);
-                        
-                        files.forEach(file => {
-                            formData.append('files', file);
-                        });
-
-                        try {
-                            await real_uploadProjectFiles(formData);
-                            totalFilesUploaded += files.length;
-                            uploadResults.push(`${files.length} to ${categoryId}`);
-                        } catch (uploadError) {
-                            console.error(`Error uploading files for ${categoryId}:`, uploadError);
-                            addNotification(`⚠️ Error uploading files for ${categoryId}. Please try again later.`);
-                        }
-                    }
-                }
-            }
-
-            // Refresh projects list
-            await fetchProjects(activeTab);
-            
-            // Reset form
+            // 2. Reset form and close it immediately
             setNewProject({ 
-                drawingDate: '', 
-                projectNo: '', 
-                customer: '', 
-                poPayment: '', 
-                requestedDelivery: '', 
-                remarks: '',
-                sales: '',
-                sell: '',
-                cost: '',
-                margin: ''
+                drawingDate: '', projectNo: '', customer: '', poPayment: '', 
+                requestedDelivery: '', remarks: '', sales: '', sell: '', cost: '', margin: ''
             }); 
             setSelectedCategories([]);
             setCategoryFiles({});
+            if (fileInputRef.current) fileInputRef.current.value = '';
+            setIsFormOpen(false);
+
+            // 4. Perform background tasks (do NOT await them)
+            const categoriesForTasks = selectedCategories;
             
-            if (fileInputRef.current) {
-                fileInputRef.current.value = '';
+            // Fire-and-forget task creation
+            if (categoriesForTasks.length > 0) {
+                createCategoryTasks(addedProject.projectNo, categoriesForTasks)
+                    .catch(err => console.error('Background task creation failed:', err));
             }
-            
-            setIsFormOpen(false); 
-            
-            // Success notification
-            const categoryNames = {
-                panel: 'Panel/Slab',
-                cutting: 'Cutting',
-                door: 'Door',
-                //strip_curtain: 'Strip Curtain',
-                accessories: 'Accessories',
-                system: 'Refrigeration System',
-            };
-            
-            const categoryList = selectedCategories.map(cat => categoryNames[cat]).join(', ');
-            
-            let notificationMessage = `✅ Job for ${addedProject.customer} (**${addedProject.projectNo}**) created successfully. `;
-            notificationMessage += `Categories: ${categoryList}. `;
-            notificationMessage += `${createdTasksCount} initial task(s) created.`;
-            
-            if (totalFilesUploaded > 0) {
-                notificationMessage += ` ${totalFilesUploaded} file(s) uploaded: ${uploadResults.join(', ')}.`;
-            } else {
-                notificationMessage += ` No files uploaded (optional).`;
+
+            // Fire-and-forget file uploads
+            const hasFiles = Object.values(categoryFiles).some(files => files?.length > 0);
+            if (hasFiles) {
+                // Upload all files in parallel, but don't block
+                Promise.all(selectedCategories.map(async (categoryId) => {
+                    const files = categoryFiles[categoryId] || [];
+                    if (files.length === 0) return;
+
+                    const formData = new FormData();
+                    formData.append('projectNo', addedProject.projectNo);
+                    formData.append('category', categoryId);
+                    files.forEach(file => formData.append('files', file));
+
+                    try {
+                        await real_uploadProjectFiles(formData);
+                    } catch (uploadError) {
+                        console.error(`Error uploading files for ${categoryId}:`, uploadError);
+                        // Optionally show a notification to the user
+                        addNotification(`⚠️ Some files for ${categoryId} failed to upload.`);
+                    }
+                })).catch(err => console.error('Background file uploads failed:', err));
             }
-            
-            // Add financial information if provided
-            if (newProject.sales || newProject.sell || newProject.cost) {
-                notificationMessage += ` Financials: Sales: RM${newProject.sales || '0.00'}, Sell: RM${newProject.sell || '0.00'}, Cost: RM${newProject.cost || '0.00'}, Margin: RM${newProject.margin || '0.00'}.`;
-            }
-            
-            addNotification(notificationMessage);
-            navigate('/admin');   
+            navigate('/admin');
 
         } catch (err) {
             console.error("Error creating project:", err);
             setError(`Error creating project: ${err.message}`);
-            addNotification(`❌ **Error:** Could not create job. ${err.message}`);
         }
     };
     
@@ -1764,7 +1649,7 @@ function App() {
     // --- Loading and Error View ---
     if (isLoading && (currentRoute === 'JobList' || currentRoute === 'AdminPage')) {
         return <div className="App" style={{ textAlign: 'center', padding: '50px' }}>
-            <h2>Loading Projects... 🔄</h2>
+            <h2>Loading... 🔄</h2>
         </div>;
     }
 

@@ -2635,3 +2635,8 @@ input[type="number"]:focus {
   align-items: center;
   gap: 10px; /* Adjust spacing as needed */
 }
+
+@keyframes spin {
+    0%   { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
