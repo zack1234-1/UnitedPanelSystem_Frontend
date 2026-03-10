@@ -1227,7 +1227,9 @@ function App() {
                     }
                 })).catch(err => console.error('Background file uploads failed:', err));
             }
+
             navigate('/admin');
+            fetchProjects('approved');
 
         } catch (err) {
             console.error("Error creating project:", err);
