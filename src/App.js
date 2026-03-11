@@ -1198,12 +1198,6 @@ function App() {
 
             // 4. Perform background tasks (do NOT await them)
             const categoriesForTasks = selectedCategories;
-            
-            // Fire-and-forget task creation
-            if (categoriesForTasks.length > 0) {
-                createCategoryTasks(addedProject.projectNo, categoriesForTasks)
-                    .catch(err => console.error('Background task creation failed:', err));
-            }
 
             // Fire-and-forget file uploads
             const hasFiles = Object.values(categoryFiles).some(files => files?.length > 0);
