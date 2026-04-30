@@ -634,16 +634,16 @@ const JobOverviewContent = ({
                   <th
                     key={col.key}
                     onClick={() => {
-                      if (col.type !== 'computed') {
-                        const rect = document.getElementById(`th-${col.key}`)?.getBoundingClientRect();
-                        if (rect) {
-                          setFilterDropdownPos({
-                            top: rect.bottom + window.scrollY,
-                            left: rect.left + window.scrollX
-                          });
-                          setActiveFilterCol(activeFilterCol === col.key ? null : col.key);
+                        if (col.type !== 'computed' && col.filterable !== false) {
+                            const rect = document.getElementById(`th-${col.key}`)?.getBoundingClientRect();
+                            if (rect) {
+                                setFilterDropdownPos({
+                                    top: rect.bottom + window.scrollY,
+                                    left: rect.left + window.scrollX
+                                });
+                                setActiveFilterCol(activeFilterCol === col.key ? null : col.key);
+                            }
                         }
-                      }
                     }}
                     style={{
                       padding: '6px 4px',
@@ -782,84 +782,96 @@ const JobOverviewContent = ({
                 return (
                   <tr key={panel.id}>
                     {visibleColumns.map(col => {
-                      let value;
-                      if (col.key === 'area') {
-                        value = area.toFixed(3);
-                      } else if (col.key === 'production_meter') {
-                        value = prodMeter.toFixed(0);
-                      } else if (col.key === 'created_at' || col.key === 'estimated_delivery') {
-                        value = formatDate(panel[col.key]);
-                      } else {
-                        value = panel[col.key] ?? 'null';
-                      }
+                        let value;
+                        let inputElement = null;   // ✅ Declare inputElement here
 
-                      if (isEditing && col.type !== 'computed') {
-                        let inputElement;
-                        if (col.type === 'number') {
-                          inputElement = (
-                            <input
-                              type="number"
-                              step="any"
-                              value={editedRowData[col.key] ?? ''}
-                              onChange={(e) => handleEditedFieldChange(col.key, e.target.value)}
-                              style={{ width: '100%', boxSizing: 'border-box', fontSize: '14px', padding: '4px' }}
-                            />
-                          );
-                        } else if (col.type === 'date') {
-                          inputElement = (
-                            <input
-                              type="date"
-                              value={editedRowData[col.key] ?? ''}
-                              onChange={(e) => handleEditedFieldChange(col.key, e.target.value)}
-                              style={{ width: '100%', boxSizing: 'border-box', fontSize: '14px', padding: '4px' }}
-                            />
-                          );
-                        } else if (col.key === 'status') {
-                          inputElement = (
-                            <select
-                              value={editedRowData.status || 'pending'}
-                              onChange={(e) => handleEditedFieldChange('status', e.target.value)}
-                              style={{ width: '100%', fontSize: '14px', padding: '4px' }}
-                            >
-                              <option value="pending">Pending</option>
-                              <option value="in_progress">In Progress</option>
-                              <option value="completed">Completed</option>
-                            </select>
-                          );
+                        // Compute display value for normal (non-editing) mode
+                        if (col.key === 'area') {
+                            value = area.toFixed(3);
+                        } else if (col.key === 'production_meter') {
+                            value = prodMeter.toFixed(0);
+                        } else if (col.key === 'remaining_meter') {
+                            const remainingMeter = ((balance || 0) * (parseFloat(panel.length) || 0));
+                            value = remainingMeter.toFixed(2);
+                        } else if (col.key === 'created_at' || col.key === 'estimated_delivery') {
+                            value = formatDate(panel[col.key]);
                         } else {
-                          inputElement = (
-                            <input
-                              type="text"
-                              value={editedRowData[col.key] ?? ''}
-                              onChange={(e) => handleEditedFieldChange(col.key, e.target.value)}
-                              style={{ width: '100%', boxSizing: 'border-box', fontSize: '14px', padding: '4px' }}
-                            />
-                          );
+                            value = panel[col.key] ?? 'null';
                         }
+
+                        // Build input element when in edit mode and column is editable
+                        if (isEditing && col.type !== 'computed') {
+                            if (col.key === 'remaining_meter') {
+                                const currentRemaining = ((balance || 0) * (parseFloat(panel.length) || 0)) / 1000;
+                                inputElement = (
+                                    <input
+                                        type="number"
+                                        step="0.01"
+                                        value={editedRowData.remaining_meter ?? currentRemaining.toFixed(2)}
+                                        onChange={(e) => handleEditedFieldChange('remaining_meter', e.target.value)}
+                                        style={{ width: '100%', boxSizing: 'border-box', fontSize: '14px', padding: '4px' }}
+                                    />
+                                );
+                            } else if (col.type === 'number') {
+                                inputElement = (
+                                    <input
+                                        type="number"
+                                        step="any"
+                                        value={editedRowData[col.key] ?? ''}
+                                        onChange={(e) => handleEditedFieldChange(col.key, e.target.value)}
+                                        style={{ width: '100%', boxSizing: 'border-box', fontSize: '14px', padding: '4px' }}
+                                    />
+                                );
+                            } else if (col.type === 'date') {
+                                inputElement = (
+                                    <input
+                                        type="date"
+                                        value={editedRowData[col.key] ?? ''}
+                                        onChange={(e) => handleEditedFieldChange(col.key, e.target.value)}
+                                        style={{ width: '100%', boxSizing: 'border-box', fontSize: '14px', padding: '4px' }}
+                                    />
+                                );
+                            } else if (col.key === 'status') {
+                                inputElement = (
+                                    <select
+                                        value={editedRowData.status || 'pending'}
+                                        onChange={(e) => handleEditedFieldChange('status', e.target.value)}
+                                        style={{ width: '100%', fontSize: '14px', padding: '4px' }}
+                                    >
+                                        <option value="pending">Pending</option>
+                                        <option value="in_progress">In Progress</option>
+                                        <option value="completed">Completed</option>
+                                    </select>
+                                );
+                            } else {
+                                inputElement = (
+                                    <input
+                                        type="text"
+                                        value={editedRowData[col.key] ?? ''}
+                                        onChange={(e) => handleEditedFieldChange(col.key, e.target.value)}
+                                        style={{ width: '100%', boxSizing: 'border-box', fontSize: '14px', padding: '4px' }}
+                                    />
+                                );
+                            }
+                        }
+
                         return (
-                          <td key={col.key} style={{ padding: '6px 4px', border: '1px solid #ccc' }}>
-                            {inputElement}
-                          </td>
+                            <td
+                                key={col.key}
+                                onClick={() => !isEditing && col.type !== 'computed' && handleCellClick(panel)}
+                                style={{
+                                    padding: '6px 4px',
+                                    border: '1px solid #ccc',
+                                    cursor: !isEditing && col.type !== 'computed' ? 'pointer' : 'default',
+                                    wordBreak: 'break-word',
+                                    fontSize: '16px',
+                                    backgroundColor: jobFilters[col.key] === panel[col.key]?.toString().trim() ? '#e3f2fd' : 'transparent'
+                                }}
+                                title={!isEditing && col.type !== 'computed' ? 'Click to edit' : ''}
+                            >
+                                {isEditing && col.type !== 'computed' ? inputElement : value}
+                            </td>
                         );
-                      } else {
-                        return (
-                          <td
-                            key={col.key}
-                            onClick={() => col.type !== 'computed' && handleCellClick(panel)}
-                            style={{
-                              padding: '6px 4px',
-                              border: '1px solid #ccc',
-                              cursor: col.type !== 'computed' ? 'pointer' : 'default',
-                              wordBreak: 'break-word',
-                              fontSize: '16px',
-                              backgroundColor: jobFilters[col.key] === panel[col.key]?.toString().trim() ? '#e3f2fd' : 'transparent'
-                            }}
-                            title={col.type !== 'computed' ? 'Click to edit' : ''}
-                          >
-                            {value}
-                          </td>
-                        );
-                      }
                     })}
                     <td style={{ padding: '6px 4px', border: '1px solid #ccc', textAlign: 'center', verticalAlign: 'middle' }}>
                       {isEditing ? (
@@ -1096,6 +1108,7 @@ const ViewPanelPage = () => {
         { id: 'cutting', label: 'Cutting', visible: true, order: 17 },
         { id: 'balance', label: 'Balance', visible: true, order: 18 },
         { id: 'production_meter', label: 'Meter', visible: true, order: 19 },
+        { id: 'remaining_meter', label: 'Remain Meter', visible: true, order: 20 }, 
         { id: 'created_at', label: 'Date', visible: true, order: 20 },
         { id: 'estimated_delivery', label: 'Delivery', visible: true, order: 21 },
         { id: 'actions', label: 'Actions', visible: true, order: 22, alwaysVisible: true }
@@ -1892,9 +1905,13 @@ const ViewPanelPage = () => {
 
     const handleCellClick = (panel) => {
         if (editingRowId === panel.id) return;
+        const length = parseFloat(panel.length) || 0;
+        const balance = panel.balance !== undefined ? panel.balance : (parseInt(panel.qty) || 0);
+        const remainingMeter = (balance * length) / 1000;
         setEditingRowId(panel.id);
         setEditedRowData({
             ...panel,
+            remaining_meter: remainingMeter.toFixed(2),   // store as string for input
             created_at: formatDateForInput(panel.created_at),
             estimated_delivery: formatDateForInput(panel.estimated_delivery)
         });
@@ -1906,7 +1923,7 @@ const ViewPanelPage = () => {
         setEditedRowData(prev => ({ ...prev, [field]: value }));
     };
 
-    const handleSaveEdit = async () => {
+   const handleSaveEdit = async () => {
         if (!editedRowData) return;
         const originalPanel = panels.find(p => p.id === editingRowId);
         if (!originalPanel) return;
@@ -1916,13 +1933,17 @@ const ViewPanelPage = () => {
             'job_no', 'type', 'panel_thk', 'joint', 'surface_front', 'surface_back',
             'surface_front_thk', 'surface_back_thk', 'surface_type', 'width', 'length',
             'salesman', 'application', 'qty', 'cutting', 'balance', 'status',
-            'created_at', 'estimated_delivery'
+            'created_at', 'estimated_delivery', 'remaining_meter' 
         ];
 
-        if (updates.qty !== undefined) {
-                updates.balance = parseInt(updates.qty) || 0;
-        }
+        // Helper to compute remaining meter from balance & length
+        const computeRemainingMeter = (balance, length) => {
+            const bal = parseFloat(balance) || 0;
+            const len = parseFloat(length) || 0;
+            return (bal * len) / 1000;   // in meters
+        };
 
+        // 1. Collect changes from standard fields
         fieldsToCheck.forEach(field => {
             let originalValue = originalPanel[field];
             let newValue = editedRowData[field];
@@ -1930,18 +1951,46 @@ const ViewPanelPage = () => {
             if (field === 'created_at' || field === 'estimated_delivery') {
                 originalValue = originalValue ? convertToISOString(originalValue) : null;
                 newValue = newValue ? convertToISOString(newValue) : null;
-            } else if (field === 'panel_thk' || field === 'surface_front_thk' || field === 'surface_back_thk' || field === 'width' || field === 'length') {
+            } else if (['panel_thk', 'surface_front_thk', 'surface_back_thk', 'width', 'length'].includes(field)) {
                 originalValue = originalValue ? parseFloat(originalValue) : null;
                 newValue = newValue ? parseFloat(newValue) : null;
-            } else if (field === 'qty' || field === 'balance') {
+            } else if (['qty', 'balance'].includes(field)) {
                 originalValue = originalValue ? parseInt(originalValue) : null;
                 newValue = newValue ? parseInt(newValue) : null;
+            } else if (field === 'remaining_meter') {
+                originalValue = originalValue ? parseFloat(originalValue) : null;
+                newValue = newValue ? parseFloat(newValue) : null;
             }
 
             if (originalValue !== newValue) {
                 updates[field] = editedRowData[field];
             }
         });
+
+        // 2. Handle consistency between balance, length and remaining_meter
+        
+        // Case A: User directly edited remaining_meter → recalc balance
+        if (editedRowData.remaining_meter !== undefined && editedRowData.remaining_meter !== null) {
+            const newRemaining = parseFloat(editedRowData.remaining_meter);
+            if (!isNaN(newRemaining)) {
+                const length = parseFloat(editedRowData.length) || parseFloat(originalPanel.length) || 0;
+                if (length > 0) {
+                    const newBalance = Math.round((newRemaining * 1000) / length);
+                    updates.balance = newBalance;
+                    updates.remaining_meter = newRemaining;   // ✅ store directly
+                }
+            }
+        }
+        // Case B: User edited balance or length → recalc remaining_meter
+        else if (updates.balance !== undefined || updates.length !== undefined) {
+            const newBalance = updates.balance !== undefined ? parseInt(updates.balance) : (parseInt(originalPanel.balance) || parseInt(originalPanel.qty) || 0);
+            const newLength = updates.length !== undefined ? parseFloat(updates.length) : parseFloat(originalPanel.length) || 0;
+            const computedRemaining = computeRemainingMeter(newBalance, newLength);
+            updates.remaining_meter = computedRemaining;   // ✅ add to DB update
+        }
+
+        // Remove temporary field if still present
+        delete editedRowData.remaining_meter;
 
         if (Object.keys(updates).length === 0) {
             setEditError('No changes to save');
@@ -1951,16 +2000,28 @@ const ViewPanelPage = () => {
         try {
             setEditError(null);
             setEditSuccess(null);
+            
+            // ✅ API call – now includes 'remaining_meter' field
             const updatedPanel = await viewPanelAPI.update(editingRowId, updates);
-            setPanels(prev => prev.map(p => p.id === editingRowId ? { ...p, ...updatedPanel, balance: updatedPanel.balance !== undefined ? updatedPanel.balance : (updatedPanel.qty || 0) } : p));
+            
+            setPanels(prev => prev.map(p => 
+                p.id === editingRowId 
+                    ? { ...p, ...updatedPanel } 
+                    : p
+            ));
+            
             setSelectedJobForOverview(prev => {
                 if (!prev) return prev;
-                const updatedPanels = prev.panels.map(p => p.id === editingRowId ? { ...p, ...updatedPanel, balance: updatedPanel.balance !== undefined ? updatedPanel.balance : (updatedPanel.qty || 0) } : p);
+                const updatedPanels = prev.panels.map(p => 
+                    p.id === editingRowId ? { ...p, ...updatedPanel } : p
+                );
                 return { ...prev, panels: updatedPanels };
             });
+            
             setEditSuccess('Panel updated successfully');
             setEditingRowId(null);
             setEditedRowData(null);
+            setTimeout(() => setEditSuccess(null), 3000);
         } catch (err) {
             console.error('Failed to update panel:', err);
             setEditError('Failed to update: ' + (err.message || 'Unknown error'));
@@ -2203,17 +2264,17 @@ const ViewPanelPage = () => {
         }
     };
 
-    const toggleGroup = (job) => {
-        setExpandedGroups(prev => {
-            const newSet = new Set(prev);
-            if (newSet.has(job)) {
-                newSet.delete(job);
-            } else {
-                newSet.add(job);
-            }
-            return newSet;
-        });
-    };
+    // const toggleGroup = (job) => {
+    //     setExpandedGroups(prev => {
+    //         const newSet = new Set(prev);
+    //         if (newSet.has(job)) {
+    //             newSet.delete(job);
+    //         } else {
+    //             newSet.add(job);
+    //         }
+    //         return newSet;
+    //     });
+    // };
 
     const columnFilterMap = {
         job_no: { uniqueKey: 'jobNos', filterKey: 'job_no' },
@@ -2286,6 +2347,7 @@ const ViewPanelPage = () => {
         { key: 'cutting', label: 'Cutting', type: 'text' },
         { key: 'balance', label: 'Balance', type: 'computed' },
         { key: 'production_meter', label: 'Meter', type: 'computed' },
+        { key: 'remaining_meter', label: 'Remain Meter', type: 'number', filterable: false },
         { key: 'created_at', label: 'Date', type: 'date' },
         { key: 'estimated_delivery', label: 'Delivery', type: 'date' }
     ];
@@ -2885,7 +2947,7 @@ const ViewPanelPage = () => {
             {activeView === 'table' && (
                 <div className="table-container">
                     {error && <div className="alert alert-danger">{error}</div>}
-                    <div className="column-selection-chips" style={{ position: 'sticky', top: 0, zIndex: 10, backgroundColor: 'white', padding: '1rem 0', borderBottom: '1px solid #e5e7eb', marginBottom: '1rem' }}>
+                    {/* <div className="column-selection-chips" style={{ position: 'sticky', top: 0, zIndex: 10, backgroundColor: 'white', padding: '1rem 0', borderBottom: '1px solid #e5e7eb', marginBottom: '1rem' }}>
                         <div className="chips-header">
                             <h5>Selected Columns To View In the Table And Click The Filter Icon To Filter The Value In The Table Base On Column</h5>
                             <div className="chips-controls">
@@ -2920,7 +2982,7 @@ const ViewPanelPage = () => {
                                 </div>
                             ))}
                         </div>
-                    </div>
+                    </div> */}
 
                     {isLoading ? (
                         <div className="loading-state"><div className="loading-spinner"></div><p>Loading panels...</p></div>
@@ -2944,8 +3006,7 @@ const ViewPanelPage = () => {
                             <div className="grouped-cards">
                                 {groupedPanels.map(group => (
                                     <div key={group.job} className="job-group">
-                                        <div className="group-header" onClick={() => toggleGroup(group.job)}>
-                                    <span className="group-toggle">{expandedGroups.has(group.job) ? '▼' : '▶'}</span>
+                                    <div className="group-header">
                                     <span className="group-title">{group.job}</span>
                                     <span className="group-count">({group.panels.length} panel{group.panels.length !== 1 ? 's' : ''})</span>
                                     <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px' }}>

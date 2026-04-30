@@ -206,7 +206,7 @@ const CreateTaskModal = ({
                                     <option value="on-hold">On Hold</option>
                                     <option value="in-progress">In Progress</option>
                                     <option value="completed">Completed</option>
-                                    <option value="cutting">Cutting</option>   {/* NEW */}
+                                    <option value="cutting">Cutting</option>
                                 </select>
                             </div>
                         </div>
@@ -462,7 +462,6 @@ const UploadMediaModal = ({
                             {imagePreview && (
                                 <div className="image-preview-container">
                                     <img src={imagePreview} alt="Preview" className="image-preview" />
-                                    {/* Removed the remove button as requested */}
                                 </div>
                             )}
                             <p className="form-hint">
@@ -504,7 +503,7 @@ const PanelSlab = ({ onBackToProjects }) => {
     const [isUploadingMedia, setIsUploadingMedia] = useState(false);
     const [error, setError] = useState(null);
     const [uploadMediaError, setUploadMediaError] = useState(null);
-    const [cuttingError, setCuttingError] = useState(null);   // NEW: error for cutting task creation
+    const [cuttingError, setCuttingError] = useState(null);
 
     const [filters, setFilters] = useState({
         priority: 'all',
@@ -564,14 +563,14 @@ const PanelSlab = ({ onBackToProjects }) => {
         return [...new Set(projectNumbers)].sort();
     }, [projects]);
 
-    // NEW: Helper to create a cutting task from a panel task
+    // Helper to create a cutting task from a panel task
     const createCuttingTaskFromPanelTask = async (panelTask) => {
         try {
             const cuttingTaskData = {
                 title: panelTask.title,
                 description: panelTask.description,
                 priority: 'empty',
-                status: 'pending',  // or you might want to set it to 'cutting' – adjust as needed
+                status: 'pending',
                 project_no: panelTask.projectNo,
                 approve_status: 'Approved',
                 due_date: panelTask.dueDate ? panelTask.dueDate.substring(0, 10) : null,
@@ -584,7 +583,6 @@ const PanelSlab = ({ onBackToProjects }) => {
         }
     };
 
-    // Handle combined media upload
     const handleUploadMedia = async (formData) => {
         if (!uploadingTask) return;
 
@@ -594,7 +592,7 @@ const PanelSlab = ({ onBackToProjects }) => {
         try {
             console.log('FormData contents:', Array.from(formData.entries()));
             await panelTasksAPI.uploadMedia(uploadingTask.id, formData);
-            await fetchTasks(); // Refresh tasks to get updated media URLs
+            await fetchTasks();
             closeUploadModal();
         } catch (err) {
             console.error('Failed to upload media:', err);
@@ -604,7 +602,6 @@ const PanelSlab = ({ onBackToProjects }) => {
         }
     };
 
-    // Handle image deletion (separate endpoint)
     const handleDeleteImage = async (taskId) => {
         if (!window.confirm('Are you sure you want to delete the image?')) return;
 
@@ -619,7 +616,6 @@ const PanelSlab = ({ onBackToProjects }) => {
         }
     };
 
-    // Filtering and sorting
     const filteredTasks = useMemo(() => {
         let filtered = tasks.filter(task => {
             if (filters.priority !== 'all' && task.priority !== filters.priority) return false;
@@ -636,7 +632,6 @@ const PanelSlab = ({ onBackToProjects }) => {
             return true;
         });
 
-        // Tiered Sorting
         filtered.sort((a, b) => {
             const isACompleted = a.status?.toLowerCase() === 'completed';
             const isBCompleted = b.status?.toLowerCase() === 'completed';
@@ -738,7 +733,6 @@ const PanelSlab = ({ onBackToProjects }) => {
             setTasks(prev => [createdTask, ...prev]);
             closeCreateModal();
 
-            // NEW: If the new task status is 'cutting', create a cutting task
             if (createdTask.status === 'cutting') {
                 await createCuttingTaskFromPanelTask(createdTask);
             }
@@ -759,7 +753,6 @@ const PanelSlab = ({ onBackToProjects }) => {
             return;
         }
 
-        // Get current task before update
         const currentTask = tasks.find(t => t.id === editingTask.id);
         if (!currentTask) return;
 
@@ -779,7 +772,6 @@ const PanelSlab = ({ onBackToProjects }) => {
             ));
             closeEditModal();
 
-            // NEW: If status changed to 'cutting' and wasn't before, create cutting task
             if (editingTask.status === 'cutting' && currentTask.status !== 'cutting') {
                 await createCuttingTaskFromPanelTask(updatedTask);
             }
@@ -790,7 +782,6 @@ const PanelSlab = ({ onBackToProjects }) => {
     };
 
     const handleUpdateTaskStatus = async (taskId, newStatus) => {
-        // Get current task before update
         const currentTask = tasks.find(t => t.id === taskId);
         if (!currentTask) return;
 
@@ -800,7 +791,6 @@ const PanelSlab = ({ onBackToProjects }) => {
                 task.id === taskId ? updatedTask : task
             ));
 
-            // NEW: If status changed to 'cutting' and wasn't before, create cutting task
             if (newStatus === 'cutting' && currentTask.status !== 'cutting') {
                 await createCuttingTaskFromPanelTask(updatedTask);
             }
@@ -872,7 +862,7 @@ const PanelSlab = ({ onBackToProjects }) => {
             case 'in-progress': return '#17a2b8';
             case 'pending': return '#ffc107';
             case 'on-hold': return '#6c757d';
-            case 'cutting': return '#fd7e14';   // NEW: orange for cutting
+            case 'cutting': return '#fd7e14';
             default: return '#6c757d';
         }
     };
@@ -900,6 +890,7 @@ const PanelSlab = ({ onBackToProjects }) => {
         });
     };
 
+    // Early returns for view pages
     if (showViewPanel) {
         return <ViewPanelPage onBack={goBackToPanelSlab} />;
     }
@@ -960,7 +951,6 @@ const PanelSlab = ({ onBackToProjects }) => {
                         <p className="card-value">{tasks.filter(t => t.status === 'on-hold').length}</p>
                     </div>
                 </div>
-                {/* NEW: Cutting card */}
                 <div className="dashboard-card">
                     <div className="card-icon">✂️</div>
                     <div className="card-content">
@@ -1006,7 +996,7 @@ const PanelSlab = ({ onBackToProjects }) => {
                             <option value="on-hold">On Hold</option>
                             <option value="in-progress">In Progress</option>
                             <option value="completed">Completed</option>
-                            <option value="cutting">Cutting</option>   {/* NEW */}
+                            <option value="cutting">Cutting</option>
                         </select>
 
                         <select
@@ -1026,7 +1016,7 @@ const PanelSlab = ({ onBackToProjects }) => {
 
             <div className="tasks-table-container">
                 {error && <div className="alert alert-danger">{error}</div>}
-                {cuttingError && <div className="alert alert-warning">{cuttingError}</div>}   {/* NEW */}
+                {cuttingError && <div className="alert alert-warning">{cuttingError}</div>}
 
                 {isLoading ? (
                     <div className="loading-state">
@@ -1107,7 +1097,7 @@ const PanelSlab = ({ onBackToProjects }) => {
                                                     <option value="on-hold">⏳ On Hold</option>
                                                     <option value="in-progress">🔄 In Progress</option>
                                                     <option value="completed">✅ Completed</option>
-                                                    <option value="cutting">✂️ Cutting</option>   {/* NEW */}
+                                                    <option value="cutting">✂️ Cutting</option>
                                                 </select>
                                             </div>
                                         </td>

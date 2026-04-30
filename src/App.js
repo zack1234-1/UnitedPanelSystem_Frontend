@@ -14,10 +14,10 @@ import ExcelExtractor from './ExcelExtractor';
 import ReportGenerator from './ReportGenerator';
 
 // =========================================================
-// 1. REAL API Service Implementation
+// 1. REAL API Service Implementatione
 // =========================================================
 
-const API_BASE = 'https://unitedpanelsystem-backend.onrender.com/api';
+const API_BASE = '/api';
 
 // Helper function for API calls
 const apiCall = async (endpoint, options = {}) => {
@@ -1266,7 +1266,15 @@ function App() {
         
         try {
             const updatedProject = await real_updateProject(editingProject.id, editingProject); 
-            setProjects(projects.map(p => (p.id === updatedProject.id ? updatedProject : p)));
+            setProjects(prev =>
+            prev.map(p => {
+                if (p.id === updatedProject.id) {
+                // Keep the old completion object (if it exists) and override only the changed project fields
+                return { ...updatedProject, completion: p.completion };
+                }
+                return p;
+            })
+            );
             setEditingProject(null);
             addNotification(`✏️ Job **${updatedProject.projectNo}** has been fully updated.`); 
         } catch (err) {
@@ -1656,7 +1664,6 @@ function App() {
             <div className={`sidebar ${isSidebarOpen ? 'open' : 'closed'}`}>
                 <div className="sidebar-header">
                     <div className={`app-logo ${isSidebarOpen ? 'full' : 'collapsed-text'}`}>
-                        **Project Tracker**
                     </div>
                     
                     <button className="sidebar-toggle-btn" onClick={toggleSidebar}>

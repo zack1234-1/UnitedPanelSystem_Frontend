@@ -1,4 +1,4 @@
-const BASE_URL = 'https://unitedpanelsystem-backend.onrender.com/api';
+const BASE_URL = '/api';
 
 // Helper to handle standard API responses
 const handleResponse = async (response) => {
@@ -420,6 +420,13 @@ export const viewPanelAPI = {
 
     // GET: Get overall statistics
     getStatsSummary: () => apiRequest('/panels/stats/summary'),
+};
+
+export const stockAPI = {
+    getAll: () => apiRequest('/stock'),
+    create: (data) => apiRequest('/stock', { method: 'POST', body: data }),
+    update: (id, data) => apiRequest(`/stock/${id}`, { method: 'PUT', body: data }),
+    delete: (id) => apiRequest(`/stock/${id}`, { method: 'DELETE' }),
 };
 
 export const productionAPI = {
